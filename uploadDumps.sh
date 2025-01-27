@@ -613,7 +613,7 @@ VERSION_FILE="version.txt"
 VERSION_FILE_PATH="/${VERSION_FILE}"
 boxType=$BOX_TYPE
 
-modNum="$(grep -i 'imagename:' ${VERSION_FILE_PATH} | head -n1 | cut -d ':' -f2 | cut -d '_' -f1)"
+modNum=`sh $RDK_PATH/getDeviceDetails.sh read model_number`
 
 # Ensure modNum is not empty
 checkParameter modNum
