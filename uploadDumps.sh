@@ -603,7 +603,8 @@ saveDump()
 
 VERSION_FILE="version.txt"
 boxType=$BOX_TYPE
-modNum=$(getModel)
+
+modNum=`sh $RDK_PATH/getDeviceDetails.sh read model_number`
 
 # Ensure modNum is not empty
 checkParameter modNum
