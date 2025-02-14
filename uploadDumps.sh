@@ -1,4 +1,4 @@
-#!/bin/busybox sh
+#!/bin/sh
 ##########################################################################
 # If not stated otherwise in this file or this component's LICENSE
 # file the following copyright and licenses apply:
@@ -23,7 +23,7 @@
 LOGMAPPER_FILE="/etc/breakpad-logmapper.conf"
 LOG_FILES="/tmp/minidump_log_files.txt"
 if [ -f /lib/rdk/t2Shared_api.sh ]; then
-    source /lib/rdk/t2Shared_api.sh
+    . /lib/rdk/t2Shared_api.sh
     IS_T2_ENABLED="true"
 fi
 
@@ -40,11 +40,11 @@ else
 fi
 
 if [ -f $RDK_PATH/exec_curl_mtls.sh ]; then
-     source $RDK_PATH/exec_curl_mtls.sh
+     . $RDK_PATH/exec_curl_mtls.sh
 fi
 
 if [ -f /lib/rdk/uploadDumpsToS3.sh ]; then
-     source /lib/rdk/uploadDumpsToS3.sh
+     . /lib/rdk/uploadDumpsToS3.sh
 fi
 
 if [ -f /lib/rdk/getSecureDumpStatus.sh ];then
@@ -79,7 +79,7 @@ if [ ! -e $MINIDUMPS_PATH/*.dmp* -a ! -e $CORE_PATH/*_core*.* ]; then exit 0; fi
 
 
 if [ -f /lib/rdk/getpartnerid.sh ]; then
-    source /lib/rdk/getpartnerid.sh
+    . /lib/rdk/getpartnerid.sh
     partnerId="$(getPartnerId)"
 fi
 
