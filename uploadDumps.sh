@@ -273,7 +273,7 @@ deleteAllButTheMostRecentFile()
 
 cleanup()
 {
-    if [ -z "$WORKING_DIR" ] || [ -z "$(ls -A $WORKING_DIR 2> /dev/null)" ]; then
+    if [ -z "$WORKING_DIR" ] || || [ ! -d "$WORKING_DIR" ] || [ -z "$(ls -A $WORKING_DIR 2> /dev/null)" ]; then
         logMessage "WORKING_DIR is empty!!!"
         return
     fi
@@ -281,13 +281,7 @@ cleanup()
     logMessage "Cleanup ${DUMP_NAME} directory ${WORKING_DIR}"
 
     # find and delete files by wildcard '*_mac*_dat*' and older than 2 days
-    find ${WORKING_DIR} -type f -name '*_mac*_dat*' -mtime +2 |
-    while IFS= read -r file;
-    do
-        rm -f "$file"
-        logMessage "Removed file: ${file}"
-    done
-
+    find "$WORKING_DIR" -type f -name '*_mac*_dat*' -mtime +2 -exec rm -f {} \; -exec logMessage "Removed file: {}" \;
     if [ ! -f /opt/.upload_on_startup ];then
         # delete version.txt
         rm -f ${WORKING_DIR}/version.txt
@@ -367,7 +361,7 @@ if [ -z "$WORKING_DIR" ] || [ -z "$(ls -A $WORKING_DIR 2> /dev/null)" ];then
 fi
 
 PORTAL_URL=$(tr181 -g Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl 2>&1)
-REQUEST_TYPE=17
+REQUEST_TYPE=1
 
 DENY_UPLOADS_FILE="/tmp/.deny_dump_uploads_till"
 ON_STARTUP_DUMPS_CLEANED_UP_BASE="/tmp/.on_startup_dumps_cleaned_up"
