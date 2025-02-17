@@ -40,11 +40,11 @@ else
 fi
 
 if [ -f $RDK_PATH/exec_curl_mtls.sh ]; then
-     source $RDK_PATH/exec_curl_mtls.sh
+     . $RDK_PATH/exec_curl_mtls.sh
 fi
 
 if [ -f /lib/rdk/uploadDumpsToS3.sh ]; then
-     source /lib/rdk/uploadDumpsToS3.sh
+     . /lib/rdk/uploadDumpsToS3.sh
 fi
 
 if [ -f /lib/rdk/getSecureDumpStatus.sh ];then
@@ -134,7 +134,7 @@ EnableOCSP="/tmp/.EnableOCSPCA"
 # Set the name of the log file using SHA1
 setLogFile()
 {
-    fileName=`basename $6`
+    fileName=$(basename $6)
     ## Do not perform log file processing if the core name is already processed
     echo "$fileName" | grep "_mac\|_dat\|_box\|_mod" 2> /dev/null 1> /dev/null
     if [ $? -eq 0 ]; then
@@ -217,12 +217,12 @@ MODEL_NUM_DEFAULT_VALUE="UNKNOWN"
 logMessage()
 {
     message="$1"
-    echo "`/bin/timestamp` [PID:$$]: $message" >> $CORE_LOG
+    echo "$(/bin/timestamp) [PID:$$]: $message" >> $CORE_LOG
 }
 
 tlsLog()
 {
-    echo "`/bin/timestamp`: $0: $*" >> $LOG_PATH/tlsError.log
+    echo "$(/bin/timestamp): $0: $*" >> $LOG_PATH/tlsError.log
 }
 
 sanitize()
@@ -231,24 +231,24 @@ sanitize()
    # remove all except alphanumerics and some symbols
    # don't use stmh like ${toClean//[^\/a-zA-Z0-9 :+,]/} \
    # here since it doesn't work with slash (due to old busybox version, probably)
-   clean=`echo "$toClean"|sed -e 's/[^/a-zA-Z0-9 :+._,=-]//g'`
+   clean=$(echo "$toClean"|sed -e 's/[^/a-zA-Z0-9 :+._,=-]//g')
    echo "$clean"
 }
 
 
 checkParameter()
 {
-    local paramName="$1"
-    local evaluatedValue="${!paramName}"
+    local paramName=\$"$1"
+    local evaluatedValue=`eval "expr \"$paramName\" "`
     if [ -z $evaluatedValue ] ; then
         case "$1" in
         sha1)
             logMessage "SHA1 is empty. Setting default value."
-            sha1="$SHA1_DEFAULT_VALUE"
+            eval "$1=$SHA1_DEFAULT_VALUE"
             ;;
         modNum)
             logMessage "Model num is empty. Setting default value."
-            modNum="$MODEL_NUM_DEFAULT_VALUE"
+            eval "$1=$MODEL_NUM_DEFAULT_VALUE"
             ;;
         *TS)
             logMessage "Timestamp is empty. Setting default value."
@@ -261,11 +261,11 @@ checkParameter()
 deleteAllButTheMostRecentFile()
 {
     path=$1
-    num_of_files=`find "$path" -type f | wc -l`
+    num_of_files=$(find "$path" -type f | wc -l)
     if [ "$num_of_files" -gt "$MAX_CORE_FILES" ]; then
         val=$((num_of_files - MAX_CORE_FILES))
         cd $path && ls -t1 | tail -n $val >> /tmp/dumps_to_delete.txt
-        logMessage "Deleting dump files: `cat /tmp/dumps_to_delete.txt`"
+        logMessage "Deleting dump files: $(cat /tmp/dumps_to_delete.txt)"
         while read line; do rm -rf $line; done < /tmp/dumps_to_delete.txt
         rm -rf /tmp/dumps_to_delete.txt
     fi
