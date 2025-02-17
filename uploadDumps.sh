@@ -104,10 +104,6 @@ fi
 CURL_LOG_OPTION="%{remote_ip} %{remote_port}"
 
 
-if [ -f /etc/waninfo.sh ]; then
-    . /etc/waninfo.sh
-    ARM_INTERFACE=$(getWanInterfaceName)
-fi
 
 # export PATH and LD_LIBRARY_PATH for curl
 export PATH=$PATH:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin
@@ -242,17 +238,17 @@ sanitize()
 
 checkParameter()
 {
-    local paramName=\$"$1"
-    local evaluatedValue=`eval "expr \"$paramName\" "`
+    local paramName="$1"
+    local evaluatedValue="${!paramName}"
     if [ -z $evaluatedValue ] ; then
         case "$1" in
         sha1)
             logMessage "SHA1 is empty. Setting default value."
-            eval "$1=$SHA1_DEFAULT_VALUE"
+            sha1="$SHA1_DEFAULT_VALUE"
             ;;
         modNum)
             logMessage "Model num is empty. Setting default value."
-            eval "$1=$MODEL_NUM_DEFAULT_VALUE"
+            modNum="$MODEL_NUM_DEFAULT_VALUE"
             ;;
         *TS)
             logMessage "Timestamp is empty. Setting default value."
@@ -609,11 +605,9 @@ saveDump()
      logMessage "Total pending Minidumps : $count"
 }
 
-VERSION_FILE="version.txt"
-VERSION_FILE_PATH="/${VERSION_FILE}"
-boxType=$BOX_TYPE
 
-modNum="$(grep -i 'imagename:' ${VERSION_FILE_PATH} | head -n1 | cut -d ':' -f2 | cut -d '_' -f1)"
+boxType=$BOX_TYPE
+modNum=$(getModel)
 
 # Ensure modNum is not empty
 checkParameter modNum
