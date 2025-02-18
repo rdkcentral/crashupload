@@ -641,8 +641,7 @@ shouldProcessFile()
 get_crashed_log_file()
 {
     file="$1"
-    pname=$(echo ${file} | rev | cut -d"_" -f2- | rev)
-    pname=${pname#"./"} #Remove ./ from the dump name
+    pname=$(basename "$file" | rev | awk -F'_' '{print $(NF-4)}' | rev)
     appname=$(echo ${file} | cut -d "_" -f 2 | cut -d "-" -f 1)
     logMessage "Process crashed = $pname"
     log_files=$(awk -v proc="$pname" -F= '$1 ~ proc {print $2}' $LOGMAPPER_FILE)
