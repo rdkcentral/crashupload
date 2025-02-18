@@ -295,11 +295,11 @@ cleanup()
             path="${WORKING_DIR}"
 
             # delete unfinished files from previous run
-            deleted_files=`find "$path" -type f -name "*_mac*_dat*" -print -exec rm -f {} \;`
+            deleted_files=$(find "$path" -type f -name "*_mac*_dat*" -print -exec rm -f {} \;)
             logMessage "Deleting unfinished files: ${deleted_files}"
 
             # delete non-dump files
-            deleted_files=`find "$path" -type f ! -name "${DUMPS_EXTN}" -print -exec rm -f {} \;`
+            deleted_files=$(find "$path" -type f ! -name "${DUMPS_EXTN}" -print -exec rm -f {} \;)
             logMessage "Deleting non-dump files : ${deleted_files}"
             deleteAllButTheMostRecentFile "$path"
 
@@ -364,7 +364,7 @@ if [ -z "$WORKING_DIR" ] || [ -z "$(ls -A $WORKING_DIR 2> /dev/null)" ];then
 fi
 
 PORTAL_URL=$(tr181 -g Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl 2>&1)
-REQUEST_TYPE=1
+REQUEST_TYPE=17
 
 DENY_UPLOADS_FILE="/tmp/.deny_dump_uploads_till"
 ON_STARTUP_DUMPS_CLEANED_UP_BASE="/tmp/.on_startup_dumps_cleaned_up"
@@ -857,7 +857,6 @@ processDumps()
                     logMessage "Success Compressing the files, $tgzFile $dumpName $VERSION_FILE $CORE_LOG "
                 else
                     # If the tar creation failed then will create new tar after copying logs files to /tmp
-	            logfiles="$VERSION_FILE $CORE_LOG"
                     OUT_FILES="$dumpName"
                     copy_log_files_tmp_dir $logfiles
 	            nice -n 19 tar -zcvf $tgzFile $OUT_FILES 2>&1 | logStdout
