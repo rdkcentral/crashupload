@@ -1,4 +1,4 @@
-#!/bin/busybox sh
+#!/bin/sh
 ##########################################################################
 # If not stated otherwise in this file or this component's LICENSE
 # file the following copyright and licenses apply:
@@ -18,6 +18,9 @@
 # limitations under the License.
 ##########################################################################
 #
+#Purpose : This script is to used to create dump file and upload 
+#Scope : RDK Devices
+#Usage : Triggered by systemd service
 #This file is from crashupload repository
 #Uploads coredumps to an ftp server if there are any
 LOGMAPPER_FILE="/etc/breakpad-logmapper.conf"
@@ -572,7 +575,7 @@ read -r MAC < /tmp/.macAddress
 MAC="${MAC//:}"
 logMessage "Mac address is $MAC"
 
-count=`find "$WORKING_DIR" -name "$DUMPS_EXTN" | wc -l`
+count=$(find "$WORKING_DIR" -name "$DUMPS_EXTN" | wc -l)
 if [ $count -eq 0 ]; then logMessage "No ${DUMP_NAME} for uploading exiting" ; exit 0; fi
 
 cleanup
@@ -585,12 +588,12 @@ saveDump()
         mv $MINIDUMPS_PATH/$S3_FILENAME $MINIDUMPS_PATH/$1
     fi
 
-    count=`ls $MINIDUMPS_PATH | grep ".dmp.tgz" | wc -l`
+    count=$(find "$MINIDUMPS_PATH" -type f -name "*.dmp.tgz" | wc -l)
     while [ $count -gt 5 ]; do
-         olddumps=`ls -t $MINIDUMPS_PATH | tail -1`
+         olddumps=$(ls -t $MINIDUMPS_PATH | tail -1)
          logMessage "Removing old dump $olddumps"
          rm -rf $MINIDUMPS_PATH/$olddumps
-         count=`ls $MINIDUMPS_PATH | wc -l`
+         count=$(ls $MINIDUMPS_PATH | wc -l)
      done
      logMessage "Total pending Minidumps : $count"
 }
@@ -638,11 +641,11 @@ shouldProcessFile()
 get_crashed_log_file()
 {
     file="$1"
-    pname=`echo ${file} | rev | cut -d"_" -f2- | rev`
+    pname=$(echo ${file} | rev | cut -d"_" -f2- | rev)
     pname=${pname#"./"} #Remove ./ from the dump name
-    appname=`echo ${file} | cut -d "_" -f 2 | cut -d "-" -f 1`
+    appname=$(echo ${file} | cut -d "_" -f 2 | cut -d "-" -f 1)
     logMessage "Process crashed = $pname"
-    log_files=`awk -v proc="$pname" -F= '$1 ~ proc {print $2}' $LOGMAPPER_FILE`
+    log_files=$(awk -v proc="$pname" -F= '$1 ~ proc {print $2}' $LOGMAPPER_FILE)
     logMessage "Crashed process log file(s): $log_files"
     if [ ! -z "$appname" ];then
         logMessage "Appname, Process_Crashed = $appname, $pname"
@@ -724,9 +727,9 @@ add_crashed_log_file()
     while read line
     do
         if [ ! -z "$line" -a -f "$line" ]; then
-            logModTS=`getLastModifiedTimeOfFile $line`
+            logModTS=$(getLastModifiedTimeOfFile $line)
             checkParameter logModTS
-            process_log=`setLogFile $sha1 $MAC $logModTS $boxType $modNum $line`
+            process_log=$(setLogFile $sha1 $MAC $logModTS $boxType $modNum $line)
             tail -n ${line_count} $line > $process_log
             logMessage "Adding File: $process_log to minidump tarball"
             files="$files $process_log"
