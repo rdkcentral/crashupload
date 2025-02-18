@@ -834,16 +834,23 @@ processDumps()
             cp "/"$VERSION_FILE .
             TMP_DIR_NAME=$dumpName
 
-            logMessage "Size of the file: `ls -l $dumpName`"
-            if [ "$DUMP_FLAG" == "1" ] ; then
+            logMessage "Size of the file: $(ls -l $dumpName)"
+           if [ "$DUMP_FLAG" == "1" ] ; then
+	        logfiles="$VERSION_FILE $CORE_LOG"
                 if [ -f /tmp/set_crash_reboot_flag ];then
 			logMessage "Compression without nice"
-			tar -zcvf $tgzFile $dumpName $VERSION_FILE $CORE_LOG 2>&1 | logStdout
+			tar -zcvf $tgzFile $dumpName $logfiles 2>&1 | logStdout
 		else
 		        logMessage "Compression with nice"
-                        nice -n 19 tar -zcvf $tgzFile $dumpName $VERSION_FILE $CORE_LOG 2>&1 | logStdout
+                        nice -n 19 tar -zcvf $tgzFile $dumpName $logfiles 2>&1 | logStdout
                 fi
-		if [ $? -eq 0 ]; then
+            else     
+                    crashedUrlFile=$LOG_PATH/crashed_url.txt
+                    logfiles="$VERSION_FILE $CORE_LOG $crashedUrlFile"
+                    add_crashed_log_file $logfiles
+                    nice -n 19 tar -zcvf $tgzFile $dumpName $logfiles 2>&1 | logStdout
+             fi
+	       if [ $? -eq 0 ]; then
                     logMessage "Success Compressing the files, $tgzFile $dumpName $VERSION_FILE $CORE_LOG "
                 else
                     # If the tar creation failed then will create new tar after copying logs files to /tmp
@@ -855,32 +862,9 @@ processDumps()
                        logMessage "Success Compressing the files, $tgzFile $OUT_FILES"
                     else
                        logMessage "Compression Failed ."
-					fi
+		    fi
                 fi
-            else
-                if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
-					crashedUrlFile=$LOG_PATH/crashed_url.txt
-                    files="$VERSION_FILE $CORE_LOG $crashedUrlFile"
-                    add_crashed_log_file $files
-                    nice -n 19 tar -zcvf $tgzFile $dumpName $files 2>&1 | logStdout
-                    if [ $? -eq 0 ]; then
-                        logMessage "Success Compressing the files $tgzFile $dumpName $files"
-                    else
-                        # If the tar creation failed then will create new tar after copying logs files to /tmp
-                        OUT_FILES="$dumpName"
-		        copy_log_files_tmp_dir $files
-		        nice -n 19 tar -zcvf $tgzFile $OUT_FILES 2>&1 | logStdout
-                        if [ $? -eq 0 ]; then
-                           logMessage "Success Compressing the files, $tgzFile $OUT_FILES"
-                        else
-                           logMessage "Compression Failed ."
-		        fi
-                    fi
-                else
-                    echo "$0 New Model, need to add support..!"
-                fi
-            fi
-            logMessage "Size of the compressed file: `ls -l $tgzFile`"
+            logMessage "Size of the compressed file: $(ls -l $tgzFile)"
 	    
 	    if [ ! -z "$TMP_DIR_NAME" && -d "/tmp/$TMP_DIR_NAME" ]; then
 	       rm -rf /tmp/$TMP_DIR_NAME
@@ -912,15 +896,13 @@ processDumps()
                 removePendingDumps
                 exit
             fi
-            if [ "$DUMP_NAME" = "minidump" ]; then
-                if isUploadLimitReached; then
+            if [ "$DUMP_NAME" = "minidump" ] && isUploadLimitReached ; then
                     logMessage "Upload rate limit has been reached."
                     markAsCrashLoopedAndUpload $f
                     logMessage "Setting recovery time"
                     setRecoveryTime
                     removePendingDumps
                     exit
-                fi
             else
                 logMessage "Coredump File `echo $f`"
             fi
@@ -969,11 +951,8 @@ processDumps()
 	    fi
             while [ $count -le 3 ]
             do
-                if [ -f /etc/waninfo.sh ]; then
-                    ARM_INTERFACE=$(getWanInterfaceName)
-                fi
                 # S3 amazon fail over recovery
-				count=$(( count +1))
+		count=$(( count +1))
                 if [ $status -ne 0 ];then
                      logMessage "[$0]: Execution Status: $status, S3 Amazon Upload of $DUMP_NAME Failed"
                      logMessage "[$0]: $count: (Retry), $DUMP_NAME S3 Upload"
