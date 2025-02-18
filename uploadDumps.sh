@@ -486,7 +486,7 @@ fi
 
 #defer code upload for 8 mins of uptime to avoid CPU load during bootup(Only for Video devices)
 if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
-    uptime_val=`cat /proc/uptime | awk '{ split($1,a,".");  print a[1]; }'`
+    uptime_val=$(cut -d. -f1 /proc/uptime)
     if [ $uptime_val -lt $FOUR_EIGHTY_SECS ]; then
         sleep_time=$((FOUR_EIGHTY_SECS - uptime_val))
         logMessage "Deferring reboot for $sleep_time seconds"
