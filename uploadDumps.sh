@@ -641,7 +641,7 @@ shouldProcessFile()
 get_crashed_log_file()
 {
     file="$1"
-    pname=$(basename "$file" | rev | awk -F'_' '{print $(NF-4)}' | rev)
+    pname=$(basename "$file" | cut -d'_' -f1)
     appname=$(echo ${file} | cut -d "_" -f 2 | cut -d "-" -f 1)
     logMessage "Process crashed = $pname"
     log_files=$(awk -v proc="$pname" -F= '$1 ~ proc {print $2}' $LOGMAPPER_FILE)
