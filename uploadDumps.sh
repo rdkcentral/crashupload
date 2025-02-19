@@ -593,7 +593,7 @@ saveDump()
      logMessage "Total pending Minidumps : $count"
 }
 
-
+VERSION_FILE="version.txt"
 boxType=$BOX_TYPE
 modNum=$(getModel)
 
@@ -636,7 +636,8 @@ shouldProcessFile()
 get_crashed_log_file()
 {
     file="$1"
-    pname=$(basename "$file" | cut -d'_' -f1)
+    pname=`echo ${file} | rev | cut -d"_" -f2- | rev`
+    pname=${pname#"./"} #Remove ./ from the dump name
     appname=$(echo ${file} | cut -d "_" -f 2 | cut -d "-" -f 1)
     logMessage "Process crashed = $pname"
     log_files=$(awk -v proc="$pname" -F= '$1 ~ proc {print $2}' $LOGMAPPER_FILE)
@@ -995,23 +996,13 @@ processDumps()
     done
 }
 
-if [ "$DUMP_FLAG" == "0" ]; then
-    for j in 1 2 3; do
-        minidump_files=$(find . -name "$DUMPS_EXTN" | head -n1)
-        if [ -z "$minidump_files" ]; then
+for j in 1 2 3; do
+     dump_files=$(find . -name "$DUMPS_EXTN" | head -n1)
+     if [ -z "$dump_files" ]; then
             break
-        fi
+     fi
         processDumps
-    done
-else
-    for i in 1 2 3; do
-        coredump_files=$(find . -name "$DUMPS_EXTN" | head -n1)
-        if [ -z "$coredump_files" ]; then
-            break
-        fi
-        processDumps
-    done
-fi
+done
 
 finalize
 
