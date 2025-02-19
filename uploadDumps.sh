@@ -284,7 +284,12 @@ cleanup()
     logMessage "Cleanup ${DUMP_NAME} directory ${WORKING_DIR}"
 
     # find and delete files by wildcard '*_mac*_dat*' and older than 2 days
-    find "$WORKING_DIR" -type f -name '*_mac*_dat*' -mtime +2 -exec rm -f {} \; -exec logMessage "Removed file: {}" \;
+    find ${WORKING_DIR} -type f -name '*_mac*_dat*' -mtime +2 |
+    while IFS= read -r file;
+    do
+        rm -f "$file"
+        logMessage "Removed file: ${file}"
+    done
     if [ ! -f /opt/.upload_on_startup ];then
         # delete version.txt
         rm -f ${WORKING_DIR}/version.txt
@@ -459,9 +464,12 @@ isRecoveryTimeReached()
 # Uses globals: WORKING_DIR, DUMPS_EXTN
 removePendingDumps()
 {
-    find ${WORKING_DIR} \( -name "*.dmp.*" -o -name "*.tgz" \) -exec rm -rf {} \; -exec logMessage "Removed file  because upload limit has been reached or build is blacklisted or TelemetryOptOut is set: {}" \;
+      find "$WORKING_DIR" -name "$DUMPS_EXTN" -o -name "*.tgz" |
+      while read file; do
+          logMessage "Removing $file because upload limit has been reached or build is blacklisted or TelemetryOptOut is set"
+          rm -f $file
+      done
 }
-
 # Marks archive as crashlooped and uploads it to Crash Portal
 # Arg 1: relative path for tgz to process
 markAsCrashLoopedAndUpload()
@@ -893,13 +901,15 @@ processDumps()
                 removePendingDumps
                 exit
             fi
-            if [ "$DUMP_NAME" = "minidump" ] && isUploadLimitReached ; then
+            if [ "$DUMP_NAME" = "minidump" ] ; then
+	        if isUploadLimitReached; then   
                     logMessage "Upload rate limit has been reached."
                     markAsCrashLoopedAndUpload $f
                     logMessage "Setting recovery time"
                     setRecoveryTime
                     removePendingDumps
                     exit
+		fi
             else
                 logMessage "Coredump File `echo $f`"
             fi
