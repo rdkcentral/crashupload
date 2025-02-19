@@ -276,7 +276,7 @@ deleteAllButTheMostRecentFile()
 
 cleanup()
 {
-    if [ -z "$WORKING_DIR" ] || || [ ! -d "$WORKING_DIR" ] || [ -z "$(ls -A $WORKING_DIR 2> /dev/null)" ]; then
+    if [ -z "$WORKING_DIR" ] || [ ! -d "$WORKING_DIR" ] || [ -z "$(ls -A $WORKING_DIR 2> /dev/null)" ]; then
         logMessage "WORKING_DIR is empty!!!"
         return
     fi
