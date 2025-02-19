@@ -862,7 +862,7 @@ processDumps()
                 fi
             logMessage "Size of the compressed file: $(ls -l $tgzFile)"
 	    
-	    if [ ! -z "$TMP_DIR_NAME" && -d "/tmp/$TMP_DIR_NAME" ]; then
+	    if [ ! -z "$TMP_DIR_NAME" ] && [ -d "/tmp/$TMP_DIR_NAME" ]; then
 	       rm -rf /tmp/$TMP_DIR_NAME
 	       logMessage "Temporary Directory Deleted:/tmp/$TMP_DIR_NAME"
             fi
