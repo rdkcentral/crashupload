@@ -548,11 +548,6 @@ fi
 # Upon exit, remove locking
 trap finalize EXIT
 
-if isBuildBlacklisted; then
-    logMessage "Skipping upload. The build is blacklisted."
-    removePendingDumps
-    exit
-fi
 
 if [ ! -f /tmp/coredump_mutex_release ] && [ "$DUMP_FLAG" == "1" ]; then
      logMessage "Waiting for Coredump Completion"
