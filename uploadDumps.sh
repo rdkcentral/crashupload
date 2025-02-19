@@ -459,7 +459,7 @@ isRecoveryTimeReached()
 # Uses globals: WORKING_DIR, DUMPS_EXTN
 removePendingDumps()
 {
-    find "$WORKING_DIR" -name "$DUMPS_EXTN" -o -name "*.tgz" -exec rm -f {} \; -exec logMessage "Removed file  because upload limit has been reached or build is blacklisted or TelemetryOptOut is set: {}" \;
+    find ${WORKING_DIR} \( -name "*.dmp.*" -o -name "*.tgz" \) -exec rm -rf {} \; -exec logMessage "Removed file  because upload limit has been reached or build is blacklisted or TelemetryOptOut is set: {}" \;
 }
 
 # Marks archive as crashlooped and uploads it to Crash Portal
