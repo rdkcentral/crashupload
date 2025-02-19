@@ -18,9 +18,9 @@
 # limitations under the License.
 ##########################################################################
 #
-#Purpose : This script is to used to create dump file and upload 
+#Purpose : This script is to used to create and upload dump files
 #Scope : RDK Devices
-#Usage : Triggered by systemd service
+#Usage : Triggered by a path based systemd service
 #This file is from crashupload repository
 #Uploads coredumps to an ftp server if there are any
 LOGMAPPER_FILE="/etc/breakpad-logmapper.conf"
@@ -78,7 +78,7 @@ if [[ ! -f $CORE_LOG ]]; then
 fi
 
 #Check for coredump and minidump files
-if [ -z "$(ls -A $MINIDUMPS_PATH 2> /dev/null)" ] && [  -z "$(ls -A $COREDUMPS_PATH 2> /dev/null)" ]; then exit 0; fi
+if [ -z "$(ls -A "$MINIDUMPS_PATH" 2> /dev/null)" ] && [  -z "$(ls -A "$COREDUMPS_PATH" 2> /dev/null)" ]; then exit 0; fi
 
 
 if [ -f /lib/rdk/getpartnerid.sh ]; then
