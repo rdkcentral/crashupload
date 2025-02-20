@@ -852,8 +852,8 @@ processDumps()
                 fi
             else     
                     crashedUrlFile=$LOG_PATH/crashed_url.txt
-                    logfiles="$VERSION_FILE $CORE_LOG $crashedUrlFile"
-                    add_crashed_log_file $logfiles
+                    files="$VERSION_FILE $CORE_LOG $crashedUrlFile"
+                    add_crashed_log_file $files
                     nice -n 19 tar -zcvf $tgzFile $dumpName $logfiles 2>&1 | logStdout
              fi
 	       if [ $? -eq 0 ]; then
@@ -861,7 +861,7 @@ processDumps()
                 else
                     # If the tar creation failed then will create new tar after copying logs files to /tmp
                     OUT_FILES="$dumpName"
-                    copy_log_files_tmp_dir $logfiles
+		    [ "$DUMP_FLAG" == "1" ] && copy_log_files_tmp_dir $logfiles || copy_log_files_tmp_dir $files
 	            nice -n 19 tar -zcvf $tgzFile $OUT_FILES 2>&1 | logStdout
                     if [ $? -eq 0 ]; then
                        logMessage "Success Compressing the files, $tgzFile $OUT_FILES"
