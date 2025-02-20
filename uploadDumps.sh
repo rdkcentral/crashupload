@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/busybox sh
 ##########################################################################
 # If not stated otherwise in this file or this component's LICENSE
 # file the following copyright and licenses apply:
@@ -78,7 +78,7 @@ if [[ ! -f $CORE_LOG ]]; then
 fi
 
 #Check for coredump and minidump files
-if [ -z "$(ls -A "$MINIDUMPS_PATH" 2> /dev/null)" ] && [  -z "$(ls -A "$COREDUMPS_PATH" 2> /dev/null)" ]; then exit 0; fi
+if [ ! -e $MINIDUMPS_PATH/*.dmp* -a ! -e $CORE_PATH/*_core*.* ]; then exit 0; fi
 
 
 if [ -f /lib/rdk/getpartnerid.sh ]; then
