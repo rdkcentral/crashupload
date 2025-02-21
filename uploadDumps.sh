@@ -901,15 +901,15 @@ processDumps()
                 removePendingDumps
                 exit
             fi
-            if [ "$DUMP_NAME" = "minidump" ] ; then
-	        if isUploadLimitReached; then   
+            if [ "$DUMP_NAME" = "minidump" ]; then
+	         if isUploadLimitReached; then   
                     logMessage "Upload rate limit has been reached."
                     markAsCrashLoopedAndUpload $f
                     logMessage "Setting recovery time"
                     setRecoveryTime
                     removePendingDumps
                     exit
-		fi
+		 fi
             else
                 logMessage "Coredump File `echo $f`"
             fi
