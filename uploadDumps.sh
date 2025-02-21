@@ -854,7 +854,7 @@ processDumps()
                     crashedUrlFile=$LOG_PATH/crashed_url.txt
                     files="$VERSION_FILE $CORE_LOG $crashedUrlFile"
                     add_crashed_log_file $files
-                    nice -n 19 tar -zcvf $tgzFile $dumpName $logfiles 2>&1 | logStdout
+                    nice -n 19 tar -zcvf $tgzFile $dumpName $files 2>&1 | logStdout
              fi
 	       if [ $? -eq 0 ]; then
                     logMessage "Success Compressing the files, $tgzFile $dumpName $VERSION_FILE $CORE_LOG "
