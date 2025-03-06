@@ -18,6 +18,9 @@
 # limitations under the License.
 ##########################################################################
 #
+#Purpose : This script is to used to create and upload dump files
+#Scope : RDK Devices
+#Usage : Triggered by a path based systemd service
 #This file is from crashupload repository
 #Uploads coredumps to an ftp server if there are any
 LOGMAPPER_FILE="/etc/breakpad-logmapper.conf"
@@ -40,11 +43,11 @@ else
 fi
 
 if [ -f $RDK_PATH/exec_curl_mtls.sh ]; then
-     source $RDK_PATH/exec_curl_mtls.sh
+     . $RDK_PATH/exec_curl_mtls.sh
 fi
 
 if [ -f /lib/rdk/uploadDumpsToS3.sh ]; then
-     source /lib/rdk/uploadDumpsToS3.sh
+     . /lib/rdk/uploadDumpsToS3.sh
 fi
 
 if [ -f /lib/rdk/getSecureDumpStatus.sh ];then
@@ -104,10 +107,6 @@ fi
 CURL_LOG_OPTION="%{remote_ip} %{remote_port}"
 
 
-if [ -f /etc/waninfo.sh ]; then
-    . /etc/waninfo.sh
-    ARM_INTERFACE=$(getWanInterfaceName)
-fi
 
 # export PATH and LD_LIBRARY_PATH for curl
 export PATH=$PATH:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin
@@ -138,7 +137,7 @@ EnableOCSP="/tmp/.EnableOCSPCA"
 # Set the name of the log file using SHA1
 setLogFile()
 {
-    fileName=`basename $6`
+    fileName=$(basename $6)
     ## Do not perform log file processing if the core name is already processed
     echo "$fileName" | grep "_mac\|_dat\|_box\|_mod" 2> /dev/null 1> /dev/null
     if [ $? -eq 0 ]; then
@@ -221,12 +220,12 @@ MODEL_NUM_DEFAULT_VALUE="UNKNOWN"
 logMessage()
 {
     message="$1"
-    echo "`/bin/timestamp` [PID:$$]: $message" >> $CORE_LOG
+    echo "$(/bin/timestamp) [PID:$$]: $message" >> $CORE_LOG
 }
 
 tlsLog()
 {
-    echo "`/bin/timestamp`: $0: $*" >> $LOG_PATH/tlsError.log
+    echo "$(/bin/timestamp): $0: $*" >> $LOG_PATH/tlsError.log
 }
 
 sanitize()
@@ -235,7 +234,7 @@ sanitize()
    # remove all except alphanumerics and some symbols
    # don't use stmh like ${toClean//[^\/a-zA-Z0-9 :+,]/} \
    # here since it doesn't work with slash (due to old busybox version, probably)
-   clean=`echo "$toClean"|sed -e 's/[^/a-zA-Z0-9 :+._,=-]//g'`
+   clean=$(echo "$toClean"|sed -e 's/[^/a-zA-Z0-9 :+._,=-]//g')
    echo "$clean"
 }
 
@@ -265,11 +264,11 @@ checkParameter()
 deleteAllButTheMostRecentFile()
 {
     path=$1
-    num_of_files=`find "$path" -type f | wc -l`
+    num_of_files=$(find "$path" -type f | wc -l)
     if [ "$num_of_files" -gt "$MAX_CORE_FILES" ]; then
         val=$((num_of_files - MAX_CORE_FILES))
         cd $path && ls -t1 | tail -n $val >> /tmp/dumps_to_delete.txt
-        logMessage "Deleting dump files: `cat /tmp/dumps_to_delete.txt`"
+        logMessage "Deleting dump files: $(cat /tmp/dumps_to_delete.txt)"
         while read line; do rm -rf $line; done < /tmp/dumps_to_delete.txt
         rm -rf /tmp/dumps_to_delete.txt
     fi
@@ -277,7 +276,7 @@ deleteAllButTheMostRecentFile()
 
 cleanup()
 {
-    if [ -z "$WORKING_DIR" ] || [ -z "$(ls -A $WORKING_DIR 2> /dev/null)" ]; then
+    if [ -z "$WORKING_DIR" ] || [ ! -d "$WORKING_DIR" ] || [ -z "$(ls -A $WORKING_DIR 2> /dev/null)" ]; then
         logMessage "WORKING_DIR is empty!!!"
         return
     fi
@@ -291,7 +290,6 @@ cleanup()
         rm -f "$file"
         logMessage "Removed file: ${file}"
     done
-
     if [ ! -f /opt/.upload_on_startup ];then
         # delete version.txt
         rm -f ${WORKING_DIR}/version.txt
@@ -302,11 +300,11 @@ cleanup()
             path="${WORKING_DIR}"
 
             # delete unfinished files from previous run
-            deleted_files=`find "$path" -type f -name "*_mac*_dat*" -print -exec rm -f {} \;`
+            deleted_files=$(find "$path" -type f -name "*_mac*_dat*" -print -exec rm -f {} \;)
             logMessage "Deleting unfinished files: ${deleted_files}"
 
             # delete non-dump files
-            deleted_files=`find "$path" -type f ! -name "${DUMPS_EXTN}" -print -exec rm -f {} \;`
+            deleted_files=$(find "$path" -type f ! -name "${DUMPS_EXTN}" -print -exec rm -f {} \;)
             logMessage "Deleting non-dump files : ${deleted_files}"
             deleteAllButTheMostRecentFile "$path"
 
@@ -466,13 +464,12 @@ isRecoveryTimeReached()
 # Uses globals: WORKING_DIR, DUMPS_EXTN
 removePendingDumps()
 {
-    find "$WORKING_DIR" -name "$DUMPS_EXTN" -o -name "*.tgz" |
+      find "$WORKING_DIR" -name "$DUMPS_EXTN" -o -name "*.tgz" |
       while read file; do
           logMessage "Removing $file because upload limit has been reached or build is blacklisted or TelemetryOptOut is set"
           rm -f $file
       done
 }
-
 # Marks archive as crashlooped and uploads it to Crash Portal
 # Arg 1: relative path for tgz to process
 markAsCrashLoopedAndUpload()
@@ -497,7 +494,7 @@ fi
 
 #defer code upload for 8 mins of uptime to avoid CPU load during bootup(Only for Video devices)
 if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
-    uptime_val=`cat /proc/uptime | awk '{ split($1,a,".");  print a[1]; }'`
+    uptime_val=$(cut -d. -f1 /proc/uptime)
     if [ $uptime_val -lt $FOUR_EIGHTY_SECS ]; then
         sleep_time=$((FOUR_EIGHTY_SECS - uptime_val))
         logMessage "Deferring reboot for $sleep_time seconds"
@@ -559,11 +556,6 @@ fi
 # Upon exit, remove locking
 trap finalize EXIT
 
-if isBuildBlacklisted; then
-    logMessage "Skipping upload. The build is blacklisted."
-    removePendingDumps
-    exit
-fi
 
 if [ ! -f /tmp/coredump_mutex_release ] && [ "$DUMP_FLAG" == "1" ]; then
      logMessage "Waiting for Coredump Completion"
@@ -586,7 +578,7 @@ read -r MAC < /tmp/.macAddress
 MAC="${MAC//:}"
 logMessage "Mac address is $MAC"
 
-count=`find "$WORKING_DIR" -name "$DUMPS_EXTN" | wc -l`
+count=$(find "$WORKING_DIR" -name "$DUMPS_EXTN" | wc -l)
 if [ $count -eq 0 ]; then logMessage "No ${DUMP_NAME} for uploading exiting" ; exit 0; fi
 
 cleanup
@@ -599,21 +591,19 @@ saveDump()
         mv $MINIDUMPS_PATH/$S3_FILENAME $MINIDUMPS_PATH/$1
     fi
 
-    count=`ls $MINIDUMPS_PATH | grep ".dmp.tgz" | wc -l`
+    count=$(find "$MINIDUMPS_PATH" -type f -name "*.dmp.tgz" | wc -l)
     while [ $count -gt 5 ]; do
-         olddumps=`ls -t $MINIDUMPS_PATH | tail -1`
+         olddumps=$(ls -t $MINIDUMPS_PATH | tail -1)
          logMessage "Removing old dump $olddumps"
          rm -rf $MINIDUMPS_PATH/$olddumps
-         count=`ls $MINIDUMPS_PATH | wc -l`
+         count=$(ls $MINIDUMPS_PATH | wc -l)
      done
      logMessage "Total pending Minidumps : $count"
 }
 
 VERSION_FILE="version.txt"
-VERSION_FILE_PATH="/${VERSION_FILE}"
 boxType=$BOX_TYPE
-
-modNum="$(grep -i 'imagename:' ${VERSION_FILE_PATH} | head -n1 | cut -d ':' -f2 | cut -d '_' -f1)"
+modNum=$(getModel)
 
 # Ensure modNum is not empty
 checkParameter modNum
@@ -656,9 +646,9 @@ get_crashed_log_file()
     file="$1"
     pname=`echo ${file} | rev | cut -d"_" -f2- | rev`
     pname=${pname#"./"} #Remove ./ from the dump name
-    appname=`echo ${file} | cut -d "_" -f 2 | cut -d "-" -f 1`
+    appname=$(echo ${file} | cut -d "_" -f 2 | cut -d "-" -f 1)
     logMessage "Process crashed = $pname"
-    log_files=`awk -v proc="$pname" -F= '$1 ~ proc {print $2}' $LOGMAPPER_FILE`
+    log_files=$(awk -v proc="$pname" -F= '$1 ~ proc {print $2}' $LOGMAPPER_FILE)
     logMessage "Crashed process log file(s): $log_files"
     if [ ! -z "$appname" ];then
         logMessage "Appname, Process_Crashed = $appname, $pname"
@@ -740,9 +730,9 @@ add_crashed_log_file()
     while read line
     do
         if [ ! -z "$line" -a -f "$line" ]; then
-            logModTS=`getLastModifiedTimeOfFile $line`
+            logModTS=$(getLastModifiedTimeOfFile $line)
             checkParameter logModTS
-            process_log=`setLogFile $sha1 $MAC $logModTS $boxType $modNum $line`
+            process_log=$(setLogFile $sha1 $MAC $logModTS $boxType $modNum $line)
             tail -n ${line_count} $line > $process_log
             logMessage "Adding File: $process_log to minidump tarball"
             files="$files $process_log"
@@ -850,55 +840,38 @@ processDumps()
             cp "/"$VERSION_FILE .
             TMP_DIR_NAME=$dumpName
 
-            logMessage "Size of the file: `ls -l $dumpName`"
-            if [ "$DUMP_FLAG" == "1" ] ; then
+            logMessage "Size of the file: $(ls -l $dumpName)"
+           if [ "$DUMP_FLAG" == "1" ] ; then
+	        logfiles="$VERSION_FILE $CORE_LOG"
                 if [ -f /tmp/set_crash_reboot_flag ];then
 			logMessage "Compression without nice"
-			tar -zcvf $tgzFile $dumpName $VERSION_FILE $CORE_LOG 2>&1 | logStdout
+			tar -zcvf $tgzFile $dumpName $logfiles 2>&1 | logStdout
 		else
 		        logMessage "Compression with nice"
-                        nice -n 19 tar -zcvf $tgzFile $dumpName $VERSION_FILE $CORE_LOG 2>&1 | logStdout
+                        nice -n 19 tar -zcvf $tgzFile $dumpName $logfiles 2>&1 | logStdout
                 fi
-		if [ $? -eq 0 ]; then
+            else     
+                    crashedUrlFile=$LOG_PATH/crashed_url.txt
+                    files="$VERSION_FILE $CORE_LOG $crashedUrlFile"
+                    add_crashed_log_file $files
+                    nice -n 19 tar -zcvf $tgzFile $dumpName $files 2>&1 | logStdout
+             fi
+	       if [ $? -eq 0 ]; then
                     logMessage "Success Compressing the files, $tgzFile $dumpName $VERSION_FILE $CORE_LOG "
                 else
                     # If the tar creation failed then will create new tar after copying logs files to /tmp
-	            logfiles="$VERSION_FILE $CORE_LOG"
                     OUT_FILES="$dumpName"
-                    copy_log_files_tmp_dir $logfiles
+		    [ "$DUMP_FLAG" == "1" ] && copy_log_files_tmp_dir $logfiles || copy_log_files_tmp_dir $files
 	            nice -n 19 tar -zcvf $tgzFile $OUT_FILES 2>&1 | logStdout
                     if [ $? -eq 0 ]; then
                        logMessage "Success Compressing the files, $tgzFile $OUT_FILES"
                     else
                        logMessage "Compression Failed ."
-					fi
+		    fi
                 fi
-            else
-                if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
-					crashedUrlFile=$LOG_PATH/crashed_url.txt
-                    files="$VERSION_FILE $CORE_LOG $crashedUrlFile"
-                    add_crashed_log_file $files
-                    nice -n 19 tar -zcvf $tgzFile $dumpName $files 2>&1 | logStdout
-                    if [ $? -eq 0 ]; then
-                        logMessage "Success Compressing the files $tgzFile $dumpName $files"
-                    else
-                        # If the tar creation failed then will create new tar after copying logs files to /tmp
-                        OUT_FILES="$dumpName"
-		        copy_log_files_tmp_dir $files
-		        nice -n 19 tar -zcvf $tgzFile $OUT_FILES 2>&1 | logStdout
-                        if [ $? -eq 0 ]; then
-                           logMessage "Success Compressing the files, $tgzFile $OUT_FILES"
-                        else
-                           logMessage "Compression Failed ."
-		        fi
-                    fi
-                else
-                    echo "$0 New Model, need to add support..!"
-                fi
-            fi
-            logMessage "Size of the compressed file: `ls -l $tgzFile`"
+            logMessage "Size of the compressed file: $(ls -l $tgzFile)"
 	    
-	    if [ ! -z "$TMP_DIR_NAME" && -d "/tmp/$TMP_DIR_NAME" ]; then
+	    if [ ! -z "$TMP_DIR_NAME" ] && [ -d "/tmp/$TMP_DIR_NAME" ]; then
 	       rm -rf /tmp/$TMP_DIR_NAME
 	       logMessage "Temporary Directory Deleted:/tmp/$TMP_DIR_NAME"
             fi
@@ -929,14 +902,14 @@ processDumps()
                 exit
             fi
             if [ "$DUMP_NAME" = "minidump" ]; then
-                if isUploadLimitReached; then
+	         if isUploadLimitReached; then   
                     logMessage "Upload rate limit has been reached."
                     markAsCrashLoopedAndUpload $f
                     logMessage "Setting recovery time"
                     setRecoveryTime
                     removePendingDumps
                     exit
-                fi
+		 fi
             else
                 logMessage "Coredump File `echo $f`"
             fi
@@ -985,11 +958,8 @@ processDumps()
 	    fi
             while [ $count -le 3 ]
             do
-                if [ -f /etc/waninfo.sh ]; then
-                    ARM_INTERFACE=$(getWanInterfaceName)
-                fi
                 # S3 amazon fail over recovery
-				count=$(( count +1))
+		count=$(( count +1))
                 if [ $status -ne 0 ];then
                      logMessage "[$0]: Execution Status: $status, S3 Amazon Upload of $DUMP_NAME Failed"
                      logMessage "[$0]: $count: (Retry), $DUMP_NAME S3 Upload"
@@ -1036,23 +1006,13 @@ processDumps()
     done
 }
 
-if [ "$DUMP_FLAG" == "0" ]; then
-    for j in 1 2 3; do
-        minidump_files=$(find . -name "$DUMPS_EXTN" | head -n1)
-        if [ -z "$minidump_files" ]; then
+for j in 1 2 3; do
+     dump_files=$(find . -name "$DUMPS_EXTN" | head -n1)
+     if [ -z "$dump_files" ]; then
             break
-        fi
+     fi
         processDumps
-    done
-else
-    for i in 1 2 3; do
-        coredump_files=$(find . -name "$DUMPS_EXTN" | head -n1)
-        if [ -z "$coredump_files" ]; then
-            break
-        fi
-        processDumps
-    done
-fi
+done
 
 finalize
 
