@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "crash_upload",
+    "crates/curl_interface",
+    "crates/json_parser_interface",
+    "crates/platform_interface",
+    "crates/utils"
+]
