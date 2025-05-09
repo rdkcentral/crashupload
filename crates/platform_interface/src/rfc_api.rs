@@ -11,10 +11,7 @@ fn rfc_bin_path() -> &'static Path {
 }
 
 /// Set a TR-181 RFC parameter to a value
-pub fn set_rfc_param<R, V>(rfc: R, value: V) -> bool 
-where 
-    R: AsRef<str>,
-    V: AsRef<str>,
+pub fn set_rfc_param<R: AsRef<str>, V: AsRef<str>>(rfc: R, value: V) -> bool 
 {
     let rfc_bin = rfc_bin_path();
     if rfc_bin.exists() {
@@ -34,10 +31,7 @@ where
 }
 
 /// Get a TR-181 RFC parameter into a mutable string
-pub fn get_rfc_param<R>(rfc: R, res: &mut String) -> bool 
-where
-    R: AsRef<str>,
-
+pub fn get_rfc_param<R: AsRef<str>>(rfc: R, res: &mut String) -> bool 
 {
     let rfc_bin = rfc_bin_path();
     if rfc_bin.exists() {

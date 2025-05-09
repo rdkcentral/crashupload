@@ -10,7 +10,7 @@ fn t2_msg_client_path() -> &'static Path {
 }
 
 /// Notify a telemetry marker with a count (default 1 if None)
-pub fn t2_count_notify<M, C>(marker: M, count: Option<C>) -> bool 
+pub fn t2_count_notify<M: AsRef<str>, C: AsRef<str>>(marker: M, count: Option<C>) -> bool 
 where
     M: AsRef<str>,
     C: AsRef<str>,
@@ -34,11 +34,7 @@ where
 }
 
 /// Notify a telemetry marker with a value
-pub fn t2_val_notify<M, V>(marker: M, value: V) -> bool 
-where
-    M: AsRef<str>,
-    V: AsRef<str>,
-    
+pub fn t2_val_notify<M: AsRef<str>, V: AsRef<str>>(marker: M, value: V) -> bool    
 {
     let t2_client = t2_msg_client_path();
     if t2_client.exists() {
