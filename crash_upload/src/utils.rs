@@ -1,6 +1,7 @@
 // src/utils.rs
-use std::fs;
+use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
+use std::io::{BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{thread, time};
 use std::process;
@@ -18,6 +19,7 @@ const SHA1_DEFAULT_VALUE: &str = "0000000000000000000000000000000000000000";
 const TIMESTAMP_DEFAULT_VALUE: &str ="2000-01-01-00-00-00";
 const MAC_DEFAULT_VALUE: &str ="000000000000";
 const MODEL_NUM_DEFAULT_VALUE: &str ="UNKNOWN";
+const TIMESTAMP_FILENAME: &str = "/tmp/.${DUMP_NAME}_upload_timestamps";
 
 pub struct DumpPaths{
     pub core_path: String,
@@ -41,6 +43,10 @@ fn set_secure_dump_flag(is_sec_dump_enabled: &mut bool) {
             *is_sec_dump_enabled = rfc_value.trim().eq_ignore_ascii_case("true");
         }
     }
+}
+
+pub fn get_timestamp_filename(dump_name: &str) -> String {
+    format!("/tmp/.{}_upload_timestamps", dump_name)
 }
 
 pub fn get_secure_dump_status() -> DumpPaths {
@@ -171,4 +177,99 @@ pub fn remove_lock<P: AsRef<Path>>(path: P) {
             println!("Error deleting {:?}: {}", lock, err);
         }
     }
+}
+
+pub fn sanitize(input: &str) -> String {
+    input.chars().filter(|c| match *c {
+            'a'..='z' | 'A'..='Z' | '0'..='9' |
+            '/' | ' ' | ':' | '+' | '.' | '_' | ',' | '=' | '-' => true,
+            _ => false,
+        }).collect()
+}
+
+pub fn upload_timestamp(ts_file: &String) {
+    let mut dev_type = String::new();
+    get_property_value_from_file("/etc/device.properties", "BUILD_TYPE", &mut dev_type);
+    if dev_type == "prod" {
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).expect("SystemTime before UNIX_EPOCH").as_secs();
+        
+        let _ = fs::write(ts_file, now.to_string());
+        truncate_timestamp_file(ts_file);
+    }
+}
+
+pub fn truncate_timestamp_file(ts_file: &String) {
+    if let Err(err) = OpenOptions::new().create(true).append(true).open(ts_file) {
+        eprintln!("Failed to create or open {}: {}", ts_file, err);
+        return;
+    }
+
+    let file = match File::open(ts_file) {
+        Ok(f) => f,
+        Err(err) => {
+            eprintln!("Error opening file {}: {}", ts_file, err);
+            return;
+        }
+    };
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().filter_map(Result::ok).collect();
+
+    // Take the last 10 lines
+    let last_10_lines = lines.iter().rev().take(10).cloned().collect::<Vec<String>>();
+    let last_10_lines = last_10_lines.into_iter().rev().collect::<Vec<String>>();
+
+    // Write to temporary file
+    let tmp_file_path = format!("{}_tmp", ts_file);
+    match File::create(&tmp_file_path) {
+        Ok(tmp_file) => {
+            let mut writer = BufWriter::new(tmp_file);
+            for line in last_10_lines {
+                if let Err(err) = writeln!(writer, "{}", line){
+                    eprintln!("Failed to write to temp file: {}", err);
+                    return;
+                }
+            }
+        }
+        Err(err) => {
+            eprintln!("Failed to create temp file {}: {}", tmp_file_path, err);
+            return;
+        }
+    }
+
+    // Replace original with temp file
+    if let Err(err) = fs::rename(&tmp_file_path, ts_file) {
+        eprintln!("Failed to replace original file with temp file: {}", err);
+    }
+}
+
+pub fn is_upload_limit_reached(ts_file: &String) -> bool {
+    let limit_seconds = 600;
+        if let Err(err) = OpenOptions::new().create(true).append(true).open(ts_file) {
+        eprintln!("Failed to create or open {}: {}", ts_file, err);
+        return false;
+    }
+
+    let mut file = match File::open(ts_file){
+        Ok(f) => f,
+        Err(_) => return false
+    };
+    let mut reader: BufReader<&File> = BufReader::new(&file);
+
+    let line_count = reader.by_ref().lines().count();
+    if line_count < 0 { return false; }
+
+    file.seek(SeekFrom::Start(0));
+
+    let mut reader = BufReader::new(&file);
+    let mut first_line = String::new();
+    reader.read_line(&mut first_line);
+
+    let tenth_newest_crash_time: u64 = first_line.split_whitespace().next().expect("No data in first line").parse().expect("Failed to parse timestamp");
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).expect("SystemTime before UNIX_EPOCH").as_secs();
+
+    if (now - tenth_newest_crash_time) < limit_seconds {
+        println!("Not uploading the dump. Too many dumps.");
+        return true;
+    }
+    false
 }

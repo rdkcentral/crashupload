@@ -1,7 +1,7 @@
 TODO:
 - Separate Logging log.rs, with WARN, INFO, ERROR, etc log levels
 - upload dump utils
-    - sanitize()
+    - ~~sanitize()~~
     - checkParam()
     - finalize()
     - sigkill_function() and sigterm_function() with trap usage
