@@ -1,7 +1,9 @@
 // src/utils.rs
-use std::{path::Path};
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::fs;
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::{thread, time};
+use std::process;
 
 use platform_interface::*;
 use utils::*;
@@ -92,8 +94,7 @@ pub fn set_recovery_time() {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).expect("SystemTime before UNIX_EPOCH").as_secs();
     let dont_upload_for_sec = 600;
     let recovery_time = now + dont_upload_for_sec;
-    fs::write(DENY_UPLOAD_FILE, recovery_time.to_string());
-
+    let _ = fs::write(DENY_UPLOAD_FILE, recovery_time.to_string());
 }
 
 pub fn is_recovery_time_reached() -> bool {
@@ -118,3 +119,56 @@ pub fn is_recovery_time_reached() -> bool {
     now > upload_denied_till
 }
 
+fn lock_path<P: AsRef<Path>>(path: P) -> PathBuf {
+    let mut p = path.as_ref().to_path_buf();
+    p.set_extension("lock.d");
+    p
+}
+
+fn is_another_instance_running<P: AsRef<Path>>(path: P) -> bool {
+    lock_path(path).is_dir()
+}
+
+pub fn create_lock_or_exit<P: AsRef<Path>>(path: P) -> bool {
+    let lock = lock_path(&path);
+    if is_another_instance_running(&path) {
+        println!("Script is already working. {:?}. Skip launching another instance...", lock);
+        process::exit(0);
+    }
+
+    match fs::create_dir(&lock) {
+        Ok(_) => true,
+        Err(err) => {
+            println!("Error creating {:?}: {}", lock, err);
+            false
+        }
+    }
+}
+
+pub fn create_lock_or_wait<P: AsRef<Path>>(path: P) -> bool {
+    let lock = lock_path(&path);
+    loop {
+        if is_another_instance_running(&path) {
+            println!("Script is already working. {:?}. Waiting to launch another instance...", lock);
+            thread::sleep(time::Duration::from_secs(2));
+            continue;
+        }
+
+        match fs::create_dir(&lock) {
+            Ok(_) => return true,
+            Err(err) => {
+                println!("Error creating {:?}: {}", lock, err);
+                return false;
+            }
+        }
+    }
+}
+
+pub fn remove_lock<P: AsRef<Path>>(path: P) {
+    let lock = lock_path(&path);
+    if lock.is_dir() {
+        if let Err(err) = fs::remove_dir(&lock) {
+            println!("Error deleting {:?}: {}", lock, err);
+        }
+    }
+}

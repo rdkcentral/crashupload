@@ -1,5 +1,7 @@
 use std::fs::{self, OpenOptions};
 use std::path::Path;
+use std::thread;
+use std::time::Duration;
 
 pub fn touch<P: AsRef<Path>>(path: P){
     let _ = OpenOptions::new().create(true).write(true).open(path);
@@ -17,4 +19,9 @@ pub fn rm_rf<P: AsRef<Path>>(path: P) {
         rm(path_ref);
         Ok(())
     };
+}
+
+pub fn sleep(seconds: u64) -> bool {
+    thread::sleep(Duration::from_secs(seconds));
+    true
 }
