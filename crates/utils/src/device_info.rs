@@ -8,7 +8,7 @@ const DEVICE_PROP_FILE: &str = "/etc/device.properties";
 const INCLUDE_PROP_FILE: &str = "/etc/include.properties";
 const COMMON_PROP_FILE: &str = "/etc/common.properties";
 
-
+// use this fn to getModel() using "MODEL_NUM" key
 pub fn get_property_value_from_file<P: AsRef<Path>, K: AsRef<str>>(path: P, key: K, val: &mut String) -> bool
 {
     let key = key.as_ref().trim();

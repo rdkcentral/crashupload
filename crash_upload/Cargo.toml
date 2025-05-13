@@ -9,3 +9,4 @@ curl_interface = { path = "../crates/curl_interface" }
 json_parser_interface = { path = "../crates/json_parser_interface" }
 platform_interface = { path = "../crates/platform_interface" }
 utils = { path = "../crates/utils" }
+chrono = "0.4"

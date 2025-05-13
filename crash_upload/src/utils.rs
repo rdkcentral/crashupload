@@ -1,10 +1,11 @@
 // src/utils.rs
 use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
-use std::io::{BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{thread, time};
 use std::process;
+use chrono::{DateTime, Local};
 
 use platform_interface::*;
 use utils::*;
@@ -19,7 +20,9 @@ const SHA1_DEFAULT_VALUE: &str = "0000000000000000000000000000000000000000";
 const TIMESTAMP_DEFAULT_VALUE: &str ="2000-01-01-00-00-00";
 const MAC_DEFAULT_VALUE: &str ="000000000000";
 const MODEL_NUM_DEFAULT_VALUE: &str ="UNKNOWN";
-const TIMESTAMP_FILENAME: &str = "/tmp/.${DUMP_NAME}_upload_timestamps";
+const LOGMAPPER_FILE: &str = "/etc/breakpad-logmapper.conf";
+const LOG_FILES: &str = "/tmp/minidump_log_files.txt";
+const LOG_PATH: &str = "/opt/rdk";
 
 pub struct DumpPaths{
     pub core_path: String,
@@ -258,11 +261,11 @@ pub fn is_upload_limit_reached(ts_file: &String) -> bool {
     let line_count = reader.by_ref().lines().count();
     if line_count < 0 { return false; }
 
-    file.seek(SeekFrom::Start(0));
+    let _ = file.seek(SeekFrom::Start(0));
 
     let mut reader = BufReader::new(&file);
     let mut first_line = String::new();
-    reader.read_line(&mut first_line);
+    let _ = reader.read_line(&mut first_line);
 
     let tenth_newest_crash_time: u64 = first_line.split_whitespace().next().expect("No data in first line").parse().expect("Failed to parse timestamp");
     let now = SystemTime::now().duration_since(UNIX_EPOCH).expect("SystemTime before UNIX_EPOCH").as_secs();
@@ -273,3 +276,58 @@ pub fn is_upload_limit_reached(ts_file: &String) -> bool {
     }
     false
 }
+
+pub fn get_last_modified_time_of_file<P: AsRef<str>>(path: P) -> Option<String>{
+    let path_ref = Path::new(path.as_ref());
+
+    if !path_ref.is_file() {
+        return None;
+    }
+    let metadata = fs::metadata(path_ref).ok()?;
+    let modified_time: SystemTime = metadata.modified().ok()?;
+    // NOTE: this can be done with std::process::Command as well 
+    let datetime: DateTime<Local> = modified_time.into();
+
+    Some(datetime.format("%Y-%m-%d-%H-%M-%S").to_string())
+}
+
+//pub fn process_crash_t2_info<P: AsRef<str>>(file_path: P) {
+// TODO:
+//}
+
+fn get_crashed_log_file<P: AsRef<str>>(file_path: P) -> io::Result<()>{
+    let file = file_path.as_ref();
+
+    let process_name = file.rsplitn(2, '_').nth(1).unwrap_or(file).trim_start_matches("./");
+    println!("Process crashed = {}", process_name);
+
+    let app_name = file.split('_').nth(1).and_then(|s| s.split('-').next()).unwrap_or("");
+    
+    let breakpad_mapper = BufReader::new(File::open(LOGMAPPER_FILE)?);
+    let mut log_files = String::new();
+    for line in breakpad_mapper.lines() {
+        let line = line?;
+        if let Some((key, val)) = line.split_once('='){
+            if key.contains(process_name){
+                log_files = val.to_string();
+                break;
+            }
+        }
+    }
+    println!("Crashed process log file(s): {}", log_files);
+    if !app_name.is_empty() {
+        println!("Appname, Process_Crashed = {} {}", app_name, process_name);
+    }
+    // Write each log file to LOG_FILES
+    let mut output = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(LOG_FILES)?;
+
+    for log_file in log_files.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+        writeln!(output, "{}/{}", LOG_PATH, log_file)?;
+    }
+
+    Ok(())
+}
+    
