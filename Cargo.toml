@@ -4,5 +4,10 @@ members = [
     "crates/curl_interface",
     "crates/json_parser_interface",
     "crates/platform_interface",
-    "crates/utils"
+    "crates/utils",
+    "test/crash_upload_test",
+    "test/curl_interface_test",
+    "test/json_parser_interface_test",
+    "test/platform_interface_test",
+    "test/utils_test",
 ]

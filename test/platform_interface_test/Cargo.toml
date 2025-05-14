@@ -1,0 +1,7 @@
+[package]
+name = "platform_interface_test"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+platform_interface = {path = "../../crates/platform_interface"}

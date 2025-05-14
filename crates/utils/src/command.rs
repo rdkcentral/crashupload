@@ -3,7 +3,7 @@ use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
-pub fn touch<P: AsRef<Path>>(path: P){
+pub fn touch<P: AsRef<Path>>(path: P) {
     let _ = OpenOptions::new().create(true).write(true).open(path);
 }
 

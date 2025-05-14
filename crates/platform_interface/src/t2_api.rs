@@ -10,15 +10,14 @@ fn t2_msg_client_path() -> &'static Path {
 }
 
 /// Notify a telemetry marker with a count (default 1 if None)
-pub fn t2_count_notify<M: AsRef<str>, C: AsRef<str>>(marker: M, count: Option<C>) -> bool 
-where
-    M: AsRef<str>,
-    C: AsRef<str>,
-{
+pub fn t2_count_notify<M: AsRef<str>, C: AsRef<str>>(marker: M, count: Option<C>) -> bool {
     let t2_client = t2_msg_client_path();
     if t2_client.exists() {
         let count_val = count.as_ref().map(|c| c.as_ref()).unwrap_or("1");
-        match Command::new(t2_client).arg(marker.as_ref()).arg(count_val).spawn()
+        match Command::new(t2_client)
+            .arg(marker.as_ref())
+            .arg(count_val)
+            .spawn()
         {
             Ok(_) => true,
             Err(err) => {
@@ -26,19 +25,19 @@ where
                 false
             }
         }
-    } 
-    else 
-    {
+    } else {
         false
     }
 }
 
 /// Notify a telemetry marker with a value
-pub fn t2_val_notify<M: AsRef<str>, V: AsRef<str>>(marker: M, value: V) -> bool    
-{
+pub fn t2_val_notify<M: AsRef<str>, V: AsRef<str>>(marker: M, value: V) -> bool {
     let t2_client = t2_msg_client_path();
     if t2_client.exists() {
-        match Command::new(t2_client).arg(marker.as_ref()).arg(value.as_ref()).spawn()
+        match Command::new(t2_client)
+            .arg(marker.as_ref())
+            .arg(value.as_ref())
+            .spawn()
         {
             Ok(_) => true,
             Err(err) => {
@@ -46,9 +45,7 @@ pub fn t2_val_notify<M: AsRef<str>, V: AsRef<str>>(marker: M, value: V) -> bool
                 false
             }
         }
-    } 
-    else 
-    {
+    } else {
         false
     }
 }

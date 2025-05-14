@@ -76,8 +76,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "crash_upload_test"
+version = "0.1.0"
+dependencies = [
+ "crash_upload",
+]
+
+[[package]]
 name = "curl_interface"
 version = "0.1.0"
+
+[[package]]
+name = "curl_interface_test"
+version = "0.1.0"
+dependencies = [
+ "curl_interface",
+]
 
 [[package]]
 name = "iana-time-zone"
@@ -118,6 +132,13 @@ name = "json_parser_interface"
 version = "0.1.0"
 
 [[package]]
+name = "json_parser_interface_test"
+version = "0.1.0"
+dependencies = [
+ "json_parser_interface",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.172"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -147,6 +168,13 @@ checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
 [[package]]
 name = "platform_interface"
 version = "0.1.0"
+
+[[package]]
+name = "platform_interface_test"
+version = "0.1.0"
+dependencies = [
+ "platform_interface",
+]
 
 [[package]]
 name = "proc-macro2"
@@ -198,6 +226,13 @@ checksum = "5a5f39404a5da50712a4c1eecf25e90dd62b613502b7e925fd4e4d19b5c96512"
 [[package]]
 name = "utils"
 version = "0.1.0"
+
+[[package]]
+name = "utils_test"
+version = "0.1.0"
+dependencies = [
+ "utils",
+]
 
 [[package]]
 name = "wasm-bindgen"
