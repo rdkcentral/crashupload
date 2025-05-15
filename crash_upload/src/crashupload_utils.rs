@@ -267,8 +267,46 @@ pub fn is_recovery_time_reached() -> bool {
 
     now > upload_denied_till
 }
-// ============================================
 
+// ============================================ In Progress Start ============================================
+pub fn delete_all_but_most_recent_files<P: AsRef<str>>(dir_path: P) {
+    let path = Path::new(dir_path.as_ref());
+
+    let num_of_files = match fs::read_dir(path) {
+        Ok(entries) => {
+            let file_count = entries.count();
+            file_count
+        }
+        Err(e) => {
+            1
+        }
+    };
+    if num_of_files > MAX_CORE_FILES {
+        let val = num_of_files - MAX_CORE_FILES;
+        // TODO: delete the oldest files
+        rm_rf("/tmp/dumps_to_delete.txt");
+    }
+
+}
+
+// TODO: Implement this function
+pub const CRASH_LOOP_FLAG_FILE: &str = "";
+
+pub fn finalize(dump_paths: &DumpPaths) {
+    cleanup();
+    let loop_file = Path::new(CRASH_LOOP_FLAG_FILE);
+    if loop_file.exists() {
+        rm_rf(loop_file);
+    }
+    remove_lock(dump_paths.get_lock_dir_prefix());
+    // TODO: Implement Time Stamp file cleanup
+}
+
+pub fn cleanup() {
+    // TODO: Implement cleanup logic
+}
+
+// =========================================== In Progress End ============================================
 pub fn get_timestamp_filename(dump_name: &str) -> String {
     format!("/tmp/.{}_upload_timestamps", dump_name)
 }

@@ -6,9 +6,9 @@ pub const CORE_LOG: &str = "/opt/rdk/core_log.txt";
 
 pub const S3_BUCKET_URL: &str = "s3.amazonaws.com";
 pub const HTTP_CODE_FILE: &str = "/tmp/httpcode";
-pub const CURL_UPLOAD_TIMEOUT: u32 = 45;
-pub const FOUR_EIGHTY_SECS: u32 = 480;
-pub const MAX_CORE_FILES: u32 = 4;
+pub const CURL_UPLOAD_TIMEOUT: usize = 45;
+pub const FOUR_EIGHTY_SECS: usize = 480;
+pub const MAX_CORE_FILES: usize = 4;
 
 pub const TLS: &str = "--tlsv1.2";
 
@@ -26,6 +26,11 @@ pub struct DumpPaths {
     pub minidumps_path: String,
     pub core_back_path: String,
     pub persistent_sec_path: String,
+    pub working_dir: String,
+    pub dumps_extn: String,
+    pub tar_extn: String,
+    pub lock_dir_prefix: String,
+    pub crash_portal_path: String,
 }
 
 impl DumpPaths {
@@ -53,12 +58,48 @@ impl DumpPaths {
     pub fn get_persistent_sec_path(&self) -> &String {
         &self.persistent_sec_path
     }
+    pub fn get_working_dir(&self) -> &String {
+        &self.working_dir
+    }
+    pub fn set_working_dir(&mut self, path: String) {
+        self.working_dir = path;
+    }
+    pub fn get_dumps_extn(&self) -> &String {
+        &self.dumps_extn
+    }
+    pub fn set_dumps_extn(&mut self, extn: String) {
+        self.dumps_extn = extn;
+    }
+    pub fn get_tar_extn(&self) -> &String {
+        &self.tar_extn
+    }
+    pub fn set_tar_extn(&mut self, extn: String) {
+        self.tar_extn = extn;
+    }
+    pub fn get_lock_dir_prefix(&self) -> &String {
+        &self.lock_dir_prefix
+    }
+    pub fn set_lock_dir_prefix(&mut self, prefix: String) {
+        self.lock_dir_prefix = prefix;
+    }
+    pub fn get_crash_portal_path(&self) -> &String {
+        &self.crash_portal_path
+    }
+    pub fn set_crash_portal_path(&mut self, path: String) {
+        self.crash_portal_path = path;
+    }
+    /// Creates a new `DumpPaths` instance with default values.
     pub fn new() -> Self {
         DumpPaths {
             core_path: String::new(),
             minidumps_path: String::new(),
             core_back_path: String::new(),
             persistent_sec_path: String::new(),
+            working_dir: String::new(),
+            dumps_extn: String::new(),
+            tar_extn: String::new(),
+            lock_dir_prefix: String::new(),
+            crash_portal_path: String::new(),
         }
     }
 }

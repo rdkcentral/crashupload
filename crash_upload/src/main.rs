@@ -1,7 +1,11 @@
 // standard library imports
-use std::env;
+use std::{env, fs};
 use std::fs::create_dir;
+use std::os::unix::thread;
 use std::path::Path;
+
+use platform_interface::{get_rfc_param, set_rfc_param};
+use utils::sleep;
 
 // crashupload internal module imports
 mod constants;
@@ -25,9 +29,10 @@ fn main() {
     let upload_flag = &args[3];
     let wait_for_lock = &args[4];
 
-    // Instantiate the DumpPaths struct
+    // EXEC: Instantiate the DumpPaths struct
     let mut dump_paths = constants::DumpPaths::new();
 
+    // EXEC: Set the core and minidump paths based on the upload flag
     if upload_flag != "secure" {
         dump_paths.set_core_path("/opt/secure/corefiles".to_string());
         dump_paths.set_minidumps_path("/opt/secure/minidumps".to_string());
@@ -55,7 +60,7 @@ fn main() {
      * logMessage()
      * tlsLog()
      * checkParameter()
-     * deleteAllButTheMostRecentFiles()
+     * deleteAllButTheMostRecentFiles() - In progress
      * cleanup()
      * finalize()
      * sigkill_function()
@@ -76,11 +81,40 @@ fn main() {
 
     // let timestamp_filename = crashupload_utils::get_timestamp_filename(dump_name);
 
-    // let working_dir = if dump_flag == 1 {
-    //     crashupload_utils::get_core_path(upload_flag)
-    // }
-    // else
-    // {
-    //     crashupload_utils::get_minidumps_path(upload_flag)
-    // };
+    if dump_flag == 1 {
+        println!("starting core dump processing...");
+        dump_paths.set_working_dir(dump_paths.get_core_path().to_string());
+        dump_paths.set_dumps_extn("*core.prog*.gz*".to_string());
+        dump_paths.set_tar_extn(".core.tgz".to_string());
+        dump_paths.set_lock_dir_prefix("/tmp/.uploadCoredumps".to_string());
+        dump_paths.set_crash_portal_path("/opt/crashportal_uploads/coredumps/".to_string());
+    }
+    else
+    {
+        println!("starting minidump processing...");
+        dump_paths.set_working_dir(dump_paths.get_minidumps_path().to_string());
+        dump_paths.set_dumps_extn("*.dmp*".to_string());
+        dump_paths.set_tar_extn(".dmp.tgz".to_string());
+        dump_paths.set_lock_dir_prefix("/tmp/.uploadMinidumps".to_string());
+        dump_paths.set_crash_portal_path("/opt/crashportal_uploads/coredumps/".to_string());
+        sleep(5);
+    };
+
+    let w_dir = dump_paths.get_working_dir();
+    match fs::read_dir(w_dir) {
+        Ok(mut entries) => entries.next().is_none(),
+        Err(_) => {
+            eprintln!("working dir is empty : {}", w_dir);
+            std::process::exit(1);
+        }
+    };
+
+    let mut portal_url = String::new();
+    get_rfc_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl", &mut portal_url);
+    let req_type = 17;
+
+    let mut encryption_enabled = false;
+    if Path::new("/etc/os-release").exists() { encryption_enabled = set_rfc_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.encryptionEnabled", "true") };
+
+
 }
