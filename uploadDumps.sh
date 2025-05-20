@@ -851,7 +851,8 @@ processDumps()
                         nice -n 19 tar -zcvf $tgzFile $dumpName $logfiles 2>&1 | logStdout
                 fi
             else     
-                    crashedUrlFile=$LOG_PATH/crashed_url.txt
+                    #Assignee crashedUrlFile only if the file exist to avoid tar errors.
+                    [ -f "$LOG_PATH/crashed_url.txt" ] && crashedUrlFile="$LOG_PATH/crashed_url.txt"
                     files="$VERSION_FILE $CORE_LOG $crashedUrlFile"
                     add_crashed_log_file $files
                     nice -n 19 tar -zcvf $tgzFile $dumpName $files 2>&1 | logStdout
