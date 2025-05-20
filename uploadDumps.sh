@@ -115,7 +115,6 @@ export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 # causes a pipeline to produce a failure return code in case of errors
 set -o pipefail
 
-s3bucketurl="s3.amazonaws.com"
 HTTP_CODE="/tmp/httpcode"
 S3_FILENAME=""
 CURL_UPLOAD_TIMEOUT=45
@@ -168,6 +167,9 @@ create_lock_or_exit()
     while true; do
         if [[ -d "${path}.lock.d" ]]; then
             logMessage "Script is already working. ${path}.lock.d. Skip launch another instance..."
+            if [ "$IS_T2_ENABLED" == "true" ]; then
+                t2CountNotify "SYST_WARN_NoMinidump"
+            fi
             exit 0
         fi
         mkdir "${path}.lock.d" || logMessage "Error creating ${path}.lock.d"
@@ -648,6 +650,13 @@ get_crashed_log_file()
     pname=${pname#"./"} #Remove ./ from the dump name
     appname=$(echo ${file} | cut -d "_" -f 2 | cut -d "-" -f 1)
     logMessage "Process crashed = $pname"
+
+    if [ "$IS_T2_ENABLED" == "true" ]; then
+        t2ValNotify "processCrash_split" $pname
+        t2ValNotify "SYST_ERR_Process_Crash_accum" $pname
+        t2CountNotify "SYST_ERR_ProcessCrash"
+    fi
+
     log_files=$(awk -v proc="$pname" -F= '$1 ~ proc {print $2}' $LOGMAPPER_FILE)
     logMessage "Crashed process log file(s): $log_files"
     if [ ! -z "$appname" ];then
@@ -699,18 +708,18 @@ processCrashTelemtryInfo()
         local Appname=${containerName#*_}
         local ProcessName=${containerName%%_*}
 
-        t2ValNotify "crashedContainerName_split" $containerName
-        t2ValNotify "crashedContainerStatus_split" $containerStatus
-        t2ValNotify "crashedContainerAppname_split" $Appname
-        t2ValNotify "crashedContainerProcessName_split" $ProcessName
-        t2CountNotify "SYS_INFO_CrashedContainer" "1"
+
+        t2CountNotify "SYS_INFO_CrashedContainer"
         #as of now this is being logged in get_crashed_log_file but adding here as that is inconsistent
         logMessage "Container crash info Basic: $Appname, $ProcessName"
         logMessage "Container crash info Advance: $containerName, $containerStatus"
         logMessage "NEW Appname, Process_Crashed, Status = $Appname, $ProcessName, $containerStatus"
+        t2ValNotify "APP_ERROR_Crashed_split" "$Appname, $ProcessName, $containerStatus"
+        t2ValNotify "APP_ERROR_Crashed_accum" "$Appname, $ProcessName, $containerStatus"
         logMessage "NEW Processname, App Name, AppState = $ProcessName, $Appname, $containerStatus"
         logMessage "ContainerName, ContainerStatus = $containerName, $containerStatus"
-        t2ValNotify "NewProcessCrash_split" "$containerName, $containerStatus"
+        t2ValNotify "APP_ERROR_CrashInfo_accum" "$containerName, $containerStatus"
+
         
     fi
     # This is a temporary call; we need to get marker confirmation from the Triage Team.
@@ -841,6 +850,11 @@ processDumps()
             TMP_DIR_NAME=$dumpName
 
             logMessage "Size of the file: $(ls -l $dumpName)"
+            
+            if [ "$IS_T2_ENABLED" == "true" ] && [ ! -s "$dumpName" ]; then
+	            t2CountNotify "SYST_ERR_MINIDPZEROSIZE"
+            fi
+
            if [ "$DUMP_FLAG" == "1" ] ; then
 	        logfiles="$VERSION_FILE $CORE_LOG"
                 if [ -f /tmp/set_crash_reboot_flag ];then
@@ -861,6 +875,7 @@ processDumps()
                     logMessage "Success Compressing the files, $tgzFile $dumpName $VERSION_FILE $CORE_LOG "
                 else
                     # If the tar creation failed then will create new tar after copying logs files to /tmp
+                    [ "$IS_T2_ENABLED" == "true" ] && t2CountNotify "SYST_ERR_CompFail"
                     OUT_FILES="$dumpName"
 		    [ "$DUMP_FLAG" == "1" ] && copy_log_files_tmp_dir $logfiles || copy_log_files_tmp_dir $files
 	            nice -n 19 tar -zcvf $tgzFile $OUT_FILES 2>&1 | logStdout
@@ -868,7 +883,10 @@ processDumps()
                        logMessage "Success Compressing the files, $tgzFile $OUT_FILES"
                     else
                        logMessage "Compression Failed ."
-		    fi
+                       if [ "$IS_T2_ENABLED" == "true" ]; then
+                           t2CountNotify "SYST_ERR_CompFail"
+                        fi
+                    fi
                 fi
             logMessage "Size of the compressed file: $(ls -l $tgzFile)"
 	    
