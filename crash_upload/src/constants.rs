@@ -1,7 +1,11 @@
+use std::{alloc::System, time::SystemTime};
+
 // src/constants.rs
 pub const LOGMAPPER_FILE: &str = "/etc/breakpad-logmapper.conf";
 pub const LOG_FILES: &str = "/tmp/minidump_log_files.txt";
+
 pub const LOG_PATH: &str = "/opt/rdk";
+pub const IS_T2_ENABLED: bool = false;
 pub const CORE_LOG: &str = "/opt/rdk/core_log.txt";
 
 pub const S3_BUCKET_URL: &str = "s3.amazonaws.com";
@@ -9,6 +13,8 @@ pub const HTTP_CODE_FILE: &str = "/tmp/httpcode";
 pub const CURL_UPLOAD_TIMEOUT: usize = 45;
 pub const FOUR_EIGHTY_SECS: usize = 480;
 pub const MAX_CORE_FILES: usize = 4;
+pub const CORE_PROPS_FILE: &str = "/opt/coredump.properties";
+pub const S3_FILENAME: &str = "s3filename";
 
 pub const TLS: &str = "--tlsv1.2";
 
@@ -21,7 +27,22 @@ pub const SECUREDUMP_DISABLE_FILE: &str = "/tmp/.SecureDumpDisable";
 pub const CRASH_UPLOAD_REBOOT_FLAG: &str = "/tmp/set_crash_reboot_flag";
 pub const DENY_UPLOAD_FILE: &str = "/tmp/.deny_dump_uploads_till";
 
+pub const UPLOAD_ON_STARTUP: &str = "/opt/.upload_on_startup";
+pub const ON_STARTUP_DUMPS_CLEANED_UP_BASE: &str ="/tmp/.on_startup_dumps_cleaned_up";
+pub const CRASH_LOOP_FLAG_FILE: &str = ""; // TODO
+
+pub const POTOMAC_USER: &str = "ccpstbscp";
+pub const COREDUMP_MTX_FILE: &str = "/tmp/coredump_mutex_release";
+
+pub const NETWORK_FILE: &str = "/tmp/route_available";
+pub const SYSTEM_TIME_FILE: &str = "/tmp/stt_received";
+pub const NETWORK_CHECK_ITERATION: usize = 18;
+pub const NETWORK_CHECK_TIMEOUT: usize = 10;
+pub const SYSTEM_TIME_ITERATION: usize = 10;
+pub const SYSTEM_TIME_TIMEOUT: usize = 1;
+
 pub struct DumpPaths {
+    pub dump_name: String,
     pub core_path: String,
     pub minidumps_path: String,
     pub core_back_path: String,
@@ -31,6 +52,7 @@ pub struct DumpPaths {
     pub tar_extn: String,
     pub lock_dir_prefix: String,
     pub crash_portal_path: String,
+    pub ts_file: String,
 }
 
 impl DumpPaths {
@@ -88,9 +110,13 @@ impl DumpPaths {
     pub fn set_crash_portal_path(&mut self, path: String) {
         self.crash_portal_path = path;
     }
+    pub fn get_ts_file(&self) -> &String {
+        &self.ts_file
+    }
     /// Creates a new `DumpPaths` instance with default values.
     pub fn new() -> Self {
         DumpPaths {
+            dump_name: String::new(),
             core_path: String::new(),
             minidumps_path: String::new(),
             core_back_path: String::new(),
@@ -100,6 +126,37 @@ impl DumpPaths {
             tar_extn: String::new(),
             lock_dir_prefix: String::new(),
             crash_portal_path: String::new(),
+            ts_file: String::new(),
+        }
+    }
+}
+
+
+// TODO: Add device_name member as well
+pub struct DeviceData {
+    pub device_type: String,
+    pub box_type: String,
+    pub model_num: String,
+    pub sha1: String,
+    pub mac_addr: String,
+    pub t2_enabled: bool,
+    pub tls: String,
+    pub encryption_enabled: bool,
+    pub build_type: String,
+}
+
+impl DeviceData {
+    pub fn new() -> Self {
+        DeviceData {
+            device_type: String::new(),
+            box_type: String::new(),
+            model_num: String::new(),
+            sha1: String::new(),
+            mac_addr: String::new(),
+            t2_enabled: false,
+            tls: String::new(),
+            encryption_enabled: false,
+            build_type: String::new(),
         }
     }
 }
