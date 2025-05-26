@@ -166,10 +166,11 @@ create_lock_or_exit()
     path="$1"
     while true; do
         if [[ -d "${path}.lock.d" ]]; then
-            logMessage "Script is already working. ${path}.lock.d. Skip launch another instance..."
             if [ "$IS_T2_ENABLED" == "true" ]; then
                 t2CountNotify "SYST_WARN_NoMinidump"
             fi
+            logMessage "Script is already working. ${path}.lock.d. Skip launch another instance..."
+            wait
             exit 0
         fi
         mkdir "${path}.lock.d" || logMessage "Error creating ${path}.lock.d"
@@ -566,14 +567,15 @@ fi
 
 is_box_rebooting()
 {
-	if [ -f /tmp/set_crash_reboot_flag ];then
-	      logMessage "Skipping upload, Since Box is Rebooting now"
-	      if [ "$IS_T2_ENABLED" == "true" ]; then
-	              t2CountNotify "SYST_INFO_CoreUpldSkipped"
-	      fi
-	      logMessage "Upload will happen on next reboot"
-	      exit 0
-	fi
+    if [ -f /tmp/set_crash_reboot_flag ];then
+        logMessage "Skipping upload, Since Box is Rebooting now"
+        if [ "$IS_T2_ENABLED" == "true" ]; then
+            t2CountNotify "SYST_INFO_CoreUpldSkipped"
+        fi
+        logMessage "Upload will happen on next reboot"
+        wait
+        exit 0
+    fi
 }
 # Get the MAC address of the box
 read -r MAC < /tmp/.macAddress
@@ -875,7 +877,7 @@ processDumps()
                     logMessage "Success Compressing the files, $tgzFile $dumpName $VERSION_FILE $CORE_LOG "
                 else
                     # If the tar creation failed then will create new tar after copying logs files to /tmp
-                    [ "$IS_T2_ENABLED" == "true" ] && t2CountNotify "SYST_ERR_CompFail"
+                    [ "$IS_T2_ENABLED" == "true" ] && t2CountNotify "SYST_WARN_CompFail"
                     OUT_FILES="$dumpName"
 		    [ "$DUMP_FLAG" == "1" ] && copy_log_files_tmp_dir $logfiles || copy_log_files_tmp_dir $files
 	            nice -n 19 tar -zcvf $tgzFile $OUT_FILES 2>&1 | logStdout
