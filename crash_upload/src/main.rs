@@ -191,14 +191,16 @@ fn main() {
 
     println!("Mac Address is {}", device_data.mac_addr);
 
-    let count = 2; // TODO: get the count from the file
-
-    if count == 0 {
+    let mut dump_count = 0;
+    dump_count = match get_dump_count(&dump_paths.working_dir, &dump_paths.dumps_extn) {
+        Ok(e) => e,
+        Err(_) => 0,
+    };
+    if dump_count == 0 {
         println!("No {} for uploading exist", dump_paths.dump_name);
         exit(0);
     }
-
-    //cleanup(&dump_paths);
+    let _ = cleanup(&dump_paths.working_dir, &dump_paths.dump_name, &dump_paths.dumps_extn);
     println!("Portal URL is {}", portal_url);
 
 }

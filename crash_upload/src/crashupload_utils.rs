@@ -1,10 +1,11 @@
 // src/utils.rs
 use chrono::{DateTime, Local};
-use std::fs::{self, File, OpenOptions};
+use std::ffi::OsStr;
+use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::{self, BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::{process, usize};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{thread, time};
 
 use platform_interface::*;
@@ -17,13 +18,22 @@ const TIMESTAMP_DEFAULT_VALUE: &str = "2000-01-01-00-00-00";
 const MAC_DEFAULT_VALUE: &str = "000000000000";
 const MODEL_NUM_DEFAULT_VALUE: &str = "UNKNOWN";
 
+fn lock_path<P: AsRef<Path>>(path: P) -> PathBuf {
+    let mut p = path.as_ref().to_path_buf();
+    p.set_extension("lock.d");
+    p
+}
+
+fn is_another_instance_running<P: AsRef<Path>>(path: P) -> bool {
+    lock_path(path).is_dir()
+}
 
 pub fn set_device_data(device_data: &mut DeviceData) {
     get_property_value_from_file(DEVICE_PROP_FILE, "BOX_TYPE",&mut device_data.box_type);
     get_property_value_from_file(DEVICE_PROP_FILE, "MODEL_NUM",&mut device_data.model_num);
     get_property_value_from_file(DEVICE_PROP_FILE, "DEVICE_TYPE", &mut device_data.device_type);
     get_sha1_value(&mut device_data.sha1);
-    get_device_mac(&mut device_data.mac_addr);
+    let _ = get_device_mac(&mut device_data.mac_addr);
     get_property_value_from_file(DEVICE_PROP_FILE, "BUILD_TYPE", &mut device_data.build_type);
     device_data.t2_enabled = Path::new("/lib/rdk/t2Shared_api.sh").exists();
     device_data.tls = if Path::new("/etc/os-release").exists() { "--tlsv1.2".to_string() } else { "".to_string() };
@@ -128,12 +138,6 @@ pub fn get_secure_dump_status(dump_paths: &mut DumpPaths) {
     }
 }
 
-fn lock_path<P: AsRef<Path>>(path: P) -> PathBuf {
-    let mut p = path.as_ref().to_path_buf();
-    p.set_extension("lock.d");
-    p
-}
-
 pub fn create_lock_or_exit<P: AsRef<Path>>(path: P) -> bool {
     let lock = lock_path(&path);
     if is_another_instance_running(&path) {
@@ -226,7 +230,7 @@ pub fn is_upload_limit_reached(ts_file: &String) -> bool {
     let mut reader: BufReader<&File> = BufReader::new(&file);
 
     let line_count = reader.by_ref().lines().count();
-    if line_count < 0 {
+    if line_count < 10 {
         return false;
     }
 
@@ -325,7 +329,7 @@ pub fn delete_all_but_most_recent_files<P: AsRef<str>>(dir_path: P) -> Result<()
 }
 
 pub fn finalize(dump_paths: &DumpPaths) {
-    //cleanup(dump_paths);
+    let _ = cleanup(&dump_paths.working_dir, &dump_paths.dump_name, &dump_paths.dumps_extn);
     let loop_file = Path::new(CRASH_LOOP_FLAG_FILE);
     if loop_file.exists() {
         rm_rf(loop_file);
@@ -336,6 +340,16 @@ pub fn finalize(dump_paths: &DumpPaths) {
 
 pub fn sig_term_function(dump_paths: &DumpPaths) {
     println!("systemd terminating, Removing the script locks");
+    let loop_file = Path::new(CRASH_LOOP_FLAG_FILE);
+    if loop_file.exists() {
+        rm_rf(loop_file);
+    }
+    remove_lock(dump_paths.get_lock_dir_prefix());
+    remove_lock(dump_paths.get_ts_file());
+}
+
+pub fn sig_kill_function(dump_paths: &DumpPaths) {
+    println!("systemd killing, Removing the script locks");
     let loop_file = Path::new(CRASH_LOOP_FLAG_FILE);
     if loop_file.exists() {
         rm_rf(loop_file);
@@ -355,11 +369,206 @@ pub fn should_process_dump<P: AsRef<str>>(dump_paths: &DumpPaths, device_data: &
     };
     status
 }
+
+pub fn get_dump_count(path: &String, extn: &String) -> io::Result<usize> {
+    let mut count = 0;
+    let dir_path = Path::new(path);
+
+    if dir_path.exists() && dir_path.is_dir() {
+        for entry in fs::read_dir(path)? {
+            let entry = entry?;
+            let file_path =  entry.path();
+            if file_path.is_file(){
+                if let Some(ext) = file_path.extension() {
+                    if ext.to_string_lossy() == extn.to_string() {
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+    Ok(count)
+}
+
+pub fn cleanup(work_dir: &String, dump_name: &String, dump_extn: &String) -> io::Result<()>{
+    let work_dir_path = Path::new(work_dir);
+
+    if !work_dir_path.exists() || !work_dir_path.is_dir() || work_dir_path.read_dir()?.next().is_none() {
+        println!("Working directory {} is empty", work_dir);
+        return Ok(());
+    }
+
+    println!("Cleanup {} directory {}", dump_name, work_dir);
+
+    let cut_off_time = SystemTime::now() - Duration::from_secs(60 * 60 * 24 * 2); // 2 days
+    for entry in fs::read_dir(work_dir_path)? {
+        let entry = entry?;
+        let file_path = entry.path();
+        if file_path.is_file() {
+            if let Some(file_name) = file_path.file_name() {
+                let file_name_str = file_name.to_string_lossy();
+                
+                // _mac comes befire _dat in the wildcard matching
+                if let Some(mac_pos) =  file_name_str.find("_mac") {
+                    if let Some(dat_pos) = file_name_str.find("_dat") {
+                        if mac_pos < dat_pos {
+                            let metadata = fs::metadata(&file_path)?;
+                            if let Ok(modified_time) = metadata.modified() {
+                                if modified_time < cut_off_time {
+                                    fs::remove_file(&file_path)?;
+                                    println!("Removed file: {}", file_path.display());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // find and while loop logic
+    if !Path::new(UPLOAD_ON_STARTUP).exists() {
+        rm_rf(format!("{}/version.txt", work_dir));
+        let on_startup_dumps_cleaned_up_str = format!("{}_{}", ON_STARTUP_DUMPS_CLEANED_UP_BASE, if dump_name == "coredump" { "1" } else { "" });
+        let on_startup_dumps_cleaned_up_path = Path::new(&on_startup_dumps_cleaned_up_str);
+        
+        if !on_startup_dumps_cleaned_up_path.exists() {
+            let path = Path::new(UPLOAD_ON_STARTUP);
+            
+            let mut deleted_files = Vec::new();
+            for entry in fs::read_dir(path)? {
+                let entry = entry?;
+                let file_path = entry.path();
+
+                if file_path.is_file() {
+                    if let Some(file_name) = file_path.file_name() {
+                        let file_name_str = file_name.to_string_lossy();
+
+                        if let Some(mac_pos) = file_name_str.find("_mac") {
+                            if let Some(dat_pos) = file_name_str.find("_dat") {
+                                if mac_pos < dat_pos {
+                                    fs::remove_file(&file_path)?;
+                                    deleted_files.push(file_path.to_string_lossy().into_owned());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            println!("Deleting unfinished files: {:?}", deleted_files);
+            
+            let mut non_dump_files = Vec::new();
+            for entry in fs::read_dir(path)? {
+                let entry = entry?;
+                let file_path = entry.path();
+                if file_path.is_file() {
+                    if let Some(ext) = file_path.extension() {
+                        if ext.to_string_lossy() != dump_extn.as_str() {
+                            fs::remove_file(&file_path)?;
+                            non_dump_files.push(file_path.to_string_lossy().into_owned());
+                        }
+                    }
+                }
+            }
+            println!("Deleting non-dump files: {:?}", non_dump_files);
+            let _ = delete_all_but_most_recent_files(path.to_str().unwrap_or_default());
+            touch(on_startup_dumps_cleaned_up_str.as_str());
+        }
+    }
+    else {
+        if dump_name == "coredump" {
+            rm_rf(UPLOAD_ON_STARTUP);
+        }
+    }
+    Ok(())
+}
+
+
+pub fn remove_pending_dumps(path: &String, extn: &String) -> io::Result<()>{
+    let dir_path = Path::new(path);
+
+    if dir_path.exists() && dir_path.is_dir() {
+        for entry in fs::read_dir(dir_path)? {
+            let entry = entry?;
+            let file_path = entry.path();
+            if file_path.is_file() {
+                if let Some(ext) = file_path.extension() {
+                    let ext_str = ext.to_string_lossy();
+                    if ext_str == extn.as_str() || ext_str == "tgz" {
+                        println!("Removing {} because upload limit has reached or build is blacklisted or TelemetryOptOut is set", file_path.display());
+                        rm_rf(path);
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn process_crash_t2_info(file_path: &String) {
+    println!("Processing the crash telemetry info");
+    let file = Path::new(file_path);
+    let mut file_name_str = file_path.clone();
+    let container_delimiter = "<#=#>";
+    let backward_delimiter = "-";
+    let mut is_tar = false;
+    let extension = file.extension().and_then(OsStr::to_str);
+
+    if extension == Some("tgz") {
+        println!("The File is already a tarball, this might be a retry or crash during shutdown");
+        is_tar = true;
+
+        if let Some(pos) = file_name_str.find("_mod_") {
+            file_name_str = file_name_str.split_off(pos + "_mod_".len());
+        }
+        println!("Original Filename: {}", file.display());
+        println!("Removing the meta information New Filename: {}", file_name_str);
+        println!("This could be a retry or crash from previous boot the appname can be truncated");
+        t2_count_notify("SYS_INFO_TGZDUMP", Some("1"));
+    }
+    let mut is_container = false;
+    if file_name_str.contains(container_delimiter) {
+        is_container = true;
+
+        let parts: Vec<&str> = file_name_str.split(container_delimiter).collect();
+        println!("From the file name crashed process is a container");
+
+        if parts.len() >= 2 {
+            let container_name = parts[0];
+            let container_time = parts[1];
+
+            let (container_status, file): (String, String) = if parts.len() > 2 {
+                (parts[1].to_string(), container_name.to_string())
+            } else {
+                ("unknown".to_string(), container_name.to_string())
+            };
+
+            let app_name = container_name.split('_').nth(1).unwrap_or(container_name);
+            let process_name = container_name.split('_').next().unwrap_or(container_name);
+            t2_val_notify("crashedContainerName_split", container_name);
+            t2_val_notify("crashedContainerStatus_split", &container_status);
+            t2_val_notify("crashedContainerAppname_split", app_name);
+            t2_val_notify("crashedContainerProcessName_split", process_name);
+            t2_count_notify("SYS_INFO_CrashedContainer", Some("1"));
+
+            println!("Container crash info Basic: {}, {}", app_name, process_name);
+            println!("Container crash info Advanced: {}, {}", container_name, container_status);
+            println!("NEW Appname, Process_Crashed, Status = {}, {}, {}", app_name, process_name, container_status);
+            println!("NEW Processname, App Name, AppState = {}, {}, {}", process_name, app_name, container_status);
+            println!("ContainerName, ContainerStatus = {}, {}", container_name, container_status);
+            println!("NewProcessCrash_split {}, {}", container_name, container_status);
+        }
+    }
+    let _ = get_crashed_log_file(&file_name_str);
+}
+
 /*
 // ============================================ In Progress Start ============================================
 // TODO: Implement this function
-pub fn process_dump(dump_paths: &DumpPaths) {
+pub fn mark_as_crash_loop_and_upload() {
+}
 
+// TODO: Implement this function
+pub fn process_dump(dump_paths: &DumpPaths) {
 
 }
 
@@ -436,39 +645,10 @@ pub fn copy_log_files_to_tmp(tmp_dir: &String) {
 //     println!("Total pending Minidumps: {}", count);
 // }
 
-pub fn cleanup(dump_paths: &DumpPaths) {
-    let work_dir = Path::new(dump_paths.get_working_dir());
-    if !work_dir.exists() || !work_dir.is_dir() || work_dir.read_dir().unwrap().next().is_none() {
-        println!("Working directory {} is empty", work_dir.display());
-        return;
-    }
-    println!("Cleanup {} directory {}", dump_paths.dump_name, dump_paths.working_dir);
-
-    // Loop deletes
-
-    if !Path::new(UPLOAD_ON_STARTUP).exists() {
-        rm_rf(format!("{}/version.txt", dump_paths.working_dir));
-        let on_startup_dumps_cleaned_up_str = format!("{}_{}", ON_STARTUP_DUMPS_CLEANED_UP_BASE, if dump_paths.dump_name == "coredump" { "1" } else { "" });
-        let on_startup_dumps_cleaned_up_path = Path::new(on_startup_dumps_cleaned_up_str.as_str());
-        if !on_startup_dumps_cleaned_up_path.exists() {
-            // Find and Call delete_all_but_most_recent_files()
-        }
-    }
-    else {
-        if dump_paths.dump_name == "coredump" {
-            rm_rf(UPLOAD_ON_STARTUP);
-        }
-    }
-}
-
-// =========================================== In Progress End ============================================
 */
+// =========================================== In Progress End ============================================
 
-fn is_another_instance_running<P: AsRef<Path>>(path: P) -> bool {
-    lock_path(path).is_dir()
-}
-
-pub fn upload_timestamp(ts_file: &String) {
+pub fn log_upload_timestamp(ts_file: &String) {
     let mut dev_type = String::new();
     get_property_value_from_file("/etc/device.properties", "BUILD_TYPE", &mut dev_type);
     if dev_type == "prod" {
@@ -478,52 +658,25 @@ pub fn upload_timestamp(ts_file: &String) {
             .as_secs();
 
         let _ = fs::write(ts_file, now.to_string());
-        truncate_timestamp_file(ts_file);
+        let _ = truncate_timestamp_file(ts_file);
     }
 }
 
-pub fn truncate_timestamp_file(ts_file: &String) {
-    // if let Err(err) = OpenOptions::new().create(true).append(true).open(ts_file) {
-    //     eprintln!("Failed to create or open {}: {}", ts_file, err);
-    //     return;
-    // }
+fn truncate_timestamp_file(ts_file: &String) -> io::Result<()> {
+    let ts_path = Path::new(ts_file);
 
-    // let file = match File::open(ts_file) {
-    //     Ok(f) => f,
-    //     Err(err) => {
-    //         eprintln!("Error opening file {}: {}", ts_file, err);
-    //         return;
-    //     }
-    // };
-    // let reader = BufReader::new(file);
-    // let lines: Vec<String> = reader.lines().filter_map(Result::ok).collect();
+    let _ = OpenOptions::new().create(true).write(true).read(true).open(ts_path);
+    let file = fs::File::open(ts_path)?;
+    let reader = io::BufReader::new(file);
 
-    // // Take the last 10 lines
-    // let last_10_lines = lines.iter().rev().take(10).cloned().collect::<Vec<String>>();
-    // let last_10_lines = last_10_lines.into_iter().rev().collect::<Vec<String>>();
+    let lines: Vec<String> = reader.lines().map(|line| line.unwrap_or_default()).collect();
+    let last_10_lines: Vec<String> = lines.iter().rev().take(10).cloned().collect();
+    let mut tmp_file = OpenOptions::new().write(true).truncate(true).open(ts_path)?;
 
-    // // Write to temporary file
-    // let tmp_file_path = format!("{}_tmp", ts_file);
-    // match File::create(&tmp_file_path) {
-    //     Ok(tmp_file) => {
-    //         let mut writer = BufWriter::new(tmp_file);
-    //         for line in last_10_lines {
-    //             if let Err(err) = writeln!(writer, "{}", line){
-    //                 eprintln!("Failed to write to temp file: {}", err);
-    //                 return;
-    //             }
-    //         }
-    //     }
-    //     Err(err) => {
-    //         eprintln!("Failed to create temp file {}: {}", tmp_file_path, err);
-    //         return;
-    //     }
-    // }
-
-    // // Replace original with temp file
-    // if let Err(err) = fs::rename(&tmp_file_path, ts_file) {
-    //     eprintln!("Failed to replace original file with temp file: {}", err);
-    // }
+    for line in last_10_lines {
+        writeln!(tmp_file, "{}", line)?;
+    }
+    Ok(())
 }
 
 pub fn get_last_modified_time_of_file<P: AsRef<str>>(path: P) -> Option<String> {
