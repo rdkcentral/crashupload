@@ -466,7 +466,7 @@ removePendingDumps()
 {
       find "$WORKING_DIR" -name "$DUMPS_EXTN" -o -name "*.tgz" |
       while read file; do
-          logMessage "Removing $file because upload limit has been reached or build is blacklisted or TelemetryOptOut is set"
+          logMessage "Removing $file because upload limit has been reached or build is blacklisted"
           rm -f $file
       done
 }
