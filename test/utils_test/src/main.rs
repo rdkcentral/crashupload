@@ -16,12 +16,15 @@ fn remove_file(file_path: &str) {
 
 #[cfg(test)]
 mod tests {
+    use std::{thread, time::Duration};
+
     use super::*;
     use utils::*;
 
     // Test for get_property_value_from_file() function
     #[test]
     fn test_get_property_value_from_file() {
+        thread::sleep(Duration::from_secs(2));
         create_file_with_content("device.properties","MODEL_NUM=TestModel");
         let mut value = String::new();
         let res = get_property_value_from_file("device.properties", "MODEL_NUM", &mut value);
@@ -33,6 +36,7 @@ mod tests {
 
     #[test]
     fn test_get_property_value_from_file_no_key() {
+        thread::sleep(Duration::from_secs(2));
         create_file_with_content("device.properties","MODEL_NUM=TestModel");
         let mut value = String::new();
         let res = get_property_value_from_file("device.properties", "DEVICE_TYPE", &mut value);
@@ -45,6 +49,7 @@ mod tests {
     // Test for get_device_mac() function
     #[test]
     fn test_get_device_mac_success_with_colon() {
+        thread::sleep(Duration::from_secs(2));
         create_file_with_content("/tmp/.macAddress", "00:11:22:33:44:55");
         let mut mac = String::new();
         let res = get_device_mac(&mut mac);
@@ -55,6 +60,7 @@ mod tests {
     }
 
     fn test_get_device_mac_success_no_colon() {
+        thread::sleep(Duration::from_secs(2));
         create_file_with_content("/tmp/.macAddress", "001122334455");
         let mut mac = String::new();
         let res = get_device_mac(&mut mac);
@@ -66,6 +72,7 @@ mod tests {
 
     #[test]
     fn test_get_device_mac_failure() {
+        thread::sleep(Duration::from_secs(2));
         create_file_with_content("/tmp/.macAddress", "");
         let mut mac = String::new();
         let res = get_device_mac(&mut mac);
@@ -78,6 +85,7 @@ mod tests {
     // Test for touch function
     #[test]
     fn test_touch() {
+        thread::sleep(Duration::from_secs(2));
         touch("test_file.txt");
         assert!(PathBuf::from("test_file.txt").exists());
         rm("test_file.txt");
@@ -86,6 +94,7 @@ mod tests {
     // Test for rm function
     #[test]
     fn test_rm() {
+        thread::sleep(Duration::from_secs(2));
         touch("test_file.txt");
         rm("test_file.txt");
         assert!(!PathBuf::from("test_file.txt").exists());
@@ -94,6 +103,7 @@ mod tests {
     // Test for rm_rf function
     #[test]
     fn test_rm_rf() {
+        thread::sleep(Duration::from_secs(2));
         touch("test_file.txt");
         rm_rf("test_file.txt");
         assert!(!PathBuf::from("test_file.txt").exists());
@@ -108,6 +118,7 @@ mod tests {
     // Test for sleep function
     #[test]
     fn test_sleep() {
+        thread::sleep(Duration::from_secs(2));
         let start = std::time::Instant::now();
         sleep(5);
         let duration = start.elapsed();
