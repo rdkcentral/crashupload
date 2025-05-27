@@ -8,15 +8,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{process, usize};
 use std::{thread, time};
 
-use crate::constants::{self, *};
+use crate::constants::*;
 use platform_interface::*;
 use utils::*;
-
-// Module-level constants
-const SHA1_DEFAULT_VALUE: &str = "0000000000000000000000000000000000000000";
-const TIMESTAMP_DEFAULT_VALUE: &str = "2000-01-01-00-00-00";
-const MAC_DEFAULT_VALUE: &str = "000000000000";
-const MODEL_NUM_DEFAULT_VALUE: &str = "UNKNOWN";
 
 fn lock_path<P: AsRef<Path>>(path: P) -> PathBuf {
     let mut p = path.as_ref().to_path_buf();
@@ -31,34 +25,23 @@ fn is_another_instance_running<P: AsRef<Path>>(path: P) -> bool {
 pub fn set_device_data(device_data: &mut DeviceData) {
     get_property_value_from_file(DEVICE_PROP_FILE, "BOX_TYPE", &mut device_data.box_type);
     get_property_value_from_file(DEVICE_PROP_FILE, "MODEL_NUM", &mut device_data.model_num);
-    get_property_value_from_file(
-        DEVICE_PROP_FILE,
-        "DEVICE_TYPE",
-        &mut device_data.device_type,
-    );
+    get_property_value_from_file(DEVICE_PROP_FILE, "DEVICE_TYPE", &mut device_data.device_type);
     get_sha1_value(&mut device_data.sha1);
     let _ = get_device_mac(&mut device_data.mac_addr);
     get_property_value_from_file(DEVICE_PROP_FILE, "BUILD_TYPE", &mut device_data.build_type);
     device_data.t2_enabled = Path::new("/lib/rdk/t2Shared_api.sh").exists();
-    device_data.tls = if Path::new("/etc/os-release").exists() {
-        "--tlsv1.2".to_string()
-    } else {
-        "".to_string()
-    };
+    device_data.tls = if Path::new("/etc/os-release").exists() {"--tlsv1.2".to_string()} else {"".to_string()};
     device_data.encryption_enabled = if Path::new("/etc/encryption_enabled").exists() {
-        set_rfc_param(
-            "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.encryptionEnabled",
-            "true",
-        );
+        set_rfc_param(ENCRYPTION_RFC,"true");
         true
     } else {
         false
-    };
+    }
 }
 
-pub fn should_exit_crash_upload(dump_paths: &DumpPaths) -> bool {
-    let minidumps_exists = check_minidumps_exist(&dump_paths.minidumps_path);
-    let core_exists = check_core_exist(&dump_paths.core_path);
+pub fn should_exit_crash_upload(minidumps_path: &String, core_path: &String) -> bool {
+    let minidumps_exists = check_minidumps_exist(&minidumps_path);
+    let core_exists = check_core_exist(&core_path);
 
     !(minidumps_exists || core_exists)
 }
@@ -361,8 +344,8 @@ pub fn finalize(dump_paths: &DumpPaths) {
     if loop_file.exists() {
         rm_rf(loop_file);
     }
-    remove_lock(dump_paths.get_lock_dir_prefix());
-    remove_lock(dump_paths.get_ts_file());
+    remove_lock(&dump_paths.lock_dir_prefix);
+    remove_lock(&dump_paths.ts_file);
 }
 
 pub fn sig_term_function(dump_paths: &DumpPaths) {
@@ -371,8 +354,8 @@ pub fn sig_term_function(dump_paths: &DumpPaths) {
     if loop_file.exists() {
         rm_rf(loop_file);
     }
-    remove_lock(dump_paths.get_lock_dir_prefix());
-    remove_lock(dump_paths.get_ts_file());
+    remove_lock(&dump_paths.lock_dir_prefix);
+    remove_lock(&dump_paths.ts_file);
 }
 
 pub fn sig_kill_function(dump_paths: &DumpPaths) {
@@ -381,18 +364,18 @@ pub fn sig_kill_function(dump_paths: &DumpPaths) {
     if loop_file.exists() {
         rm_rf(loop_file);
     }
-    remove_lock(dump_paths.get_lock_dir_prefix());
-    remove_lock(dump_paths.get_ts_file());
+    remove_lock(&dump_paths.lock_dir_prefix);
+    remove_lock(&dump_paths.ts_file);
 }
 
 pub fn should_process_dump<P: AsRef<str>>(
-    dump_paths: &DumpPaths,
-    device_data: &DeviceData,
+    dump_name: &String,
+    device_type: &String,
     file_name: P,
 ) -> bool {
     let f_name = file_name.as_ref();
-    let status = if dump_paths.dump_name == "minidump"
-        || device_data.device_type != "prod"
+    let status = if dump_name == "minidump"
+        || device_type != "prod"
         || f_name.contains("Receiver")
     {
         true
@@ -758,10 +741,6 @@ pub fn get_last_modified_time_of_file<P: AsRef<str>>(path: P) -> Option<String> 
 
     Some(datetime.format("%Y-%m-%d-%H-%M-%S").to_string())
 }
-
-//pub fn process_crash_t2_info<P: AsRef<str>>(file_path: P) {
-// TODO:
-//}
 
 fn get_crashed_log_file<P: AsRef<str>>(file_path: P) -> io::Result<()> {
     let file = file_path.as_ref();

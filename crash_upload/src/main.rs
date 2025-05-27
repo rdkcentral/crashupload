@@ -1,30 +1,32 @@
 use std::process::exit;
 // standard library imports
-use std::fs::create_dir;
-use std::os::unix::thread;
 use std::path::Path;
 use std::{env, fs, process};
 
+// external crate imports
 use chrono::Local;
-use constants::{DeviceData, COREDUMP_MTX_FILE, CRASH_UPLOAD_REBOOT_FLAG, NETWORK_CHECK_TIMEOUT};
-use crashupload_utils::*;
-use platform_interface::*;
-use utils::sleep;
 
 // crashupload internal module imports
 mod constants;
 mod crashupload_utils;
 
+// crashupload_utils library module imports
+use crashupload_utils::*;
+use platform_interface::*;
+use utils::*;
+
 fn main() {
     println!("Starting Crash Upload Binary...");
-    // EXEC: Command line argument parsing
     let args: Vec<String> = env::args().collect();
     if args.len() != 4 {
         eprintln!("Usage: {} <integer> <string> <string>", args[0]);
         process::exit(1);
     }
 
-    // EXEC: Instantiate the DumpPaths & DeviceData structs
+    let dump_flag = args[1].parse::<u32>().expect("Dump flag must be a number");
+    let upload_flag = &args[2];
+    let wait_for_lock = &args[3];
+
     println!("Instantiating DumpPaths and DeviceData structs...");
     let mut device_data = constants::DeviceData::new();
     let mut dump_paths = constants::DumpPaths::new();
@@ -32,10 +34,6 @@ fn main() {
     crashupload_utils::set_device_data(&mut device_data);
 
     //let crash_timestamp = utils::get_crash_timestamp();
-    let dump_flag = args[1].parse::<u32>().expect("Dump flag must be a number");
-    let upload_flag = &args[2];
-    let wait_for_lock = &args[3];
-
     // EXEC: Set the core and minidump paths based on the upload flag
     if upload_flag == "secure" {
         dump_paths.set_core_path("/opt/secure/corefiles".to_string());
@@ -45,43 +43,19 @@ fn main() {
         dump_paths.set_minidumps_path("/opt/minidumps".to_string());
     }
 
-    if crashupload_utils::should_exit_crash_upload(&dump_paths) {
+    if crashupload_utils::should_exit_crash_upload(&dump_paths.minidumps_path, &dump_paths.core_path) {
         println!("Crash upload process is already running. Exiting...");
         std::process::exit(0);
     }
 
     // EXEC: Secure Dump Status & path Set
-    //let _ = crashupload_utils::get_secure_dump_status(&mut dump_paths);
+    let _ = crashupload_utils::get_secure_dump_status(&mut dump_paths);
 
-    // core_log.txt file logging can be handled using syslog-ng
-
-    // ==============================
-    /* TODO: Implementations for below functions
-     * logMessage()
-     * tlsLog()
-     * checkParameter()
-     * deleteAllButTheMostRecentFiles() - In progress
-     * cleanup()
-     * finalize()
-     * sigkill_function()
-     * sigterm_function()
-     * logUploadTimestamp()
-     * truncateTimeStampFile()
-     * removePendingDumps()
-     * markAsCrashLoopedAndUpload()
-     * saveDump()
-     * shouldProcessFile()
-     * get_crashed_log_file()
-     * processCrashTelemtryInfo()
-     * add_crashed_log_file()
-     * copy_log_files_tmp_dir()
-     * processDumps()
-     */
+    
     // ==============================
 
     // let timestamp_filename = crashupload_utils::get_timestamp_filename(dump_name);
     let crash_ts = Local::now().format("%Y-%m-%d-%H-%M-%S").to_string();
-
     if dump_flag == 1 {
         println!("starting core dump processing...");
         dump_paths.dump_name = "coredump".to_string();
@@ -103,9 +77,9 @@ fn main() {
     dump_paths.ts_file = format!("/tmp/.{}_upload_timestamps", dump_paths.dump_name);
 
     if wait_for_lock == "wait_for_lock" {
-        create_lock_or_wait(dump_paths.get_lock_dir_prefix());
+        create_lock_or_wait(&dump_paths.lock_dir_prefix);
     } else {
-        create_lock_or_exit(dump_paths.get_lock_dir_prefix());
+        create_lock_or_exit(&dump_paths.lock_dir_prefix);
     }
 
     if device_data.device_type == "hybrid" || device_data.device_type == "mediaclient" {
@@ -121,7 +95,7 @@ fn main() {
             let sleep_time = 480 - uptime_val;
             println!("Deferring reboot for {} seconds", sleep_time);
             sleep(sleep_time);
-            if Path::new(CRASH_UPLOAD_REBOOT_FLAG).exists() {
+            if Path::new(constants::CRASH_UPLOAD_REBOOT_FLAG).exists() {
                 println!("Process crashed exiting from the Deferring reboot");
             }
         }
@@ -155,7 +129,7 @@ fn main() {
         } else {
             println!(
                 "Network is not available, Sleep for {} seconds",
-                NETWORK_CHECK_TIMEOUT
+                constants::NETWORK_CHECK_TIMEOUT
             );
             sleep(constants::NETWORK_CHECK_TIMEOUT as u64);
             counter += 1;
@@ -191,7 +165,7 @@ fn main() {
 
     // trap finalize EXIT
 
-    if !Path::new(COREDUMP_MTX_FILE).exists() && dump_flag == 1 {
+    if !Path::new(constants::COREDUMP_MTX_FILE).exists() && dump_flag == 1 {
         println!("Waiting for Coredump completion");
         sleep(21);
     }
@@ -213,4 +187,11 @@ fn main() {
         &dump_paths.dumps_extn,
     );
     println!("Portal URL is {}", portal_url);
+
+    println!("buildID is {}", device_data.sha1);
+    if !Path::new(w_dir).is_dir() {
+        exit(1);
+    }
+
+    // For Loop to processDumps
 }

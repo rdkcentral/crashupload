@@ -42,6 +42,12 @@ pub const NETWORK_CHECK_TIMEOUT: usize = 10;
 pub const SYSTEM_TIME_ITERATION: usize = 10;
 pub const SYSTEM_TIME_TIMEOUT: usize = 1;
 
+pub const ENCRYPTION_RFC: &str = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.encryptionEnabled";
+
+pub const SHA1_DEFAULT_VALUE: &str = "0000000000000000000000000000000000000000";
+pub const TIMESTAMP_DEFAULT_VALUE: &str = "2000-01-01-00-00-00";
+pub const MAC_DEFAULT_VALUE: &str = "000000000000";
+pub const MODEL_NUM_DEFAULT_VALUE: &str = "UNKNOWN";
 pub struct DumpPaths {
     pub dump_name: String,
     pub core_path: String,
