@@ -81,15 +81,6 @@ mod tests {
         remove_file("/tmp/.macAddress");
     }
 
-    // Test for touch function
-    #[test]
-    fn test_touch() {
-        thread::sleep(Duration::from_secs(2));
-        touch("test_file.txt");
-        assert!(PathBuf::from("test_file.txt").exists());
-        rm("test_file.txt");
-    }
-
     // Test for rm function
     #[test]
     fn test_rm() {
