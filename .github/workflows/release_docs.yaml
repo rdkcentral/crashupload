@@ -1,0 +1,175 @@
+name: Release Documentation
+
+#on:
+  push:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  docs:
+    name: Generate and Deploy Documentation
+    runs-on: ubuntu-latest
+    container:
+      image: rust:latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install dependencies
+      run: |
+        apt-get update && apt-get install -y git pkg-config libssl-dev
+        cargo install cargo-readme
+
+    - name: Generate documentation
+      run: |
+        cargo doc --all-features --no-deps --workspace
+        echo '<meta http-equiv="refresh" content="0; url=./doc/index.html">' > target/doc/index.html
+
+    - name: Copy additional files to docs
+      run: |
+        cp README.md target/doc/ 2>/dev/null || true
+        cp LICENSE* target/doc/ 2>/dev/null || true
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: 'target/doc'
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+
+    - name: Generate README from lib.rs
+      run: |
+        # Configure git for commit
+        git config --global --add safe.directory /__w/*/
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Find the main library crate and generate README
+        if [ -f "src/lib.rs" ]; then
+          cargo readme --input src/lib.rs --output README.md
+        elif find . -name "lib.rs" -path "*/src/lib.rs" | head -1 | xargs -I{} dirname {} | xargs -I{} dirname {} | head -1; then
+          # Handle workspace with multiple crates - use first one found
+          CRATE_DIR=$(find . -name "lib.rs" -path "*/src/lib.rs" | head -1 | xargs -I{} dirname {} | xargs -I{} dirname {})
+          cd "$CRATE_DIR"
+          cargo readme --input src/lib.rs --output ../README.md
+          cd - > /dev/null
+        fi
+
+    - name: Check if README changed and commit
+      run: |
+        if [ -f "README.md" ]; then
+          if ! git diff --quiet README.md 2>/dev/null; then
+            git add README.md
+            git commit -m "docs: auto-update README.md from lib.rs documentation" || echo "No changes to commit"
+            git push || echo "Nothing to push"
+          else
+            echo "README.md unchanged"
+          fi
+        else
+          echo "README.md not found"
+        fi
+
+    - name: Clean target directory (ensure it's not persisted)
+      run: rm -rf target/ }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-docs-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Install cargo-readme
+      run: cargo install cargo-readme
+
+    - name: Generate documentation
+      run: |
+        cargo doc --all-features --no-deps --workspace
+        echo '<meta http-equiv="refresh" content="0; url=./doc/index.html">' > target/doc/index.html
+
+    - name: Copy additional files to docs
+      run: |
+        cp README.md target/doc/ || true
+        cp LICENSE* target/doc/ || true
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: 'target/doc'
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+
+    - name: Generate README from lib.rs
+      run: |
+        # Find the main library crate
+        if [ -f "src/lib.rs" ]; then
+          cargo readme --input src/lib.rs --output README.md
+        elif [ -f "*/src/lib.rs" ]; then
+          # Handle workspace with multiple crates
+          for crate_dir in */; do
+            if [ -f "${crate_dir}src/lib.rs" ] && [ -f "${crate_dir}Cargo.toml" ]; then
+              cd "$crate_dir"
+              cargo readme --input src/lib.rs --output ../README.md
+              cd ..
+              break
+            fi
+          done
+        fi
+
+    - name: Check if README changed
+      id: readme_check
+      run: |
+        if git diff --quiet README.md; then
+          echo "changed=false" >> $GITHUB_OUTPUT
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Commit updated README
+      if: steps.readme_check.outputs.changed == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add README.md
+        git commit -m "docs: auto-update README.md from lib.rs documentation"
+        git push
+
+    - name: Clean target directory
+      run: cargo clean

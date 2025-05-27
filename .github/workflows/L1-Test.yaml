@@ -1,0 +1,54 @@
+name: L1 Testing & Coverage
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  test-and-coverage:
+    name: Test & Coverage
+    runs-on: ubuntu-latest
+    container:
+      image: rust:latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        apt-get update && apt-get install -y git pkg-config libssl-dev
+        cargo install cargo-tarpaulin
+
+    - name: Run all tests
+      run: cargo test --all-features --workspace --verbose
+
+    - name: Run tests with tarpaulin for coverage
+      run: |
+        cargo tarpaulin --all-features --workspace --timeout 120 \
+          --out xml --output-dir ./coverage/ \
+          --exclude-files "tests/*" "benches/*" "**/tests.rs" "**/test_*.rs" \
+          --verbose
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/cobertura.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+    - name: Archive code coverage results
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-coverage-report
+        path: coverage/
+
+    - name: Clean target directory (ensure it's not persisted)
+      run: rm -rf target/
