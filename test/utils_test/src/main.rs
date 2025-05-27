@@ -2,7 +2,6 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
 
-
 fn create_file_with_content(file_path: &str, content: &str) {
     let mut file = File::create(file_path).unwrap();
     file.write_all(content.as_bytes()).unwrap();
@@ -25,7 +24,7 @@ mod tests {
     #[test]
     fn test_get_property_value_from_file() {
         thread::sleep(Duration::from_secs(2));
-        create_file_with_content("device.properties","MODEL_NUM=TestModel");
+        create_file_with_content("device.properties", "MODEL_NUM=TestModel");
         let mut value = String::new();
         let res = get_property_value_from_file("device.properties", "MODEL_NUM", &mut value);
         assert_eq!(res, true);
@@ -37,7 +36,7 @@ mod tests {
     #[test]
     fn test_get_property_value_from_file_no_key() {
         thread::sleep(Duration::from_secs(2));
-        create_file_with_content("device.properties","MODEL_NUM=TestModel");
+        create_file_with_content("device.properties", "MODEL_NUM=TestModel");
         let mut value = String::new();
         let res = get_property_value_from_file("device.properties", "DEVICE_TYPE", &mut value);
         assert_eq!(res, false);

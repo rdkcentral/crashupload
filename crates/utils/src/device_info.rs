@@ -12,7 +12,11 @@ pub const DEVICE_MAC_FILE: &str = "/tmp/.macAddress";
 pub const VERSION_FILE: &str = "/version.txt";
 
 // use this fn to getModel() using "MODEL_NUM" key
-pub fn get_property_value_from_file<P: AsRef<Path>, K: AsRef<str>>(path: P, key: K, val: &mut String) -> bool {
+pub fn get_property_value_from_file<P: AsRef<Path>, K: AsRef<str>>(
+    path: P,
+    key: K,
+    val: &mut String,
+) -> bool {
     let key = key.as_ref().trim();
     *val = String::new();
     let prop_file = match File::open(path) {
@@ -38,9 +42,7 @@ pub fn get_property_value_from_file<P: AsRef<Path>, K: AsRef<str>>(path: P, key:
 
 // TODO
 pub fn get_sha1_value(sha1_val: &mut String) -> bool {
-    let output = match Command::new("sha1sum")
-        .arg(VERSION_FILE)
-        .output() {
+    let output = match Command::new("sha1sum").arg(VERSION_FILE).output() {
         Ok(output) => output,
         Err(_) => return false,
     };
@@ -60,4 +62,3 @@ pub fn get_device_mac(mac: &mut String) -> io::Result<()> {
     *mac = mac_val.trim().replace(":", "");
     Ok(())
 }
-

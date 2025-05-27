@@ -21,14 +21,15 @@ pub const TLS: &str = "--tlsv1.2";
 pub const enable_oscp_stapling: &str = "/tmp/.EnableOCSPStapling";
 pub const enable_oscp: &str = "/tmp/.EnableOCSPCA";
 
-pub const SECUREDUMP_TR181_NAME: &str = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.SecDump.Enable";
+pub const SECUREDUMP_TR181_NAME: &str =
+    "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.SecDump.Enable";
 pub const SECUREDUMP_ENABLE_FILE: &str = "/tmp/.SecureDumpEnable";
 pub const SECUREDUMP_DISABLE_FILE: &str = "/tmp/.SecureDumpDisable";
 pub const CRASH_UPLOAD_REBOOT_FLAG: &str = "/tmp/set_crash_reboot_flag";
 pub const DENY_UPLOAD_FILE: &str = "/tmp/.deny_dump_uploads_till";
 
 pub const UPLOAD_ON_STARTUP: &str = "/opt/.upload_on_startup";
-pub const ON_STARTUP_DUMPS_CLEANED_UP_BASE: &str ="/tmp/.on_startup_dumps_cleaned_up";
+pub const ON_STARTUP_DUMPS_CLEANED_UP_BASE: &str = "/tmp/.on_startup_dumps_cleaned_up";
 pub const CRASH_LOOP_FLAG_FILE: &str = ""; // TODO
 
 pub const POTOMAC_USER: &str = "ccpstbscp";
@@ -130,7 +131,6 @@ impl DumpPaths {
         }
     }
 }
-
 
 // TODO: Add device_name member as well
 pub struct DeviceData {

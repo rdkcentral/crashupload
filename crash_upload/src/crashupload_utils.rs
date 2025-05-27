@@ -4,13 +4,13 @@ use std::ffi::OsStr;
 use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::{self, BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::{process, usize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{process, usize};
 use std::{thread, time};
 
+use crate::constants::{self, *};
 use platform_interface::*;
 use utils::*;
-use crate::constants::{self, *};
 
 // Module-level constants
 const SHA1_DEFAULT_VALUE: &str = "0000000000000000000000000000000000000000";
@@ -29,17 +29,28 @@ fn is_another_instance_running<P: AsRef<Path>>(path: P) -> bool {
 }
 
 pub fn set_device_data(device_data: &mut DeviceData) {
-    get_property_value_from_file(DEVICE_PROP_FILE, "BOX_TYPE",&mut device_data.box_type);
-    get_property_value_from_file(DEVICE_PROP_FILE, "MODEL_NUM",&mut device_data.model_num);
-    get_property_value_from_file(DEVICE_PROP_FILE, "DEVICE_TYPE", &mut device_data.device_type);
+    get_property_value_from_file(DEVICE_PROP_FILE, "BOX_TYPE", &mut device_data.box_type);
+    get_property_value_from_file(DEVICE_PROP_FILE, "MODEL_NUM", &mut device_data.model_num);
+    get_property_value_from_file(
+        DEVICE_PROP_FILE,
+        "DEVICE_TYPE",
+        &mut device_data.device_type,
+    );
     get_sha1_value(&mut device_data.sha1);
     let _ = get_device_mac(&mut device_data.mac_addr);
     get_property_value_from_file(DEVICE_PROP_FILE, "BUILD_TYPE", &mut device_data.build_type);
     device_data.t2_enabled = Path::new("/lib/rdk/t2Shared_api.sh").exists();
-    device_data.tls = if Path::new("/etc/os-release").exists() { "--tlsv1.2".to_string() } else { "".to_string() };
-    device_data.encryption_enabled = if Path::new("/etc/encryption_enabled").exists() { 
-        set_rfc_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.encryptionEnabled", "true");
-        true 
+    device_data.tls = if Path::new("/etc/os-release").exists() {
+        "--tlsv1.2".to_string()
+    } else {
+        "".to_string()
+    };
+    device_data.encryption_enabled = if Path::new("/etc/encryption_enabled").exists() {
+        set_rfc_param(
+            "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.encryptionEnabled",
+            "true",
+        );
+        true
     } else {
         false
     };
@@ -80,18 +91,26 @@ fn check_core_exist(core_dir: &str) -> bool {
     false
 }
 
-pub fn set_log_file(device_data: &DeviceData, log_mod_ts: &str, line: &str){
+pub fn set_log_file(device_data: &DeviceData, log_mod_ts: &str, line: &str) {
     let file_name = line.split('/').last().unwrap_or_else(|| line);
     let file_processed = file_name.contains("_mac")
         || file_name.contains("_dat")
         || file_name.contains("_box")
-        || file_name.contains("_mod"); 
+        || file_name.contains("_mod");
     if file_processed {
         println!("{}", file_name);
         println!("Core name is already processed");
     } else {
-        println!("{}_mac{}_dat{}_box{}_mod{}_{}", device_data.sha1, device_data.mac_addr, log_mod_ts, device_data.box_type, device_data.model_num, file_name);
-    } 
+        println!(
+            "{}_mac{}_dat{}_box{}_mod{}_{}",
+            device_data.sha1,
+            device_data.mac_addr,
+            log_mod_ts,
+            device_data.box_type,
+            device_data.model_num,
+            file_name
+        );
+    }
 }
 
 fn set_secure_dump_flag(is_sec_dump_enabled: &mut bool) {
@@ -141,7 +160,10 @@ pub fn get_secure_dump_status(dump_paths: &mut DumpPaths) {
 pub fn create_lock_or_exit<P: AsRef<Path>>(path: P) -> bool {
     let lock = lock_path(&path);
     if is_another_instance_running(&path) {
-        println!("Script is already working. {:?}. Skip launching another instance...", lock);
+        println!(
+            "Script is already working. {:?}. Skip launching another instance...",
+            lock
+        );
         process::exit(0);
     }
 
@@ -290,8 +312,9 @@ pub fn is_recovery_time_reached() -> bool {
     now > upload_denied_till
 }
 
-
-pub fn delete_all_but_most_recent_files<P: AsRef<str>>(dir_path: P) -> Result<(), Box<dyn std::error::Error>> {
+pub fn delete_all_but_most_recent_files<P: AsRef<str>>(
+    dir_path: P,
+) -> Result<(), Box<dyn std::error::Error>> {
     let path = Path::new(dir_path.as_ref());
     let mut files: Vec<(PathBuf, SystemTime)> = fs::read_dir(path)?
         .filter_map(|entry| {
@@ -329,7 +352,11 @@ pub fn delete_all_but_most_recent_files<P: AsRef<str>>(dir_path: P) -> Result<()
 }
 
 pub fn finalize(dump_paths: &DumpPaths) {
-    let _ = cleanup(&dump_paths.working_dir, &dump_paths.dump_name, &dump_paths.dumps_extn);
+    let _ = cleanup(
+        &dump_paths.working_dir,
+        &dump_paths.dump_name,
+        &dump_paths.dumps_extn,
+    );
     let loop_file = Path::new(CRASH_LOOP_FLAG_FILE);
     if loop_file.exists() {
         rm_rf(loop_file);
@@ -358,12 +385,18 @@ pub fn sig_kill_function(dump_paths: &DumpPaths) {
     remove_lock(dump_paths.get_ts_file());
 }
 
-pub fn should_process_dump<P: AsRef<str>>(dump_paths: &DumpPaths, device_data: &DeviceData, file_name: P) -> bool {
+pub fn should_process_dump<P: AsRef<str>>(
+    dump_paths: &DumpPaths,
+    device_data: &DeviceData,
+    file_name: P,
+) -> bool {
     let f_name = file_name.as_ref();
-    let status = if dump_paths.dump_name == "minidump" || device_data.device_type != "prod" ||  f_name.contains("Receiver") {
+    let status = if dump_paths.dump_name == "minidump"
+        || device_data.device_type != "prod"
+        || f_name.contains("Receiver")
+    {
         true
-    }
-    else {
+    } else {
         println!("Not Processing dump file {}", f_name);
         false
     };
@@ -377,8 +410,8 @@ pub fn get_dump_count(path: &String, extn: &String) -> io::Result<usize> {
     if dir_path.exists() && dir_path.is_dir() {
         for entry in fs::read_dir(path)? {
             let entry = entry?;
-            let file_path =  entry.path();
-            if file_path.is_file(){
+            let file_path = entry.path();
+            if file_path.is_file() {
                 if let Some(ext) = file_path.extension() {
                     if ext.to_string_lossy() == extn.to_string() {
                         count += 1;
@@ -390,10 +423,13 @@ pub fn get_dump_count(path: &String, extn: &String) -> io::Result<usize> {
     Ok(count)
 }
 
-pub fn cleanup(work_dir: &String, dump_name: &String, dump_extn: &String) -> io::Result<()>{
+pub fn cleanup(work_dir: &String, dump_name: &String, dump_extn: &String) -> io::Result<()> {
     let work_dir_path = Path::new(work_dir);
 
-    if !work_dir_path.exists() || !work_dir_path.is_dir() || work_dir_path.read_dir()?.next().is_none() {
+    if !work_dir_path.exists()
+        || !work_dir_path.is_dir()
+        || work_dir_path.read_dir()?.next().is_none()
+    {
         println!("Working directory {} is empty", work_dir);
         return Ok(());
     }
@@ -407,9 +443,9 @@ pub fn cleanup(work_dir: &String, dump_name: &String, dump_extn: &String) -> io:
         if file_path.is_file() {
             if let Some(file_name) = file_path.file_name() {
                 let file_name_str = file_name.to_string_lossy();
-                
+
                 // _mac comes befire _dat in the wildcard matching
-                if let Some(mac_pos) =  file_name_str.find("_mac") {
+                if let Some(mac_pos) = file_name_str.find("_mac") {
                     if let Some(dat_pos) = file_name_str.find("_dat") {
                         if mac_pos < dat_pos {
                             let metadata = fs::metadata(&file_path)?;
@@ -428,12 +464,16 @@ pub fn cleanup(work_dir: &String, dump_name: &String, dump_extn: &String) -> io:
     // find and while loop logic
     if !Path::new(UPLOAD_ON_STARTUP).exists() {
         rm_rf(format!("{}/version.txt", work_dir));
-        let on_startup_dumps_cleaned_up_str = format!("{}_{}", ON_STARTUP_DUMPS_CLEANED_UP_BASE, if dump_name == "coredump" { "1" } else { "" });
+        let on_startup_dumps_cleaned_up_str = format!(
+            "{}_{}",
+            ON_STARTUP_DUMPS_CLEANED_UP_BASE,
+            if dump_name == "coredump" { "1" } else { "" }
+        );
         let on_startup_dumps_cleaned_up_path = Path::new(&on_startup_dumps_cleaned_up_str);
-        
+
         if !on_startup_dumps_cleaned_up_path.exists() {
             let path = Path::new(UPLOAD_ON_STARTUP);
-            
+
             let mut deleted_files = Vec::new();
             for entry in fs::read_dir(path)? {
                 let entry = entry?;
@@ -455,7 +495,7 @@ pub fn cleanup(work_dir: &String, dump_name: &String, dump_extn: &String) -> io:
                 }
             }
             println!("Deleting unfinished files: {:?}", deleted_files);
-            
+
             let mut non_dump_files = Vec::new();
             for entry in fs::read_dir(path)? {
                 let entry = entry?;
@@ -473,8 +513,7 @@ pub fn cleanup(work_dir: &String, dump_name: &String, dump_extn: &String) -> io:
             let _ = delete_all_but_most_recent_files(path.to_str().unwrap_or_default());
             touch(on_startup_dumps_cleaned_up_str.as_str());
         }
-    }
-    else {
+    } else {
         if dump_name == "coredump" {
             rm_rf(UPLOAD_ON_STARTUP);
         }
@@ -482,8 +521,7 @@ pub fn cleanup(work_dir: &String, dump_name: &String, dump_extn: &String) -> io:
     Ok(())
 }
 
-
-pub fn remove_pending_dumps(path: &String, extn: &String) -> io::Result<()>{
+pub fn remove_pending_dumps(path: &String, extn: &String) -> io::Result<()> {
     let dir_path = Path::new(path);
 
     if dir_path.exists() && dir_path.is_dir() {
@@ -521,7 +559,10 @@ fn process_crash_t2_info(file_path: &String) {
             file_name_str = file_name_str.split_off(pos + "_mod_".len());
         }
         println!("Original Filename: {}", file.display());
-        println!("Removing the meta information New Filename: {}", file_name_str);
+        println!(
+            "Removing the meta information New Filename: {}",
+            file_name_str
+        );
         println!("This could be a retry or crash from previous boot the appname can be truncated");
         t2_count_notify("SYS_INFO_TGZDUMP", Some("1"));
     }
@@ -551,11 +592,26 @@ fn process_crash_t2_info(file_path: &String) {
             t2_count_notify("SYS_INFO_CrashedContainer", Some("1"));
 
             println!("Container crash info Basic: {}, {}", app_name, process_name);
-            println!("Container crash info Advanced: {}, {}", container_name, container_status);
-            println!("NEW Appname, Process_Crashed, Status = {}, {}, {}", app_name, process_name, container_status);
-            println!("NEW Processname, App Name, AppState = {}, {}, {}", process_name, app_name, container_status);
-            println!("ContainerName, ContainerStatus = {}, {}", container_name, container_status);
-            println!("NewProcessCrash_split {}, {}", container_name, container_status);
+            println!(
+                "Container crash info Advanced: {}, {}",
+                container_name, container_status
+            );
+            println!(
+                "NEW Appname, Process_Crashed, Status = {}, {}, {}",
+                app_name, process_name, container_status
+            );
+            println!(
+                "NEW Processname, App Name, AppState = {}, {}, {}",
+                process_name, app_name, container_status
+            );
+            println!(
+                "ContainerName, ContainerStatus = {}, {}",
+                container_name, container_status
+            );
+            println!(
+                "NewProcessCrash_split {}, {}",
+                container_name, container_status
+            );
         }
     }
     let _ = get_crashed_log_file(&file_name_str);
@@ -580,7 +636,7 @@ pub fn add_crashed_log_file(device_data: &DeviceData) {
         line_count = 500;
     }
 
-    
+
 }
 
 pub fn copy_log_files_to_tmp(tmp_dir: &String) {
@@ -610,7 +666,7 @@ pub fn copy_log_files_to_tmp(tmp_dir: &String) {
         println!("Logs copied to {} Temporary", tmp_directory);
 
         // Loop
-        
+
     }
 
 }
@@ -635,10 +691,10 @@ pub fn copy_log_files_to_tmp(tmp_dir: &String) {
 //     while count > 5 {
 //         if let Some(oldest_dump) = dump_files.iter()
 //             .min_by_key(|path| fs::metadata(path).and_then(|m| m.modified()).unwrap_or(SystemTime::UNIX_EPOCH)) {
-            
+
 //             println!("Removing old dump {:?}", oldest_dump);
 //             fs::remove_file(oldest_dump)?;
-            
+
 //             count -= 1; // Decrement count
 //         }
 //     }
@@ -665,13 +721,23 @@ pub fn log_upload_timestamp(ts_file: &String) {
 fn truncate_timestamp_file(ts_file: &String) -> io::Result<()> {
     let ts_path = Path::new(ts_file);
 
-    let _ = OpenOptions::new().create(true).write(true).read(true).open(ts_path);
+    let _ = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .read(true)
+        .open(ts_path);
     let file = fs::File::open(ts_path)?;
     let reader = io::BufReader::new(file);
 
-    let lines: Vec<String> = reader.lines().map(|line| line.unwrap_or_default()).collect();
+    let lines: Vec<String> = reader
+        .lines()
+        .map(|line| line.unwrap_or_default())
+        .collect();
     let last_10_lines: Vec<String> = lines.iter().rev().take(10).cloned().collect();
-    let mut tmp_file = OpenOptions::new().write(true).truncate(true).open(ts_path)?;
+    let mut tmp_file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(ts_path)?;
 
     for line in last_10_lines {
         writeln!(tmp_file, "{}", line)?;

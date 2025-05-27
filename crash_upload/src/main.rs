@@ -1,9 +1,9 @@
 use std::process::exit;
 // standard library imports
-use std::{env, fs, process};
 use std::fs::create_dir;
 use std::os::unix::thread;
 use std::path::Path;
+use std::{env, fs, process};
 
 use chrono::Local;
 use constants::{DeviceData, COREDUMP_MTX_FILE, CRASH_UPLOAD_REBOOT_FLAG, NETWORK_CHECK_TIMEOUT};
@@ -30,7 +30,7 @@ fn main() {
     let mut dump_paths = constants::DumpPaths::new();
 
     crashupload_utils::set_device_data(&mut device_data);
-    
+
     //let crash_timestamp = utils::get_crash_timestamp();
     let dump_flag = args[1].parse::<u32>().expect("Dump flag must be a number");
     let upload_flag = &args[2];
@@ -81,22 +81,20 @@ fn main() {
 
     // let timestamp_filename = crashupload_utils::get_timestamp_filename(dump_name);
     let crash_ts = Local::now().format("%Y-%m-%d-%H-%M-%S").to_string();
-    
+
     if dump_flag == 1 {
         println!("starting core dump processing...");
-        dump_paths.dump_name =  "coredump".to_string();
+        dump_paths.dump_name = "coredump".to_string();
         dump_paths.working_dir = dump_paths.get_core_path().to_string();
         dump_paths.dumps_extn = "*core.prog*.gz*".to_string();
         dump_paths.tar_extn = ".core.tgz".to_string();
         dump_paths.lock_dir_prefix = "/tmp/.uploadCoredumps".to_string();
         dump_paths.crash_portal_path = "/opt/crashportal_uploads/coredumps/".to_string();
-    }
-    else
-    {
+    } else {
         println!("starting minidump processing...");
-        dump_paths.dump_name =  "minidump".to_string();
+        dump_paths.dump_name = "minidump".to_string();
         dump_paths.working_dir = dump_paths.get_minidumps_path().to_string();
-        dump_paths.dumps_extn ="*.dmp*".to_string();
+        dump_paths.dumps_extn = "*.dmp*".to_string();
         dump_paths.tar_extn = "*.dmp.tgz".to_string();
         dump_paths.lock_dir_prefix = "/tmp/.uploadMinidumps".to_string();
         dump_paths.crash_portal_path = "/opt/crashportal_uploads/coredumps/".to_string();
@@ -106,14 +104,19 @@ fn main() {
 
     if wait_for_lock == "wait_for_lock" {
         create_lock_or_wait(dump_paths.get_lock_dir_prefix());
-    }
-    else {
+    } else {
         create_lock_or_exit(dump_paths.get_lock_dir_prefix());
     }
 
     if device_data.device_type == "hybrid" || device_data.device_type == "mediaclient" {
         let uptime_str = fs::read_to_string("/proc/uptime").expect("Unable to read uptime");
-        let uptime_val = uptime_str.split('.').next().unwrap_or("0").trim().parse::<u64>().unwrap_or(0);
+        let uptime_val = uptime_str
+            .split('.')
+            .next()
+            .unwrap_or("0")
+            .trim()
+            .parse::<u64>()
+            .unwrap_or(0);
         if uptime_val < 480 {
             let sleep_time = 480 - uptime_val;
             println!("Deferring reboot for {} seconds", sleep_time);
@@ -123,8 +126,7 @@ fn main() {
             }
         }
     }
-        
-    
+
     let w_dir = dump_paths.get_working_dir();
     match fs::read_dir(w_dir) {
         Ok(mut entries) => entries.next().is_none(),
@@ -135,7 +137,10 @@ fn main() {
     };
 
     let mut portal_url = String::new();
-    get_rfc_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl", &mut portal_url);
+    get_rfc_param(
+        "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl",
+        &mut portal_url,
+    );
     let req_type = 17;
 
     let mut counter = 1;
@@ -148,7 +153,10 @@ fn main() {
             println!("Network is available");
             break;
         } else {
-            println!("Network is not available, Sleep for {} seconds", NETWORK_CHECK_TIMEOUT);
+            println!(
+                "Network is not available, Sleep for {} seconds",
+                NETWORK_CHECK_TIMEOUT
+            );
             sleep(constants::NETWORK_CHECK_TIMEOUT as u64);
             counter += 1;
         }
@@ -176,9 +184,8 @@ fn main() {
                 println!("Continue without {} flag", constants::SYSTEM_TIME_FILE);
             }
             counter += 1;
-        } 
-    }
-    else {
+        }
+    } else {
         println!("Received {} flag", constants::SYSTEM_TIME_FILE);
     }
 
@@ -200,7 +207,10 @@ fn main() {
         println!("No {} for uploading exist", dump_paths.dump_name);
         exit(0);
     }
-    let _ = cleanup(&dump_paths.working_dir, &dump_paths.dump_name, &dump_paths.dumps_extn);
+    let _ = cleanup(
+        &dump_paths.working_dir,
+        &dump_paths.dump_name,
+        &dump_paths.dumps_extn,
+    );
     println!("Portal URL is {}", portal_url);
-
 }
