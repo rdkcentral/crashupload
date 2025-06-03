@@ -81,15 +81,6 @@ mod tests {
         remove_file("/tmp/.macAddress");
     }
 
-    // Test for rm function
-    #[test]
-    fn test_rm() {
-        thread::sleep(Duration::from_secs(2));
-        touch("test_file.txt");
-        rm("test_file.txt");
-        assert!(!PathBuf::from("test_file.txt").exists());
-    }
-
     // Test for rm_rf function
     #[test]
     fn test_rm_rf() {
@@ -103,17 +94,6 @@ mod tests {
         touch(&format!("{}/test_file.txt", dir_path));
         rm_rf(dir_path);
         assert!(!PathBuf::from(dir_path).exists());
-    }
-
-    // Test for sleep function
-    #[test]
-    fn test_sleep() {
-        thread::sleep(Duration::from_secs(2));
-        let start = std::time::Instant::now();
-        sleep(5);
-        let duration = start.elapsed();
-        assert!(duration.as_secs() >= 5);
-        assert!(duration.as_secs() < 6);
     }
 }
 

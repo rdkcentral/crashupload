@@ -1,16 +1,38 @@
-// platform_interface/src/rfc_api.rs
+//! RFC (Remote Feature Control) API integration for TR-181 parameter access.
+//!
+//! This module provides functions to get and set TR-181 parameters using the `tr181` binary.
+//! It is used for interacting with device configuration at runtime.
+
 use std::path::Path;
 use std::process::Command;
 
-// Module-level constants
+/// Path to the TR-181 binary used for RFC parameter access.
 const TR181_BIN: &str = "tr181";
-//const TR181_SET_BIN: &str = "tr181Set"; TODO
+// const TR181_SET_BIN: &str = "tr181Set"; // TODO: Implement if needed
 
+/// Returns the path to the TR-181 binary as a `Path`.
+#[inline]
 fn rfc_bin_path() -> &'static Path {
     Path::new(TR181_BIN)
 }
 
-/// Set a TR-181 RFC parameter to a value
+/// Sets a TR-181 RFC parameter to a specified value.
+///
+/// This function invokes the `tr181` binary with the `-s` (set) and `-v` (value) flags
+/// to set the given RFC parameter to the provided value.
+///
+/// # Arguments
+/// * `rfc` - The TR-181 parameter name.
+/// * `value` - The value to set for the parameter.
+///
+/// # Returns
+/// * `true` if the parameter was successfully set, `false` otherwise.
+///
+/// # Example
+/// ```
+/// use platform_interface::rfc_api::set_rfc_param;
+/// let success = set_rfc_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Foo.Enable", "true");
+/// ```
 pub fn set_rfc_param<R: AsRef<str>, V: AsRef<str>>(rfc: R, value: V) -> bool {
     let rfc_bin = rfc_bin_path();
     if rfc_bin.exists() {
@@ -23,7 +45,7 @@ pub fn set_rfc_param<R: AsRef<str>, V: AsRef<str>>(rfc: R, value: V) -> bool {
         {
             Ok(_) => true,
             Err(err) => {
-                eprintln!("{} get failed with {}", rfc_bin.display(), err);
+                println!("{} set failed with {}", rfc_bin.display(), err);
                 false
             }
         }
@@ -32,7 +54,26 @@ pub fn set_rfc_param<R: AsRef<str>, V: AsRef<str>>(rfc: R, value: V) -> bool {
     }
 }
 
-/// Get a TR-181 RFC parameter into a mutable string
+/// Gets a TR-181 RFC parameter value into a mutable string.
+///
+/// This function invokes the `tr181` binary with the `-g` (get) flag to retrieve
+/// the value of the given RFC parameter and stores it in the provided mutable string reference.
+///
+/// # Arguments
+/// * `rfc` - The TR-181 parameter name.
+/// * `res` - Mutable reference to a string to store the retrieved value.
+///
+/// # Returns
+/// * `true` if the parameter was successfully retrieved, `false` otherwise.
+///
+/// # Example
+/// ```
+/// use platform_interface::rfc_api::get_rfc_param;
+/// let mut value = String::new();
+/// if get_rfc_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Foo.Enable", &mut value) {
+///     println!("RFC value: {}", value);
+/// }
+/// ```
 pub fn get_rfc_param<R: AsRef<str>>(rfc: R, res: &mut String) -> bool {
     let rfc_bin = rfc_bin_path();
     if rfc_bin.exists() {

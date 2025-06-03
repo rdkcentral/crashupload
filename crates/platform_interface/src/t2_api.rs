@@ -1,15 +1,37 @@
-// platform_interface/src/t2.rs
+//! Telemetry2 (T2) API integration for sending telemetry markers to the platform.
+//!
+//! This module provides functions to notify T2 markers with count or value semantics
+//! by invoking the `telemetry2_0_client` binary if present on the system.
+
 use std::path::Path;
 use std::process::Command;
 
-// Module-level constants
+/// Path to the Telemetry2 client binary.
 const T2_MSG_CLIENT_PATH: &str = "/usr/bin/telemetry2_0_client";
 
+/// Returns the path to the Telemetry2 client as a `Path`.
+#[inline]
 fn t2_msg_client_path() -> &'static Path {
     Path::new(T2_MSG_CLIENT_PATH)
 }
 
-/// Notify a telemetry marker with a count (default 1 if None)
+/// Notify a telemetry marker with a count value.
+///
+/// This function invokes the T2 client with the given marker and count.
+/// If `count` is `None`, a default value of `"1"` is used.
+///
+/// # Arguments
+/// * `marker` - The telemetry marker name.
+/// * `count` - Optional count value as a string (defaults to `"1"`).
+///
+/// # Returns
+/// * `true` if the notification was successfully sent, `false` otherwise.
+///
+/// # Example
+/// ```
+/// use platform_interface::t2_api::t2_count_notify;
+/// t2_count_notify("SYST_INFO_minidumpUpld", None);
+/// ```
 pub fn t2_count_notify<M: AsRef<str>, C: AsRef<str>>(marker: M, count: Option<C>) -> bool {
     let t2_client = t2_msg_client_path();
     if t2_client.exists() {
@@ -21,7 +43,7 @@ pub fn t2_count_notify<M: AsRef<str>, C: AsRef<str>>(marker: M, count: Option<C>
         {
             Ok(_) => true,
             Err(err) => {
-                eprintln!("{} execution failed with {}", t2_client.display(), err);
+                println!("{} execution failed with {}", t2_client.display(), err);
                 false
             }
         }
@@ -30,7 +52,22 @@ pub fn t2_count_notify<M: AsRef<str>, C: AsRef<str>>(marker: M, count: Option<C>
     }
 }
 
-/// Notify a telemetry marker with a value
+/// Notify a telemetry marker with a value.
+///
+/// This function invokes the T2 client with the given marker and value.
+///
+/// # Arguments
+/// * `marker` - The telemetry marker name.
+/// * `value` - The value to associate with the marker.
+///
+/// # Returns
+/// * `true` if the notification was successfully sent, `false` otherwise.
+///
+/// # Example
+/// ```
+/// use platform_interface::t2_api::t2_val_notify;
+/// t2_val_notify("SYST_INFO_minidumpUpld", "42");
+/// ```
 pub fn t2_val_notify<M: AsRef<str>, V: AsRef<str>>(marker: M, value: V) -> bool {
     let t2_client = t2_msg_client_path();
     if t2_client.exists() {
@@ -41,7 +78,7 @@ pub fn t2_val_notify<M: AsRef<str>, V: AsRef<str>>(marker: M, value: V) -> bool 
         {
             Ok(_) => true,
             Err(err) => {
-                eprintln!("{} execution failed with {}", t2_client.display(), err);
+                println!("{} execution failed with {}", t2_client.display(), err);
                 false
             }
         }

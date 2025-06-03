@@ -29,15 +29,16 @@ TODO:
 - ~~shouldProcessFile()~~
 - ~~get_crashed_log_file()~~
 - ~~processCrashTelemtryInfo()~~
+- ~~add_crashed_log_file()~~ - optional args
+- ~~copy_log_files_tmp_dir()~~ - optional args
+- ~~processDumps()~~ - requires add_crashed_log_file() and copy_log_files_tmp_dir()
+- ~~saveDump()~~
+- ~~markAsCrashLoopedAndUpload()~~
+- checkParameter() - NA
+- logMessage() - Not req
+- tlsLog() - Not req
+- logStdout() - Not req
 ----
 **TODO**
-- add_crashed_log_file()
-- copy_log_files_tmp_dir()
-- processDumps()
-- saveDump()
-- markAsCrashLoopedAndUpload()
-- checkParameter()
-- logMessage()
-- tlsLog()
-- logStdout()
+- Signal Handling TRAPs
 ----
