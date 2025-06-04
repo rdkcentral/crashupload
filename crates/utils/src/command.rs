@@ -40,7 +40,7 @@ pub fn rm_rf<P: AsRef<Path>>(path: P) {
     let _ = if path_ref.is_dir() {
         fs::remove_dir_all(path_ref)
     } else {
-        fs::remove_file(path);
+        let _ = fs::remove_file(path);
         Ok(())
     };
 }
