@@ -52,28 +52,21 @@ pub fn t2_count_notify<M: AsRef<str>, C: AsRef<str>>(marker: M, count: Option<C>
     }
 }
 
-/// Notify a telemetry marker with a value.
-///
-/// This function invokes the T2 client with the given marker and value.
+/// Notify a telemetry marker with one or more values (comma-separated).
 ///
 /// # Arguments
 /// * `marker` - The telemetry marker name.
-/// * `value` - The value to associate with the marker.
+/// * `values` - The values to associate with the marker (comma-separated).
 ///
 /// # Returns
 /// * `true` if the notification was successfully sent, `false` otherwise.
-///
-/// # Example
-/// ```
-/// use platform_interface::t2_api::t2_val_notify;
-/// t2_val_notify("SYST_INFO_minidumpUpld", "42");
-/// ```
-pub fn t2_val_notify<M: AsRef<str>, V: AsRef<str>>(marker: M, value: V) -> bool {
+pub fn t2_val_notify<M: AsRef<str>>(marker: M, values: &[&str]) -> bool {
     let t2_client = t2_msg_client_path();
     if t2_client.exists() {
+        let joined = values.join(", ");
         match Command::new(t2_client)
             .arg(marker.as_ref())
-            .arg(value.as_ref())
+            .arg(&joined)
             .spawn()
         {
             Ok(_) => true,

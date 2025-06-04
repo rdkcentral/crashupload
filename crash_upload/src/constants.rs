@@ -15,7 +15,6 @@ pub const COREDUMP_PROP_FILE: &str = "/opt/coredump.properties";
 
 pub const T2_SHARED_SCRIPT: &str = "/lib/rdk/t2Shared_api.sh";
 
-pub const S3_BUCKET_URL: &str = "s3.amazonaws.com";
 pub const HTTP_CODE_FILE: &str = "/tmp/httpcode";
 pub const CURL_UPLOAD_TIMEOUT: usize = 45;
 pub const FOUR_EIGHTY_SECS: usize = 480;

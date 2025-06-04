@@ -217,13 +217,17 @@ fn is_another_instance_running<P: AsRef<Path>>(path: P) -> bool {
 ///
 /// # Returns
 /// * `true` if lock was created, otherwise exits or returns `false`.
-pub fn create_lock_or_exit<P: AsRef<Path>>(path: P) -> bool {
+pub fn create_lock_or_exit<P: AsRef<Path>>(path: P, is_t2_enabled: bool) -> bool {
     let lock = lock_path(&path);
     if is_another_instance_running(&path) {
+        if is_t2_enabled {
+            t2_count_notify("SYST_WARN_NoMinidump", Some("1"));
+        }
         println!(
             "Script is already working. {:?}. Skip launching another instance...",
             lock
         );
+        // TODO: add wait
         process::exit(0);
     }
 
@@ -322,11 +326,14 @@ pub fn set_log_file(device_data: &DeviceData, log_mod_ts: &str, line: &str) -> S
 ///
 /// # Returns
 /// * `true` if the box is rebooting (flag file exists), `false` otherwise.
-pub fn is_box_rebooting() -> bool {
+pub fn is_box_rebooting(is_t2_enabled: bool) -> bool {
     if Path::new(CRASH_UPLOAD_REBOOT_FLAG).exists() {
         println!("Skipping Upload, Since Box is Rebooting now...");
-        t2_count_notify("SYST_INFO_CoreUpldSkipped", None::<&str>);
+        if is_t2_enabled {
+            t2_count_notify("SYST_INFO_CoreUpldSkipped", Some("1"));
+        }
         println!("Upload will happen on next reboot");
+        // TODO: Add wait
         return true;
     }
     false
@@ -598,7 +605,7 @@ pub fn remove_pending_dumps(path: &str, extn: &str) -> io::Result<()> {
 ///
 /// # Arguments
 /// * `file_path` - Path to the crash dump file (as &str).
-pub fn process_crash_t2_info(file_path: &str) {
+pub fn process_crash_t2_info(file_path: &str, is_t2_enabled: bool) {
     println!("Processing the crash telemetry info");
     let file = Path::new(file_path);
     let mut file_name_str = file_path.to_string();
@@ -628,21 +635,21 @@ pub fn process_crash_t2_info(file_path: &str) {
             let app_name = container_name.split('_').nth(1).unwrap_or(container_name);
             let process_name = container_name.split('_').next().unwrap_or(container_name);
 
-            t2_val_notify("crashedContainerName_split", container_name);
-            t2_val_notify("crashedContainerStatus_split", container_status);
-            t2_val_notify("crashedContainerAppname_split", app_name);
-            t2_val_notify("crashedContainerProcessName_split", process_name);
             t2_count_notify("SYS_INFO_CrashedContainer", Some("1"));
 
             println!("Container crash info Basic: {}, {}", app_name, process_name);
             println!("Container crash info Advanced: {}, {}", container_name, container_status);
             println!("NEW Appname, Process_Crashed, Status = {}, {}, {}", app_name, process_name, container_status);
+
+            t2_val_notify("APP_ERROR_Crashed_split", &[&app_name, &process_name, &container_status]);
+            t2_val_notify("APP_ERROR_Crashed_accum", &[&app_name, &process_name, &container_status]);
+
             println!("NEW Processname, App Name, AppState = {}, {}, {}", process_name, app_name, container_status);
             println!("ContainerName, ContainerStatus = {}, {}", container_name, container_status);
-            println!("NewProcessCrash_split {}, {}", container_name, container_status);
+            t2_val_notify("APP_ERROR_CrashInfo_accum", &[&container_name, &container_status]);
         }
     }
-    let _ = get_crashed_log_file(&file_name_str);
+    let _ = get_crashed_log_file(&file_name_str, is_t2_enabled);
 }
 
 /// Renames a tarball to mark it as crashlooped and (optionally) uploads it to the crash portal.
@@ -786,7 +793,7 @@ pub fn get_last_modified_time_of_file(path: &str) -> Option<String> {
 ///
 /// # Returns
 /// * `Ok(())` on success, or an error if file operations fail.
-pub fn get_crashed_log_file(file_path: &str) -> io::Result<()> {
+pub fn get_crashed_log_file(file_path: &str, is_t2_enabled: bool) -> io::Result<()> {
     let file = file_path;
 
     let process_name = file
@@ -795,6 +802,12 @@ pub fn get_crashed_log_file(file_path: &str) -> io::Result<()> {
         .unwrap_or(file)
         .trim_start_matches("./");
     println!("Process crashed = {}", process_name);
+
+    if is_t2_enabled {
+        t2_val_notify("processCrash_split", &[&process_name]);
+        t2_val_notify("SYST_ERR_Process_Crash_accum", &[&process_name]);
+        t2_count_notify("SYST_ERR_ProcessCrash", Some("1"));
+    }
 
     let app_name = file
         .split('_')
@@ -1174,7 +1187,7 @@ pub fn get_privacy_control_mode() -> Option<String> {
 /// - Modifies files in the working directory (renames, compresses, deletes).
 /// - May create or remove log files and temporary directories.
 /// - Calls `handle_tarballs` for tarball upload/save logic.
-pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts: &str, no_network: bool) {
+pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts: &str, no_network: bool) { // TODO: Review and add code changes faithful to script
     utils::flush_logger();
     let files = match find_dump_files(dump_paths.get_working_dir(), dump_paths.get_dumps_extn()) {
         Ok(f) => f,
@@ -1193,10 +1206,9 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
             }
         };
 
-        if dump_paths.dump_name != "coredump" {
-            process_crash_t2_info(&sanitized.to_string_lossy());
+        if dump_paths.get_dump_name() != "coredump" {
+            process_crash_t2_info(&sanitized.to_string_lossy(), device_data.is_t2_enabled);
         }
-
         if is_tarball(&sanitized) {
             println!("Skip archiving {:?} as it is a tarball already.", sanitized);
             continue;
@@ -1228,10 +1240,15 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
             let _ = fs::copy(VERSION_FILE, &version_file_path);
         }
 
+        if device_data.get_is_t2_enabled() && !dump_paths.get_dump_name().is_empty() {
+            t2_count_notify("SYST_ERR_MINIDPZEROSIZE", Some("1"));
+        }
+
         let logfiles: Vec<String> = if dump_paths.dump_name == "coredump" {
             vec![VERSION_FILE.to_string(), CORE_LOG.to_string()]
         } else {
-            let crashed_url_file = format!("{}/crashed_url.txt", LOG_PATH);
+            let crash_url_file = format!("{}/crashed_url.txt", LOG_PATH);
+            let crashed_url_file = if Path::new(&crash_url_file).exists() { crash_url_file.clone() } else { "".to_string() };
             vec![VERSION_FILE.to_string(), CORE_LOG.to_string(), crashed_url_file]
         };
         let logfiles_refs: Vec<&str> = logfiles.iter().map(|s| s.as_str()).collect();
@@ -1242,6 +1259,7 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
             let out_files = copy_log_files_to_tmp(&dump_file_name, &logfiles_refs);
             let out_files_refs: Vec<&str> = out_files.iter().map(|s| s.as_str()).collect();
             let _ = compress_files(&tgz_file, &[&dump_file_name], &out_files_refs);
+            // TODO: Add failure case handling for compression
         }
 
         let tmp_dir = format!("/tmp/{}", dump_file_name);

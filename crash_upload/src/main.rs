@@ -86,7 +86,7 @@ fn main() {
     if wait_for_lock == "wait_for_lock" {
         create_lock_or_wait(dump_paths.get_lock_dir_prefix());
     } else {
-        create_lock_or_exit(dump_paths.get_lock_dir_prefix());
+        create_lock_or_exit(dump_paths.get_lock_dir_prefix(), device_data.get_is_t2_enabled());
     }
 
     // Defer upload if device just booted (hybrid/mediaclient)
@@ -185,7 +185,7 @@ fn main() {
     }
 
     // Early exit if box is rebooting
-    if is_box_rebooting() {
+    if is_box_rebooting(device_data.get_is_t2_enabled()) {
         finalize(&dump_paths); // TODO: Should we finalize & exit?
         exit(0);
     }
