@@ -10,22 +10,9 @@ pub const LOG_PATH: &str = "/opt/rdk";
 pub const CORE_LOG: &str = "/opt/rdk/core_log.txt";
 
 pub const DEVICE_PROP_FILE: &str = "/opt/device.properties";
-pub const INCLUDE_PROP_FILE: &str = "/opt/include.properties";
-pub const COREDUMP_PROP_FILE: &str = "/opt/coredump.properties";
 
 pub const T2_SHARED_SCRIPT: &str = "/lib/rdk/t2Shared_api.sh";
-
-pub const HTTP_CODE_FILE: &str = "/tmp/httpcode";
-pub const CURL_UPLOAD_TIMEOUT: usize = 45;
-pub const FOUR_EIGHTY_SECS: usize = 480;
 pub const MAX_CORE_FILES: usize = 4;
-pub const CORE_PROPS_FILE: &str = "/opt/coredump.properties";
-pub const S3_FILENAME: &str = "s3filename";
-
-pub const TLS: &str = "--tlsv1.2";
-
-pub const ENABLE_OSCP_STAPLING: &str = "/tmp/.EnableOCSPStapling";
-pub const ENABLE_OSCP: &str = "/tmp/.EnableOCSPCA";
 
 pub const SECUREDUMP_TR181_NAME: &str = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.SecDump.Enable";
 pub const SECUREDUMP_ENABLE_FILE: &str = "/tmp/.SecureDumpEnable";
@@ -37,7 +24,7 @@ pub const UPLOAD_ON_STARTUP: &str = "/opt/.upload_on_startup";
 pub const ON_STARTUP_DUMPS_CLEANED_UP_BASE: &str = "/tmp/.on_startup_dumps_cleaned_up";
 pub const CRASH_LOOP_FLAG_FILE: &str = ""; // TODO
 
-pub const POTOMAC_USER: &str = "ccpstbscp";
+
 pub const COREDUMP_MTX_FILE: &str = "/tmp/coredump_mutex_release";
 
 pub const NETWORK_FILE: &str = "/tmp/route_available";
@@ -50,10 +37,20 @@ pub const SYSTEM_TIME_TIMEOUT: usize = 1;
 pub const ENCRYPTION_RFC: &str = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.encryptionEnabled";
 pub const CRASH_PORTAL_URL_RFC: &str = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl";
 
+/* UNUSED
+pub const INCLUDE_PROP_FILE: &str = "/opt/include.properties";
+pub const COREDUMP_PROP_FILE: &str = "/opt/coredump.properties";
+pub const HTTP_CODE_FILE: &str = "/tmp/httpcode";
+pub const CURL_UPLOAD_TIMEOUT: usize = 45;
+pub const S3_FILENAME: &str = "s3filename";
+pub const ENABLE_OSCP_STAPLING: &str = "/tmp/.EnableOCSPStapling";
+pub const ENABLE_OSCP: &str = "/tmp/.EnableOCSPCA";
+pub const POTOMAC_USER: &str = "ccpstbscp";
 pub const SHA1_DEFAULT_VALUE: &str = "0000000000000000000000000000000000000000";
 pub const TIMESTAMP_DEFAULT_VALUE: &str = "2000-01-01-00-00-00";
 pub const MAC_DEFAULT_VALUE: &str = "000000000000";
 pub const MODEL_NUM_DEFAULT_VALUE: &str = "UNKNOWN";
+*/
 
 /// Holds all relevant paths and extensions for dump processing.
 #[derive(Debug)]

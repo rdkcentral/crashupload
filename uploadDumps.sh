@@ -793,23 +793,25 @@ processDumps()
             mv "$f" "$f1"
             f="$f1"
         fi
+
         if [ "$DUMP_FLAG" == "0" ]; then
             processCrashTelemtryInfo "$f"
         fi
+
         if [ -f "$f" ]; then
             # Checking whether is it a tarball so we should continue without further processing
-	    #if [[ "$f" =~ '.+_mac.+_dat.+_box.+_mod.+' ]]; then
-	    ext=${f##*.}
-	    if [[ "$ext" = 'tgz' ]]; then
-	        logMessage "Skip archiving $f as it is a tarball already."
-	        continue
-	    fi
-	    #last modification date of a core dump, to ease refusing of already uploaded core dumps on a server side
+	        #if [[ "$f" =~ '.+_mac.+_dat.+_box.+_mod.+' ]]; then
+	        ext=${f##*.}
+	        if [[ "$ext" = 'tgz' ]]; then
+	            logMessage "Skip archiving $f as it is a tarball already."
+	            continue
+	        fi
+	        #last modification date of a core dump, to ease refusing of already uploaded core dumps on a server side
             modDate=`getLastModifiedTimeOfFile $f`
             if [ -z "$CRASHTS" ]; then
-                  CRASHTS=$modDate
-                  # Ensure timestamp is not empty
-                  checkParameter CRASHTS
+                CRASHTS=$modDate
+                # Ensure timestamp is not empty
+                checkParameter CRASHTS
             fi
 
             if [ "$DUMP_FLAG" == "1" ] ; then
@@ -819,18 +821,18 @@ processDumps()
                 else
                     dumpName=`setLogFile $sha1 $MAC $CRASHTS $boxType $modNum $f`
                 fi
-		if [ "${#dumpName}" -ge "135" ]; then
-		     #Removing the HEADER of the corefile due to ecryptfs limitation as file can't be open when it exceeds 140 characters.
-	             dumpName="${dumpName#*_}"
-		fi
+		        if [ "${#dumpName}" -ge "135" ]; then
+		            #Removing the HEADER of the corefile due to ecryptfs limitation as file can't be open when it exceeds 140 characters.
+	                dumpName="${dumpName#*_}"
+		        fi
                 tgzFile=$dumpName".core.tgz"
             else
                 dumpName=`setLogFile $sha1 $MAC $CRASHTS $boxType $modNum $f`
-		if [ "${#dumpName}" -ge "135" ]; then
-		     #Removing the HEADER of the corefile due to ecryptfs limitation as file can't be open when it exceeds 140 characters.
-		     dumpName="${dumpName#*_}"
-		fi
-                tgzFile=$dumpName".tgz"
+		        if [ "${#dumpName}" -ge "135" ]; then
+		            #Removing the HEADER of the corefile due to ecryptfs limitation as file can't be open when it exceeds 140 characters.
+		            dumpName="${dumpName#*_}"
+		        fi
+                    tgzFile=$dumpName".tgz"
             fi
             
             #remove <#=#> characters from the dumpname to avoid processing issues.
@@ -841,40 +843,43 @@ processDumps()
             TMP_DIR_NAME=$dumpName
 
             logMessage "Size of the file: $(ls -l $dumpName)"
-           if [ "$DUMP_FLAG" == "1" ] ; then
-	        logfiles="$VERSION_FILE $CORE_LOG"
+            
+            if [ "$DUMP_FLAG" == "1" ] ; then
+	            logfiles="$VERSION_FILE $CORE_LOG"
                 if [ -f /tmp/set_crash_reboot_flag ];then
-			logMessage "Compression without nice"
-			tar -zcvf $tgzFile $dumpName $logfiles 2>&1 | logStdout
-		else
-		        logMessage "Compression with nice"
-                        nice -n 19 tar -zcvf $tgzFile $dumpName $logfiles 2>&1 | logStdout
+			        logMessage "Compression without nice"
+			        tar -zcvf $tgzFile $dumpName $logfiles 2>&1 | logStdout
+		        else
+		            logMessage "Compression with nice"
+                    nice -n 19 tar -zcvf $tgzFile $dumpName $logfiles 2>&1 | logStdout
                 fi
             else     
-                    crashedUrlFile=$LOG_PATH/crashed_url.txt
-                    files="$VERSION_FILE $CORE_LOG $crashedUrlFile"
-                    add_crashed_log_file $files
-                    nice -n 19 tar -zcvf $tgzFile $dumpName $files 2>&1 | logStdout
-             fi
-	       if [ $? -eq 0 ]; then
-                    logMessage "Success Compressing the files, $tgzFile $dumpName $VERSION_FILE $CORE_LOG "
-                else
-                    # If the tar creation failed then will create new tar after copying logs files to /tmp
-                    OUT_FILES="$dumpName"
-		    [ "$DUMP_FLAG" == "1" ] && copy_log_files_tmp_dir $logfiles || copy_log_files_tmp_dir $files
+                crashedUrlFile=$LOG_PATH/crashed_url.txt
+                files="$VERSION_FILE $CORE_LOG $crashedUrlFile"
+                add_crashed_log_file $files
+                nice -n 19 tar -zcvf $tgzFile $dumpName $files 2>&1 | logStdout
+            fi
+
+	        if [ $? -eq 0 ]; then
+                logMessage "Success Compressing the files, $tgzFile $dumpName $VERSION_FILE $CORE_LOG "
+            else
+                # If the tar creation failed then will create new tar after copying logs files to /tmp
+                OUT_FILES="$dumpName"
+		        [ "$DUMP_FLAG" == "1" ] && copy_log_files_tmp_dir $logfiles || copy_log_files_tmp_dir $files
 	            nice -n 19 tar -zcvf $tgzFile $OUT_FILES 2>&1 | logStdout
-                    if [ $? -eq 0 ]; then
-                       logMessage "Success Compressing the files, $tgzFile $OUT_FILES"
-                    else
-                       logMessage "Compression Failed ."
-		    fi
-                fi
+                if [ $? -eq 0 ]; then
+                    logMessage "Success Compressing the files, $tgzFile $OUT_FILES"
+                else
+                    logMessage "Compression Failed ."
+		        fi
+            fi
             logMessage "Size of the compressed file: $(ls -l $tgzFile)"
 	    
-	    if [ ! -z "$TMP_DIR_NAME" ] && [ -d "/tmp/$TMP_DIR_NAME" ]; then
-	       rm -rf /tmp/$TMP_DIR_NAME
-	       logMessage "Temporary Directory Deleted:/tmp/$TMP_DIR_NAME"
+	        if [ ! -z "$TMP_DIR_NAME" ] && [ -d "/tmp/$TMP_DIR_NAME" ]; then
+	            rm -rf /tmp/$TMP_DIR_NAME
+	            logMessage "Temporary Directory Deleted:/tmp/$TMP_DIR_NAME"
             fi
+            
             rm $dumpName
 
             if [ "$DUMP_FLAG" == "0" ]; then
@@ -901,18 +906,20 @@ processDumps()
                 removePendingDumps
                 exit
             fi
+
             if [ "$DUMP_NAME" = "minidump" ]; then
-	         if isUploadLimitReached; then   
+	            if isUploadLimitReached; then   
                     logMessage "Upload rate limit has been reached."
                     markAsCrashLoopedAndUpload $f
                     logMessage "Setting recovery time"
                     setRecoveryTime
                     removePendingDumps
                     exit
-		 fi
+		        fi
             else
                 logMessage "Coredump File `echo $f`"
             fi
+            
             S3_FILENAME=`echo ${f##*/}`
             count=1
             
@@ -943,61 +950,63 @@ processDumps()
             fi
             
             logMessage "[$0]: $count: $DUMP_NAME S3 Upload "
-	    if [ -f /lib/rdk/uploadDumpsToS3.sh ]; then
+	        if [ -f /lib/rdk/uploadDumpsToS3.sh ]; then
                 echo "$WORKING_DIR $partnerId $DUMP_NAME $DEVICE_TYPE $VERSION_FILE $encryptionEnable $EnableOCSPStapling $EnableOCSP $TLS $BUILD_TYPE $modNum ${CURL_LOG_OPTION}" > /tmp/uploadtos3params
                 uploadToS3 "`echo $S3_FILENAME`" 
                 status=$?
-		rm /tmp/uploadtos3params
-	    else
+		        rm /tmp/uploadtos3params
+	        else
                 # A secure upload logic is required to upload the crash dumps to the cloud database server.
-	   	# The upload script can take in parameters such as Device model, upload options related to security and the dump file to be uploaded
-       		# The return value from the upload logic can be checked to determine a successful coredump upload to server.
-	   	# Retries can be triggered at regular intervals if needed, in case the upload fails at the initial try.
-       		echo "A secure core/minidump upload logic can be implemented here to upload the crash dumps to cloud database."
-		echo "Parameters such as device type, secure upload options and the file to be uploaded can be passed to the upload function/script."
-	    fi
+	   	        # The upload script can take in parameters such as Device model, upload options related to security and the dump file to be uploaded
+       		    # The return value from the upload logic can be checked to determine a successful coredump upload to server.
+	   	        # Retries can be triggered at regular intervals if needed, in case the upload fails at the initial try.
+       		    echo "A secure core/minidump upload logic can be implemented here to upload the crash dumps to cloud database."
+		        echo "Parameters such as device type, secure upload options and the file to be uploaded can be passed to the upload function/script."
+	        fi
             while [ $count -le 3 ]
             do
                 # S3 amazon fail over recovery
-		count=$(( count +1))
+		        count=$(( count +1))
                 if [ $status -ne 0 ];then
-                     logMessage "[$0]: Execution Status: $status, S3 Amazon Upload of $DUMP_NAME Failed"
-                     logMessage "[$0]: $count: (Retry), $DUMP_NAME S3 Upload"
-                     sleep 2
-		     if [ -f /lib/rdk/uploadDumpsToS3.sh ]; then
-                         echo "$WORKING_DIR $partnerId $DUMP_NAME $DEVICE_TYPE $VERSION_FILE $encryptionEnable $EnableOCSPStapling $EnableOCSP $TLS $BUILD_TYPE $modNum ${CURL_LOG_OPTION}" > /tmp/uploadtos3params
-                         uploadToS3 "`echo $S3_FILENAME`"
-                         status=$?
-			 rm /tmp/uploadtos3params
-		     else
-       			 # A secure upload logic is required to upload the crash dumps to the cloud database server.
-	   		 # The upload script can take in parameters such as Device model, upload options related to security and the dump file to be uploaded
-       			 # The return value from the upload logic can be checked to determine a successful coredump upload to server.
-	   		 # Retries can be triggered at regular intervals if needed, in case the upload fails at the initial try.
-       		         echo "A secure core/minidump upload logic can be implemented here to upload the crash dumps to cloud database."
-		  	 echo "Parameters such as device type, secure upload options and the file to be uploaded can be passed to the upload function/script."
-		     fi
+                    logMessage "[$0]: Execution Status: $status, S3 Amazon Upload of $DUMP_NAME Failed"
+                    logMessage "[$0]: $count: (Retry), $DUMP_NAME S3 Upload"
+                    sleep 2
+		            if [ -f /lib/rdk/uploadDumpsToS3.sh ]; then
+                        echo "$WORKING_DIR $partnerId $DUMP_NAME $DEVICE_TYPE $VERSION_FILE $encryptionEnable $EnableOCSPStapling $EnableOCSP $TLS $BUILD_TYPE $modNum ${CURL_LOG_OPTION}" > /tmp/uploadtos3params
+                        uploadToS3 "`echo $S3_FILENAME`"
+                        status=$?
+			            rm /tmp/uploadtos3params
+		            else
+       			        # A secure upload logic is required to upload the crash dumps to the cloud database server.
+	   		            # The upload script can take in parameters such as Device model, upload options related to security and the dump file to be uploaded
+       			        # The return value from the upload logic can be checked to determine a successful coredump upload to server.
+	   		            # Retries can be triggered at regular intervals if needed, in case the upload fails at the initial try.
+       		            echo "A secure core/minidump upload logic can be implemented here to upload the crash dumps to cloud database."
+		  	            echo "Parameters such as device type, secure upload options and the file to be uploaded can be passed to the upload function/script."
+		            fi
                 else
-                     logMessage "[$0]: $DUMP_NAME uploadToS3 SUCESS: status: $status"
-		     if [ "$DUMP_NAME" == "minidump" ] && [ "$IS_T2_ENABLED" == "true" ]; then
-			     t2CountNotify "SYST_INFO_minidumpUpld"
-		     fi
-                     break
+                    logMessage "[$0]: $DUMP_NAME uploadToS3 SUCESS: status: $status"
+		            if [ "$DUMP_NAME" == "minidump" ] && [ "$IS_T2_ENABLED" == "true" ]; then
+			            t2CountNotify "SYST_INFO_minidumpUpld"
+		            fi
+                    break
                 fi
             done
+
             if [ $status -ne 0 ];then
-                  logMessage "[$0]: S3 Amazon Upload of $DUMP_NAME Failed..!"
-                  if [  "$DUMP_NAME" == "minidump" ]; then
-                      logMessage "Check and save the dump $S3_FILENAME"
-                      saveDump "$ORGINAL_FILENAME"
-                  else
-                      logMessage "Removing file $S3_FILENAME"
-                      rm -f $S3_FILENAME
-                  fi
-                  exit 1
+                logMessage "[$0]: S3 Amazon Upload of $DUMP_NAME Failed..!"
+                if [  "$DUMP_NAME" == "minidump" ]; then
+                    logMessage "Check and save the dump $S3_FILENAME"
+                    saveDump "$ORGINAL_FILENAME"
+                else
+                    logMessage "Removing file $S3_FILENAME"
+                    rm -f $S3_FILENAME
+                fi
+                exit 1
             else
-                  echo "[$0]: Execution Status: $status, S3 Amazon Upload of $DUMP_NAME Success"
+                echo "[$0]: Execution Status: $status, S3 Amazon Upload of $DUMP_NAME Success"
             fi
+
             ORGINAL_FILENAME=""
             logMessage "Removing file $S3_FILENAME"
             rm -f $S3_FILENAME
