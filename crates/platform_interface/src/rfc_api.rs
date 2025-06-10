@@ -97,3 +97,35 @@ pub fn get_rfc_param<R: AsRef<str>>(rfc: R, res: &mut String) -> bool {
         false
     }
 }
+
+
+pub fn dmcli_get(param: &str, result: &mut String) {
+    use std::process::Command;
+
+    let output = Command::new("dmcli")
+        .args(["eRT", "getv", param])
+        .output();
+
+    if let Ok(output) = output {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            // Faithfully mimic: grep string | cut -d":" -f3- | cut -d" " -f2- | tr -d ' '
+            for line in stdout.lines() {
+                if line.contains("string") {
+                    // Split by ':' and get the 3rd field onward
+                    let after_colon = line.splitn(4, ':').nth(3).unwrap_or("").trim();
+                    // Split by space and get the 2nd field onward
+                    let after_space = after_colon.splitn(2, ' ').nth(1).unwrap_or("").trim();
+                    // Remove all spaces
+                    let cleaned = after_space.replace(' ', "");
+                    *result = cleaned;
+                    return;
+                }
+            }
+        } else {
+            eprintln!("dmcli_get: dmcli command failed: {}", String::from_utf8_lossy(&output.stderr));
+        }
+    } else {
+        eprintln!("dmcli_get: failed to execute dmcli command");
+    }
+}

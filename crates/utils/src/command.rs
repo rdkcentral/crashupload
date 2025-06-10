@@ -20,7 +20,7 @@ use crate::get_property_value_from_file;
 /// touch("/tmp/somefile");
 /// ```
 pub fn touch<P: AsRef<Path>>(path: P) {
-    let _ = OpenOptions::new().create(true).write(true).open(path);
+    let _ = OpenOptions::new().create(true).truncate(true).write(true).open(path);
 }
 
 /// Recursively removes a directory and its contents, or removes a file if the path is not a directory.
@@ -55,7 +55,7 @@ pub fn flush_logger() {
 
     // Flush journald if available
     if Path::new("/etc/os-release").exists() && Command::new("which").arg("journalctl").output().is_ok() {
-        let _ = Command::new("journalctl").args(&["--sync", "--flush"]).status();
+        let _ = Command::new("journalctl").args(["--sync", "--flush"]).status();
     }
 
     // Check SYSLOG_NG_ENABLED from device.properties
@@ -63,7 +63,7 @@ pub fn flush_logger() {
     let _ = get_property_value_from_file("/etc/device.properties", "SYSLOG_NG_ENABLED", &mut syslog_ng_enabled);
     if syslog_ng_enabled.trim() != "true" {
         let _ = Command::new("nice")
-            .args(&["-n", "19", "/lib/rdk/dumpLogs.sh"])
+            .args(["-n", "19", "/lib/rdk/dumpLogs.sh"])
             .status();
     }
 }

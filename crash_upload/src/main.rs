@@ -194,7 +194,7 @@ fn main() {
     println!("Mac Address is {}", device_data.get_mac_addr());
 
     // Count dumps using utility function
-    let dump_count = match get_dump_count(dump_paths.get_working_dir(), dump_paths.get_dumps_extn()) {
+    let dump_count = match get_file_count(dump_paths.get_working_dir(), dump_paths.get_dumps_extn(), true) {
         Ok(dump_cnt) => dump_cnt,
         Err(_) => 0,
     };

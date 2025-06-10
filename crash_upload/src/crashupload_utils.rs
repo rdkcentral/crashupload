@@ -5,12 +5,15 @@ use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use std::{process, usize};
+use std::process;
 use std::{thread, time};
 
 use crate::constants::*;
 use platform_interface::*;
 use utils::*;
+
+// #[cfg(feature = "shared_api")]
+// pub use crate::upload_to_s3::upload_to_s3;
 
 /// Populates a [`DeviceData`] struct with device properties from system files and TR-181.
 /// 
@@ -85,8 +88,8 @@ pub fn set_device_data(device_data: &mut DeviceData) {
 /// # Returns
 /// * `true` if neither minidumps nor coredumps exist (should exit), `false` otherwise.
 pub fn should_exit_crash_upload(minidumps_path: &str, core_path: &str) -> bool {
-    let minidumps_exists = check_dumps_exist(&minidumps_path, ".dmp"); // for minidumps
-    let core_exists = check_dumps_exist(&core_path, "_core"); // for core
+    let minidumps_exists = check_dumps_exist(minidumps_path, ".dmp"); // for minidumps
+    let core_exists = check_dumps_exist(core_path, "_core"); // for core
     !(minidumps_exists || core_exists)
 }
 
@@ -297,7 +300,7 @@ pub fn remove_lock<P: AsRef<Path>>(path: P) {
 /// # Returns
 /// * A `String` with the new or original file name.
 pub fn set_log_file(device_data: &DeviceData, log_mod_ts: &str, line: &str) -> String {
-    let file_name = line.split('/').last().unwrap_or(line);
+    let file_name = line.split('/').next_back().unwrap_or(line);
     if file_name.contains("_mac")
         || file_name.contains("_dat")
         || file_name.contains("_box")
@@ -350,21 +353,21 @@ pub fn is_box_rebooting(is_t2_enabled: bool) -> bool {
 pub fn sanitize(input: &str) -> String {
     input
         .chars()
-        .filter(|c| match *c {
+        .filter(|c| matches!(
+            c,
             'a'..='z'
-            | 'A'..='Z'
-            | '0'..='9'
-            | '/'
-            | ' '
-            | ':'
-            | '+'
-            | '.'
-            | '_'
-            | ','
-            | '='
-            | '-' => true,
-            _ => false,
-        })
+                | 'A'..='Z'
+                | '0'..='9'
+                | '/'
+                | ' '
+                | ':'
+                | '+'
+                | '.'
+                | '_'
+                | ','
+                | '='
+                | '-'
+        ))
         .collect()
 }
 
@@ -533,11 +536,7 @@ pub fn handle_crash_signal(signal: CrashSignal, dump_paths: &DumpPaths) {
 /// # Returns
 /// * `true` if the file should be processed, `false` otherwise.
 pub fn should_process_dump(dump_name: &str, build_type: &str, file_name: &str) -> bool {
-    if dump_name == "minidump" {
-        true
-    } else if build_type != "prod" {
-        true
-    } else if !file_name.contains("Receiver") {
+    if dump_name == "minidump" || build_type != "prod" || !file_name.contains("Receiver") {
         true
     } else {
         println!("Not processing dump file {}", file_name);
@@ -553,7 +552,7 @@ pub fn should_process_dump(dump_name: &str, build_type: &str, file_name: &str) -
 ///
 /// # Returns
 /// * `Ok(count)` with the number of matching files, or an error if the directory can't be read.
-pub fn get_dump_count(dir: &str, pattern: &str) -> std::io::Result<usize> {
+pub fn get_file_count(dir: &str, pattern: &str, is_pattern: bool) -> std::io::Result<usize> {
     let dir_path = Path::new(dir);
     if !dir_path.exists() || !dir_path.is_dir() {
         return Ok(0);
@@ -564,8 +563,12 @@ pub fn get_dump_count(dir: &str, pattern: &str) -> std::io::Result<usize> {
         let file_path = entry.path();
         if file_path.is_file() {
             if let Some(name) = file_path.file_name().and_then(|n| n.to_str()) {
-                if name.contains(pattern) {
-                    count += 1;
+                if is_pattern {
+                    if name.contains(pattern) {
+                        count += 1;
+                    }
+                } else if name == pattern {
+                        count += 1;
                 }
             }
         }
@@ -647,12 +650,12 @@ pub fn process_crash_t2_info(file_path: &str, is_t2_enabled: bool) {
             println!("Container crash info Advanced: {}, {}", container_name, container_status);
             println!("NEW Appname, Process_Crashed, Status = {}, {}, {}", app_name, process_name, container_status);
 
-            t2_val_notify("APP_ERROR_Crashed_split", &[&app_name, &process_name, &container_status]);
-            t2_val_notify("APP_ERROR_Crashed_accum", &[&app_name, &process_name, &container_status]);
+            t2_val_notify("APP_ERROR_Crashed_split", &[app_name, process_name, container_status]);
+            t2_val_notify("APP_ERROR_Crashed_accum", &[app_name, process_name, container_status]);
 
             println!("NEW Processname, App Name, AppState = {}, {}, {}", process_name, app_name, container_status);
             println!("ContainerName, ContainerStatus = {}, {}", container_name, container_status);
-            t2_val_notify("APP_ERROR_CrashInfo_accum", &[&container_name, &container_status]);
+            t2_val_notify("APP_ERROR_CrashInfo_accum", &[container_name, container_status]);
         }
     }
     let _ = get_crashed_log_file(&file_name_str, is_t2_enabled);
@@ -673,9 +676,7 @@ pub fn mark_as_crash_loop_and_upload(tgz_file: &str) { // portal_url: &str, cras
     println!("Renaming {} to {}", tgz_path.display(), new_tgz_name.display());
     if let Err(e) = fs::rename(tgz_path, &new_tgz_name) {
         println!("Failed to rename crashloop tarball: {}", e);
-        return;
     }
-    // TODO: Not used yet Implement upload logic using portal_url and crash_portal_path if needed.
 }
 
 /// Finds the oldest file in a directory.
@@ -713,7 +714,7 @@ pub fn save_dump(minidumps_path: &str, s3_filename: &str, new_name: Option<&str>
     }
 
     let dump_extn = "dmp.tgz";
-    let mut count = get_dump_count(minidumps_path, dump_extn).unwrap_or(0);
+    let mut count = get_file_count(minidumps_path, dump_extn, true).unwrap_or(0);
 
     while count > 5 {
         match find_oldest_dump(minidumps_path) {
@@ -768,7 +769,7 @@ pub fn truncate_timestamp_file(ts_file: &str) -> io::Result<()> {
     let file = File::open(ts_path)?;
     let reader = BufReader::new(file);
 
-    let lines: Vec<String> = reader.lines().filter_map(Result::ok).collect();
+    let lines: Vec<String> = reader.lines().map_while(Result::ok).collect();
     let last_10_lines = lines.iter().rev().take(10).cloned().collect::<Vec<_>>();
     let mut tmp_file = OpenOptions::new().write(true).truncate(true).open(ts_path)?;
 
@@ -816,8 +817,8 @@ pub fn get_crashed_log_file(file_path: &str, is_t2_enabled: bool) -> io::Result<
     println!("Process crashed = {}", process_name);
 
     if is_t2_enabled {
-        t2_val_notify("processCrash_split", &[&process_name]);
-        t2_val_notify("SYST_ERR_Process_Crash_accum", &[&process_name]);
+        t2_val_notify("processCrash_split", &[process_name]);
+        t2_val_notify("SYST_ERR_Process_Crash_accum", &[process_name]);
         t2_count_notify("SYST_ERR_ProcessCrash", Some("1"));
     }
 
@@ -1059,7 +1060,7 @@ pub fn add_crashed_log_file(device_data: &DeviceData, log_files:  &[&str]) -> io
                 let file = File::open(path)?;
                 let lines: Vec<String> = BufReader::new(file)
                     .lines()
-                    .filter_map(Result::ok)
+                    .map_while(Result::ok)
                     .collect();
 
                 // Take the last N lines
@@ -1143,6 +1144,7 @@ pub fn copy_log_files_to_tmp(tmp_dir_name: &str, logfiles: &[&str]) -> Vec<Strin
 ///
 /// # Returns
 /// * `Ok(exit_status)` if the script ran, or an error if not found or failed.
+#[cfg(not(feature = "shared_api"))]
 pub fn upload_to_s3(args: &[&str]) -> std::io::Result<std::process::ExitStatus> {
     let script = "/lib/rdk/uploadDumpsToS3.sh";
     if Path::new(script).exists() {
@@ -1332,7 +1334,7 @@ fn compress_files(tgz_file: &str, main_files: &[&str], extra_files: &[&str]) -> 
     if status.success() {
         Ok(())
     } else {
-        Err(io::Error::new(io::ErrorKind::Other, "Compression Failed"))
+        Err(io::Error::other("Compression Failed"))
     }
 }
 

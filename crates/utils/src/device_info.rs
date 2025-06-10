@@ -40,7 +40,7 @@ pub fn get_property_value_from_file<P: AsRef<Path>, K: AsRef<str>>(path: P, key:
         Err(_) => return false,
     };
     let reader = BufReader::new(prop_file);
-    for line in reader.lines().flatten() {
+    for line in reader.lines().map_while(Result::ok) {
         if let Some((k, v)) = line.split_once('=') {
             if k.trim() == key {
                 let value = v.trim();
