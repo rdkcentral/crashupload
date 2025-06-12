@@ -1,5 +1,5 @@
 [package]
-name = "json_parser-interface"
+name = "json-parser-interface"
 version = "0.1.0"
 edition = "2021"
 description = "JSON Parsing interface"
