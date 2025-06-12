@@ -1,7 +1,0 @@
-[package]
-name = "json_parser_interface_test"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-json_parser_interface = {path = "../../crates/json_parser_interface"}

@@ -1,13 +1,13 @@
 [workspace]
 members = [
-    "crash_upload",
-    "crates/curl_interface",
-    "crates/json_parser_interface",
-    "crates/platform_interface",
+    "crash-upload",
+    "crates/curl-interface",
+    "crates/json-parser-interface",
+    "crates/platform-interface",
     "crates/utils",
-    "test/crash_upload_test",
-    "test/curl_interface_test",
-    "test/json_parser_interface_test",
-    "test/platform_interface_test",
-    "test/utils_test",
+    "test/crash-upload-test",
+    "test/curl-interface-test",
+    "test/json-parser-interface-test",
+    "test/platform-interface-test",
+    "test/utils-test",
 ]

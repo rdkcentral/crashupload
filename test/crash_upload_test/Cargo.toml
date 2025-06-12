@@ -1,7 +1,0 @@
-[package]
-name = "crash_upload_test"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-crash_upload = {path = "../../crash_upload"}

@@ -1,8 +1,0 @@
-[package]
-name = "curl_interface"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-# Uncomment to Link this library dynamically
-#crate_type = ["dynlib"]

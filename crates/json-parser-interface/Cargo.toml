@@ -1,0 +1,11 @@
+[package]
+name = "json_parser-interface"
+version = "0.1.0"
+edition = "2021"
+description = "JSON Parsing interface"
+repository = "https://github.com/rdkcentral/crashupload/tree/feature-sample-rust/crates/json-parser-interface"
+homepage = "https://github.com/rdkcentral/crashupload/tree/feature-sample-rust/crates/json-parser-interface"
+
+[dependencies]
+# Uncomment to Link this library dynamically
+#crate_type = ["dynlib"]
