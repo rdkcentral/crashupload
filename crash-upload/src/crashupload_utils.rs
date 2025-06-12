@@ -1334,7 +1334,7 @@ fn compress_files(tgz_file: &str, main_files: &[&str], extra_files: &[&str]) -> 
     if status.success() {
         Ok(())
     } else {
-        Err(io::Error::other("Compression Failed"))
+        Err(io::Error::new(io::ErrorKind::Other, "Compression Failed"))
     }
 }
 

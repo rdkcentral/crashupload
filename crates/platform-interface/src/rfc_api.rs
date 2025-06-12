@@ -100,8 +100,6 @@ pub fn get_rfc_param<R: AsRef<str>>(rfc: R, res: &mut String) -> bool {
 
 
 pub fn dmcli_get(param: &str, result: &mut String) {
-    use std::process::Command;
-
     let output = Command::new("dmcli")
         .args(["eRT", "getv", param])
         .output();
