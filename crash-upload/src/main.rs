@@ -1,8 +1,7 @@
-use std::process::exit;
 // standard library imports
 use std::path::Path;
 use std::time::Duration;
-use std::{env, fs, process, thread};
+use std::{env, fs, thread};
 
 // external crate imports
 use chrono::Local;
@@ -114,7 +113,7 @@ fn main() {
     
     // Check if working directory is empty
     let w_dir = dump_paths.get_working_dir();
-    if is_dir_empty_or_unreadable(w_dir) {
+    if crashupload_utils::is_dir_empty_or_unreadable(w_dir) {
         println!("Working directory is empty or unreadable: {}", w_dir);
         crashupload_utils::finalize(&dump_paths);
         std::process::exit(0); // or exit(1) if you want to signal error

@@ -51,7 +51,7 @@ pub fn is_core_pattern_file(name: &str) -> bool {
     }
 }
 
-fn is_dir_empty_or_unreadable<P: AsRef<Path>>(dir: P) -> bool {
+pub fn is_dir_empty_or_unreadable<P: AsRef<Path>>(dir: P) -> bool {
     match fs::read_dir(dir) {
         Ok(mut entries) => entries.next().is_none(),
         Err(_) => true, // treat unreadable as empty
@@ -760,7 +760,7 @@ pub fn save_dump(minidumps_path: &str, s3_filename: &str, new_name: Option<&str>
     }
 
     let dump_extn = "dmp.tgz";
-    let mut count = get_file_count(minidumps_path, dump_extn, true).unwrap_or(0);
+    let mut count = get_file_count(minidumps_path, dump_extn).unwrap_or(0);
 
     while count > 5 {
         match find_oldest_dump(minidumps_path) {
@@ -1250,7 +1250,7 @@ pub fn get_privacy_control_mode() -> Option<String> {
 pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts: &str, no_network: bool) {
     utils::flush_logger();
 
-    let files = match find_dump_files(dump_paths.get_working_dir(), dump_paths.get_dumps_extn(), true) {
+    let files = match find_dump_files(dump_paths.get_working_dir(), dump_paths.get_dumps_extn()) {
         Ok(f) => f,
         Err(e) => {
             println!("Error finding dump files: {}", e);
@@ -1468,7 +1468,7 @@ fn handle_tarballs(device_data: &DeviceData, dump_paths: &DumpPaths, no_network:
         return;
     }
 
-    let tarballs = match find_dump_files(dump_paths.get_working_dir(), dump_paths.get_tar_extn(), true) {
+    let tarballs = match find_dump_files(dump_paths.get_working_dir(), dump_paths.get_tar_extn()) {
         Ok(t) => t,
         Err(e) => {
             println!("Error finding tarballs: {}", e);
