@@ -12,6 +12,52 @@ use crate::constants::*;
 use platform_interface::*;
 use utils::*;
 
+#[inline]
+fn is_minidump_file(name: &str) -> bool {
+    // *.dmp* matches any file with ".dmp" after the first character
+    name.find(".dmp").is_some()
+}
+
+#[inline]
+fn is_minidump_tarball(name: &str) -> bool {
+    // *.dmp.tgz matches files ending with ".dmp.tgz"
+    name.ends_with(".dmp.tgz")
+}
+
+#[inline]
+fn is_coredump_file(name: &str) -> bool {
+    // *core.prog*.gz* matches files containing "core.prog" and ".gz" (in that order)
+    if let Some(core_idx) = name.find("core.prog") {
+        if let Some(gz_idx) = name[core_idx..].find(".gz") {
+            return true;
+        }
+    }
+    false
+}
+
+#[inline]
+fn is_coredump_tarball(name: &str) -> bool {
+    // *.core.tgz matches files ending with ".core.tgz"
+    name.ends_with(".core.tgz")
+}
+
+pub fn is_core_pattern_file(name: &str) -> bool {
+    if let Some(core_idx) = name.find("_core") {
+        // There must be a '.' after the '_core'
+        let after_core = &name[core_idx + 5..]; // 5 = len("_core")
+        after_core.contains('.')
+    } else {
+        false
+    }
+}
+
+fn is_dir_empty_or_unreadable<P: AsRef<Path>>(dir: P) -> bool {
+    match fs::read_dir(dir) {
+        Ok(mut entries) => entries.next().is_none(),
+        Err(_) => true, // treat unreadable as empty
+    }
+}
+
 // #[cfg(feature = "shared_api")]
 // pub use crate::upload_to_s3::upload_to_s3;
 
@@ -75,24 +121,6 @@ pub fn set_device_data(device_data: &mut DeviceData) {
     device_data.set_portal_url(portal_url);
 }
 
-/// Determines if the crash upload process should exit early due to no dumps being present.
-///
-/// This function checks for the existence of minidump and coredump files in their respective
-/// directories, mimicking the shell logic:
-/// `if [ ! -e $MINIDUMPS_PATH/*.dmp* -a ! -e $CORE_PATH/*_core*.* ]; then exit 0; fi`
-///
-/// # Arguments
-/// * `minidumps_path` - Path to the minidumps directory.
-/// * `core_path` - Path to the coredumps directory.
-///
-/// # Returns
-/// * `true` if neither minidumps nor coredumps exist (should exit), `false` otherwise.
-pub fn should_exit_crash_upload(minidumps_path: &str, core_path: &str) -> bool {
-    let minidumps_exists = check_dumps_exist(minidumps_path, ".dmp"); // for minidumps
-    let core_exists = check_dumps_exist(core_path, "_core"); // for core
-    !(minidumps_exists || core_exists)
-}
-
 /// Checks if any dump files matching a pattern exist in a directory.
 ///
 /// This function scans the given directory for files matching the provided wildcard pattern,
@@ -104,20 +132,29 @@ pub fn should_exit_crash_upload(minidumps_path: &str, core_path: &str) -> bool {
 ///
 /// # Returns
 /// * `true` if at least one matching file exists, `false` otherwise.
-#[inline]
-fn check_dumps_exist(dir: &str, wildcard: &str) -> bool {
-    let path = std::path::Path::new(dir);
-    if let Ok(entries) = std::fs::read_dir(path) {
-        for entry in entries.flatten() {
-            if let Ok(file_name) = entry.file_name().into_string() {
-                // Only check files, not directories
-                if entry.path().is_file() && file_name.contains(wildcard) {
-                    return true;
-                }
-            }
-        }
-    }
-    false
+pub fn check_dumps_exist(minidumps_path: &str, core_path: &str) -> bool {
+    let minidumps_dir = std::path::Path::new(minidumps_path);
+    let core_dir = std::path::Path::new(core_path);
+
+    let minidump_exists = minidumps_dir.is_dir() && std::fs::read_dir(minidumps_dir)
+        .map(|iter| iter.flatten().any(|entry| {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            // Faithful to *.dmp* shell pattern
+            is_minidump_file(&name)
+        }))
+        .unwrap_or(false);
+
+    let core_exists = core_dir.is_dir() && std::fs::read_dir(core_dir)
+        .map(|iter| iter.flatten().any(|entry| {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            // Faithful to *_core*.* shell pattern
+            is_core_pattern_file(&name)
+        }))
+        .unwrap_or(false);
+
+    minidump_exists || core_exists
 }
 
 /// Determines and sets secure dump paths and flags based on SecureDump enablement.
@@ -427,7 +464,7 @@ pub fn set_recovery_time() {
 /// # Returns
 /// * `true` if the upload rate limit is reached, `false` otherwise.
 pub fn is_upload_limit_reached(ts_file: &str) -> bool {
-    create_lock_or_wait(ts_file); // TODO
+    create_lock_or_wait(ts_file);
 
     const LIMIT_SECONDS: u64 = 600;
     let path = Path::new(ts_file);
@@ -435,14 +472,14 @@ pub fn is_upload_limit_reached(ts_file: &str) -> bool {
 
     if OpenOptions::new().create(true).append(true).open(path).is_err() {
         println!("Failed to create or open {}", ts_file);
-        remove_lock(ts_file); // TODO
+        remove_lock(ts_file);
         return false;
     }
 
     let file = match File::open(path) {
         Ok(f) => f,
         Err(_) => {
-            remove_lock(ts_file); // TODO
+            remove_lock(ts_file);
             return false;
         }
     };
@@ -455,7 +492,7 @@ pub fn is_upload_limit_reached(ts_file: &str) -> bool {
         .collect();
 
     if lines.len() < 10 {
-        remove_lock(ts_file); // TODO
+        remove_lock(ts_file);
         return false;
     }
 
@@ -469,7 +506,7 @@ pub fn is_upload_limit_reached(ts_file: &str) -> bool {
     if limit_reached {
         println!("Not uploading the dump. Too many dumps.");
     }
-    remove_lock(ts_file); // TODO
+    remove_lock(ts_file);
     limit_reached
 }
 
@@ -544,33 +581,42 @@ pub fn should_process_dump(dump_name: &str, build_type: &str, file_name: &str) -
     }
 }
 
+fn matches_pattern(name: &str, pattern: &str) -> bool {
+    match pattern {
+        "*.dmp*" => name.contains(".dmp"),
+        "*.dmp.tgz" => name.ends_with(".dmp.tgz"),
+        "*core.prog*.gz*" => {
+            if let Some(core_idx) = name.find("core.prog") {
+                name[core_idx + "core.prog".len()..].contains(".gz")
+            } else {
+                false
+            }
+        },
+        "*.core.tgz" => name.ends_with(".core.tgz"),
+        _ => false,
+    }
+}
+
 /// Counts the number of dump files in a directory matching a given extension substring.
 ///
 /// # Arguments
 /// * `dir` - Directory path to search.
-/// * `pattern` - Substring to match in file names (e.g., ".dmp" or "core").
+/// * `extn` - Substring to match in file names (e.g., ".dmp" or "core").
 ///
 /// # Returns
 /// * `Ok(count)` with the number of matching files, or an error if the directory can't be read.
-pub fn get_file_count(dir: &str, pattern: &str, is_pattern: bool) -> std::io::Result<usize> {
-    let dir_path = Path::new(dir);
-    if !dir_path.exists() || !dir_path.is_dir() {
+pub fn get_file_count(dir: &str, pattern: &str) -> std::io::Result<usize> {
+    let dir_path = std::path::Path::new(dir);
+    if !dir_path.is_dir() {
         return Ok(0);
     }
     let mut count = 0;
-    for entry in fs::read_dir(dir_path)? {
+    for entry in std::fs::read_dir(dir_path)? {
         let entry = entry?;
-        let file_path = entry.path();
-        if file_path.is_file() {
-            if let Some(name) = file_path.file_name().and_then(|n| n.to_str()) {
-                if is_pattern {
-                    if name.contains(pattern) {
-                        count += 1;
-                    }
-                } else if name == pattern {
-                        count += 1;
-                }
-            }
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if matches_pattern(&name, pattern) {
+            count += 1;
         }
     }
     Ok(count)
@@ -1201,10 +1247,10 @@ pub fn get_privacy_control_mode() -> Option<String> {
 /// - Modifies files in the working directory (renames, compresses, deletes).
 /// - May create or remove log files and temporary directories.
 /// - Calls `handle_tarballs` for tarball upload/save logic.
-pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts: &str, no_network: bool) { // TODO: Review and add code changes faithful to script
+pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts: &str, no_network: bool) {
     utils::flush_logger();
 
-    let files = match find_dump_files(dump_paths.get_working_dir(), dump_paths.get_dumps_extn()) {
+    let files = match find_dump_files(dump_paths.get_working_dir(), dump_paths.get_dumps_extn(), true) {
         Ok(f) => f,
         Err(e) => {
             println!("Error finding dump files: {}", e);
@@ -1394,14 +1440,18 @@ fn remove_logs(working_dir: &str) -> io::Result<()> {
 ///
 /// # Returns
 /// * `Ok(Vec<PathBuf>)` with matching files, or error.
-#[inline]
-pub fn find_dump_files(working_dir: &str, dumps_extn: &str) -> io::Result<Vec<PathBuf>> {
+pub fn find_dump_files(dir: &str, pattern: &str) -> std::io::Result<Vec<std::path::PathBuf>> {
+    let dir_path = std::path::Path::new(dir);
     let mut files = Vec::new();
-    for entry in fs::read_dir(working_dir)? {
+    if !dir_path.is_dir() {
+        return Ok(files);
+    }
+    for entry in std::fs::read_dir(dir_path)? {
         let entry = entry?;
-        let path = entry.path();
-        if path.is_file() && path.file_name().map(|n| n.to_string_lossy().contains(dumps_extn)).unwrap_or(false) {
-            files.push(path);
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if matches_pattern(&name, pattern) {
+            files.push(entry.path());
         }
     }
     Ok(files)
@@ -1418,7 +1468,7 @@ fn handle_tarballs(device_data: &DeviceData, dump_paths: &DumpPaths, no_network:
         return;
     }
 
-    let tarballs = match find_dump_files(dump_paths.get_working_dir(), dump_paths.get_tar_extn()) {
+    let tarballs = match find_dump_files(dump_paths.get_working_dir(), dump_paths.get_tar_extn(), true) {
         Ok(t) => t,
         Err(e) => {
             println!("Error finding tarballs: {}", e);

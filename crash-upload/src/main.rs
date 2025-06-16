@@ -23,7 +23,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() != 4 {
         println!("Usage: {} <integer> <string> <string>", args[0]);
-        process::exit(1);
+        std::process::exit(1);
     }
 
     let dump_flag = args[1].parse::<u32>().expect("Dump flag must be a number");
@@ -48,9 +48,9 @@ fn main() {
     }
 
     // Exit early if no dumps exist
-    if crashupload_utils::should_exit_crash_upload(dump_paths.get_minidumps_path(), dump_paths.get_core_path()) {
-        println!("Crash upload process is already running. Exiting...");
-        exit(0);
+    if !crashupload_utils::check_dumps_exist(dump_paths.get_minidumps_path(), dump_paths.get_core_path()) {
+        println!("No dumps found. Exiting...");
+        std::process::exit(0);
     }
 
     // Set secure dump status if needed
@@ -66,7 +66,7 @@ fn main() {
         let core_path = dump_paths.get_core_path().to_string();
         dump_paths.set_working_dir(&core_path);
         dump_paths.set_dumps_extn("*core.prog*.gz*");
-        dump_paths.set_tar_extn(".core.tgz");
+        dump_paths.set_tar_extn("*.core.tgz");
         dump_paths.set_lock_dir_prefix("/tmp/.uploadCoredumps");
         dump_paths.set_crash_portal_path("/opt/crashportal_uploads/coredumps/");
     } else {
@@ -84,9 +84,9 @@ fn main() {
 
     // Locking logic
     if wait_for_lock == "wait_for_lock" {
-        create_lock_or_wait(dump_paths.get_lock_dir_prefix());
+        crashupload_utils::create_lock_or_wait(dump_paths.get_lock_dir_prefix());
     } else {
-        create_lock_or_exit(dump_paths.get_lock_dir_prefix(), device_data.get_is_t2_enabled());
+        crashupload_utils::create_lock_or_exit(dump_paths.get_lock_dir_prefix(), device_data.get_is_t2_enabled());
     }
 
     // Defer upload if device just booted (hybrid/mediaclient)
@@ -106,28 +106,19 @@ fn main() {
             thread::sleep(Duration::from_secs(sleep_time));
             if Path::new(constants::CRASH_UPLOAD_REBOOT_FLAG).exists() {
                 println!("Process crashed exiting from the Deferring reboot");
-                finalize(&dump_paths); // TODO: Should we finalize & exit?
-                exit(0);
+                finalize(&dump_paths);
+                std::process::exit(0);
             }
         }
     }
     
     // Check if working directory is empty
     let w_dir = dump_paths.get_working_dir();
-    match fs::read_dir(w_dir) {
-        Ok(mut entries) => { 
-            if entries.next().is_none() {
-                println!("Working dir is empty: {}", w_dir);
-                finalize(&dump_paths); // TODO: Should we finalize & exit?
-                exit(0);
-            }
-        }
-        Err(_) => {
-            println!("working dir is empty : {}", w_dir);
-            finalize(&dump_paths); // TODO: Should we finalize & exit?
-            exit(0);
-        }
-    };
+    if is_dir_empty_or_unreadable(w_dir) {
+        println!("Working directory is empty or unreadable: {}", w_dir);
+        crashupload_utils::finalize(&dump_paths);
+        std::process::exit(0); // or exit(1) if you want to signal error
+    }
 
     // Network availability check
     let mut counter = 1;
@@ -186,22 +177,25 @@ fn main() {
 
     // Early exit if box is rebooting
     if is_box_rebooting(device_data.get_is_t2_enabled()) {
-        finalize(&dump_paths); // TODO: Should we finalize & exit?
-        exit(0);
+        crashupload_utils::finalize(&dump_paths);
+        std::process::exit(0);
     }
 
     // Print device MAC address
     println!("Mac Address is {}", device_data.get_mac_addr());
 
     // Count dumps using utility function
-    let dump_count = match get_file_count(dump_paths.get_working_dir(), dump_paths.get_dumps_extn(), true) {
+    let dump_count = match crashupload_utils::get_file_count(
+        dump_paths.get_working_dir(),
+        dump_paths.get_dumps_extn(),
+        ) {
         Ok(dump_cnt) => dump_cnt,
         Err(_) => 0,
     };
     if dump_count == 0 {
         println!("No {} for uploading exist", dump_paths.get_dump_name());
-        finalize(&dump_paths); // TODO: Should we finalize & exit?
-        exit(0);
+        crashupload_utils::finalize(&dump_paths);
+        std::process::exit(0);
     }
 
     // Cleanup old dumps using utility function
@@ -217,7 +211,7 @@ fn main() {
 
     // Final check: working directory must be a directory
     if !Path::new(w_dir).is_dir() {
-        exit(1);
+        std::process::exit(1);
     }
 
     // Main processing loop (up to 3 attempts, as in shell script)
@@ -229,7 +223,7 @@ fn main() {
         if files.is_empty() {
             break;
         }
-        process_dumps(&device_data, &dump_paths, &crash_ts, no_network);
+        crashupload_utils::process_dumps(&device_data, &dump_paths, &crash_ts, no_network);
     }
 
     finalize(&dump_paths);
