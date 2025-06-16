@@ -61,7 +61,7 @@ pub fn is_dir_empty_or_unreadable<P: AsRef<Path>>(dir: P) -> bool {
 pub fn safe_rename<S: AsRef<Path>, D: AsRef<Path>>(src: S, dst: D) -> io::Result<()> {
     match fs::rename(&src, &dst) {
         Ok(_) => Ok(()),
-        Err(e) if e.raw_os_error() == Some(18) || e.kind() == io::ErrorKind::CrossDeviceLink => {
+        Err(e) if e.raw_os_error() == Some(18) => {
             fs::copy(&src, &dst)?;
             fs::remove_file(&src)?;
             Ok(())
