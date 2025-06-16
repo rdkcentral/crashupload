@@ -58,6 +58,18 @@ pub fn is_dir_empty_or_unreadable<P: AsRef<Path>>(dir: P) -> bool {
     }
 }
 
+pub fn safe_rename<S: AsRef<Path>, D: AsRef<Path>>(src: S, dst: D) -> io::Result<()> {
+    match fs::rename(&src, &dst) {
+        Ok(_) => Ok(()),
+        Err(e) if e.raw_os_error() == Some(18) || e.kind() == io::ErrorKind::CrossDeviceLink => {
+            fs::copy(&src, &dst)?;
+            fs::remove_file(&src)?;
+            Ok(())
+        }
+        Err(e) => Err(e),
+    }
+}
+
 // #[cfg(feature = "shared_api")]
 // pub use crate::upload_to_s3::upload_to_s3;
 
@@ -720,7 +732,7 @@ pub fn mark_as_crash_loop_and_upload(tgz_file: &str) { // portal_url: &str, cras
     let tgz_path = Path::new(tgz_file);
     let new_tgz_name = tgz_path.with_extension("crashloop.dmp.tgz");
     println!("Renaming {} to {}", tgz_path.display(), new_tgz_name.display());
-    if let Err(e) = fs::rename(tgz_path, &new_tgz_name) {
+    if let Err(e) = safe_rename(tgz_path, &new_tgz_name) {
         println!("Failed to rename crashloop tarball: {}", e);
     }
 }
@@ -754,7 +766,7 @@ pub fn save_dump(minidumps_path: &str, s3_filename: &str, new_name: Option<&str>
         println!("Saving dump with original name to retain container info");
         let original_path = format!("{}/{}", minidumps_path, s3_filename);
         let new_path = format!("{}/{}", minidumps_path, new_name);
-        if let Err(e) = fs::rename(&original_path, &new_path) {
+        if let Err(e) = safe_rename(&original_path, &new_path) {
             println!("Failed to rename file: {}", e);
         }
     }
@@ -1296,7 +1308,7 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
 
             let dump_file_name = dump_file_name.replace("<#=#>", "_");
 
-            if let Err(e) = fs::rename(&sanitized, &dump_file_name) {
+            if let Err(e) = safe_rename(&sanitized, &dump_file_name) {
                 println!("Failed to rename {:?} to {}: {}", sanitized, dump_file_name, e);
                 continue;
             }
@@ -1402,7 +1414,7 @@ fn sanitize_and_rename(file: &Path) -> io::Result<PathBuf> {
     let orig = file.to_string_lossy();
     let sanitized = sanitize(&orig);
     if sanitized != orig {
-        fs::rename(&*orig, &sanitized)?;
+        safe_rename(&*orig, &sanitized)?;
         Ok(PathBuf::from(sanitized))
     } else {
         Ok(file.to_path_buf())
@@ -1573,7 +1585,7 @@ fn rename_tarball_for_s3(tarball: &Path, sanitized_name: &str) -> std::io::Resul
     let parent = tarball.parent().unwrap_or_else(|| Path::new(""));
     let orig_path = parent.join(tarball.file_name().unwrap());
     let new_path = parent.join(sanitized_name);
-    fs::rename(&orig_path, &new_path)
+    safe_rename(&orig_path, &new_path)
 }
 
 /// Uploads a tarball to S3, retrying up to 3 times.
