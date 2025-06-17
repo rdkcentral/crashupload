@@ -59,15 +59,32 @@ pub fn is_dir_empty_or_unreadable<P: AsRef<Path>>(dir: P) -> bool {
 }
 
 pub fn safe_rename<S: AsRef<Path>, D: AsRef<Path>>(src: S, dst: D) -> io::Result<()> {
-    match fs::rename(&src, &dst) {
+    let src_path = src.as_ref();
+    let dst_path = {
+        let dst_ref = dst.as_ref();
+        if dst_ref.is_absolute() {
+            dst_ref.to_path_buf()
+        } else {
+            src_path.parent().unwrap_or_else(|| Path::new("")).join(dst_ref)
+        }
+    };
+    match fs::rename(&src_path, &dst_path) {
         Ok(_) => Ok(()),
         Err(e) if e.raw_os_error() == Some(18) => {
-            fs::copy(&src, &dst)?;
-            fs::remove_file(&src)?;
+            fs::copy(&src_path, &dst_path)?;
+            fs::remove_file(&src_path)?;
             Ok(())
         }
         Err(e) => Err(e),
     }
+}
+
+#[inline]
+pub fn basename<P: AsRef<Path>>(path: P) -> &str {
+    path.as_ref()
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_else(|| path.as_ref().to_str().unwrap_or(""))
 }
 
 // #[cfg(feature = "shared_api")]
@@ -656,7 +673,7 @@ pub fn remove_pending_dumps(path: &str, extn: &str) -> io::Result<()> {
         if file_path.is_file() {
             let file_name = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if file_name.ends_with(extn) || file_name.ends_with(".tgz") {
-                println!("Removing {} because upload limit has reached or build is blacklisted or TelemetryOptOut is set", file_path.display());
+                println!("Removing {} because upload limit has reached or build is blacklisted or TelemetryOptOut is set", basename(&file_path));
                 let _ = fs::remove_file(&file_path);
             }
         }
@@ -685,8 +702,8 @@ pub fn process_crash_t2_info(file_path: &str, is_t2_enabled: bool) {
         if let Some(pos) = file_name_str.find("_mod_") {
             file_name_str = file_name_str.split_off(pos + "_mod_".len());
         }
-        println!("Original Filename: {}", file.display());
-        println!("Removing the meta information New Filename: {}", file_name_str);
+        println!("Original Filename: {}", basename(file));
+        println!("Removing the meta information New Filename: {}", basename(&file_name_str));
         println!("This could be a retry or crash from previous boot; the appname can be truncated");
         t2_count_notify("SYS_INFO_TGZDUMP", Some("1"));
     }
@@ -763,7 +780,7 @@ pub fn find_oldest_dump(dir: &str) -> io::Result<Option<PathBuf>> {
 /// * `new_name` - Optional new name to rename to (to retain container info).
 pub fn save_dump(minidumps_path: &str, s3_filename: &str, new_name: Option<&str>) {
     if let Some(new_name) = new_name {
-        println!("Saving dump with original name to retain container info");
+        println!("Saving dump with original name to retain container info: {}", basename(new_name));
         let original_path = format!("{}/{}", minidumps_path, s3_filename);
         let new_path = format!("{}/{}", minidumps_path, new_name);
         if let Err(e) = safe_rename(&original_path, &new_path) {
@@ -865,13 +882,14 @@ pub fn get_last_modified_time_of_file(path: &str) -> Option<String> {
 /// # Returns
 /// * `Ok(())` on success, or an error if file operations fail.
 pub fn get_crashed_log_file(file_path: &str, is_t2_enabled: bool) -> io::Result<()> {
-    let file = file_path;
+    let basename = basename(file_path);
 
-    let process_name = file
+    let process_name = basename
         .rsplitn(2, '_')
         .nth(1)
-        .unwrap_or(file)
+        .unwrap_or(basename)
         .trim_start_matches("./");
+
     println!("Process crashed = {}", process_name);
 
     if is_t2_enabled {
@@ -880,7 +898,7 @@ pub fn get_crashed_log_file(file_path: &str, is_t2_enabled: bool) -> io::Result<
         t2_count_notify("SYST_ERR_ProcessCrash", Some("1"));
     }
 
-    let app_name = file
+    let app_name = basename
         .split('_')
         .nth(1)
         .and_then(|s| s.split('-').next())
@@ -899,7 +917,7 @@ pub fn get_crashed_log_file(file_path: &str, is_t2_enabled: bool) -> io::Result<
     }
     println!("Crashed process log file(s): {}", log_files);
     if !app_name.is_empty() {
-        println!("Appname, Process_Crashed = {} {}", app_name, process_name);
+        println!("Appname, Process_Crashed = {}, {}", app_name, process_name);
     }
     // Write each log file to LOG_FILES
     let mut output = OpenOptions::new()
@@ -1285,7 +1303,7 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
         
         if file.is_file() {
             if is_tarball(&sanitized) {
-                println!("Skip archiving {:?} as it is a tarball already.", sanitized);
+                println!("Skip archiving {} as it is a tarball already.", basename(&sanitized));
                 continue;
             }
 
@@ -1309,7 +1327,7 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
             let dump_file_name = dump_file_name.replace("<#=#>", "_");
 
             if let Err(e) = safe_rename(&sanitized, &dump_file_name) {
-                println!("Failed to rename {:?} to {}: {}", sanitized, dump_file_name, e);
+                println!("Failed to rename {} to {}: {}", basename(&sanitized), basename(&dump_file_name), e);
                 continue;
             }
 
@@ -1341,7 +1359,7 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
             let tar_result = compress_files(&tgz_file, &[&dump_file_name], &logfiles_refs);
 
             if tar_result.is_ok() {
-                println!("Success Compressing the files, {} {} {} {}", tgz_file, dump_file_name, VERSION_FILE, CORE_LOG);
+                println!("Success Compressing the files, {} {} {} {}", basename(&tgz_file), basename(&dump_file_name), basename(VERSION_FILE), basename(CORE_LOG));
             }
             else {
                 println!("Compression failed, will retry after copying logs to /tmp");
@@ -1349,7 +1367,7 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
                 let out_files_refs: Vec<&str> = out_files.iter().map(|s| s.as_str()).collect();
                 let retry_tar_result  = compress_files(&tgz_file, &[&dump_file_name], &out_files_refs);
                 if retry_tar_result.is_ok() {
-                    println!("Success Compressing the files, {} {}", tgz_file, dump_file_name);
+                    println!("Success Compressing the files, {} {}", basename(&tgz_file), basename(&dump_file_name));
                 } else {
                     println!("Compression Failed .");
                 }
@@ -1362,7 +1380,7 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
             let tmp_dir = format!("/tmp/{}", dump_file_name);
             if Path::new(&tmp_dir).is_dir() {
                 rm_rf(&tmp_dir);
-                println!("Temporary Directory Deleted: {}", tmp_dir);
+                println!("Temporary Directory Deleted: {}", basename(&tmp_dir));
             }
             rm_rf(&dump_file_name);
 
