@@ -888,7 +888,7 @@ pub fn get_crashed_log_file(file_path: &str, is_t2_enabled: bool) -> io::Result<
     let process_name = basename
         .rsplitn(2, '_')
         .nth(1)
-        .unwrap_or(basename)
+        .unwrap_or(&basename)
         .trim_start_matches("./");
 
     println!("Process crashed = {}", process_name);
