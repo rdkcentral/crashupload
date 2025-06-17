@@ -9,7 +9,7 @@ pub const LOG_FILES: &str = "/tmp/minidump_log_files.txt";
 pub const LOG_PATH: &str = "/opt/rdk";
 pub const CORE_LOG: &str = "/opt/rdk/core_log.txt";
 
-pub const DEVICE_PROP_FILE: &str = "/opt/device.properties";
+pub const DEVICE_PROP_FILE: &str = "/etc/device.properties";
 
 pub const T2_SHARED_SCRIPT: &str = "/lib/rdk/t2Shared_api.sh";
 pub const MAX_CORE_FILES: usize = 4;

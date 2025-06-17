@@ -1318,16 +1318,17 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
                     dump_file_name = dump_file_name[pos + 1..].to_string();
                 }
             }
-
+            let dump_dir = Path::new(dump_paths.get_working_dir());
             let tgz_file = if dump_paths.dump_name == "coredump" {
-                format!("{}.core.tgz", dump_file_name)
+                dump_dir.join(format!("{}.core.tgz", dump_file_name))
             } else {
-                format!("{}.tgz", dump_file_name)
+                dump_dir.join(format!("{}.tgz", dump_file_name))
             };
 
             let dump_file_name = dump_file_name.replace("<#=#>", "_");
+            let dump_file_path = dump_dir.join(&dump_file_name);
 
-            if let Err(e) = safe_rename(&sanitized, &dump_file_name) {
+            if let Err(e) = safe_rename(&sanitized, &dump_file_path) {
                 println!("Failed to rename {} to {}: {}", basename(&sanitized), basename(&dump_file_name), e);
                 continue;
             }
@@ -1357,7 +1358,7 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
 
             let logfiles_refs: Vec<&str> = logfiles.iter().map(|s| s.as_str()).collect();
 
-            let tar_result = compress_files(&tgz_file, &[&dump_file_name], &logfiles_refs);
+            let tar_result = compress_files(tgz_file.to_str().unwrap(), &[&dump_file_name], &logfiles_refs);
 
             if tar_result.is_ok() {
                 println!("Success Compressing the files, {} {} {} {}", basename(&tgz_file), basename(&dump_file_name), basename(VERSION_FILE), basename(CORE_LOG));
@@ -1366,7 +1367,7 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
                 println!("Compression failed, will retry after copying logs to /tmp");
                 let out_files = copy_log_files_to_tmp(&dump_file_name, &logfiles_refs);
                 let out_files_refs: Vec<&str> = out_files.iter().map(|s| s.as_str()).collect();
-                let retry_tar_result  = compress_files(&tgz_file, &[&dump_file_name], &out_files_refs);
+                let retry_tar_result  = compress_files(tgz_file.to_str().unwrap(), &[&dump_file_name], &out_files_refs);
                 if retry_tar_result.is_ok() {
                     println!("Success Compressing the files, {} {}", basename(&tgz_file), basename(&dump_file_name));
                 } else {
