@@ -80,11 +80,12 @@ pub fn safe_rename<S: AsRef<Path>, D: AsRef<Path>>(src: S, dst: D) -> io::Result
 }
 
 #[inline]
-pub fn basename<P: AsRef<Path>>(path: P) -> &str {
+pub fn basename<P: AsRef<Path>>(path: P) -> String {
     path.as_ref()
         .file_name()
         .and_then(|n| n.to_str())
-        .unwrap_or_else(|| path.as_ref().to_str().unwrap_or(""))
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| path.as_ref().to_string_lossy().to_string())
 }
 
 // #[cfg(feature = "shared_api")]
