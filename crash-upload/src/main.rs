@@ -127,11 +127,11 @@ fn main() {
     while counter <= constants::NETWORK_CHECK_ITERATION {
         println!("Check network status count {}", counter);
         if route_file.exists() {
-            println!("Network is available");
+            println!("Route is Available break the loop");
             break;
         } else {
             println!(
-                "Network is not available, Sleep for {} seconds",
+                "Route is not available, Sleep for {} seconds",
                 constants::NETWORK_CHECK_TIMEOUT
             );
             thread::sleep(Duration::from_secs(constants::NETWORK_CHECK_TIMEOUT as u64));
@@ -140,12 +140,12 @@ fn main() {
     }
 
     if !route_file.exists() {
-        println!("Network is not available. tar dump and save it, as max wait reached");
+        println!("Route is not available. tar dump and save it, as max wait reached");
         no_network = true;
     }
 
     // System time availability check
-    println!("IP Acquisition completed, Check if system time is received");
+    println!("IP Acquisition completed, Test if system time is received");
     let stt_file = Path::new(constants::SYSTEM_TIME_FILE);
     if !stt_file.exists() {
         while counter <= constants::SYSTEM_TIME_ITERATION {

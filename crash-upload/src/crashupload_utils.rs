@@ -149,6 +149,7 @@ pub fn set_device_data(device_data: &mut DeviceData) {
     let mut portal_url = String::new();
     get_rfc_param(CRASH_PORTAL_URL_RFC, &mut portal_url);
     device_data.set_portal_url(portal_url);
+    println!("set_device_data(): [DEBUG] {:?}", device_data);
 }
 
 /// Checks if any dump files matching a pattern exist in a directory.
@@ -206,7 +207,7 @@ pub fn get_secure_dump_status(dump_paths: &mut DumpPaths) {
     if !is_sec_dump_enabled {
         if Path::new(SECUREDUMP_ENABLE_FILE).exists() {
             touch(SECUREDUMP_DISABLE_FILE);
-            println!("[SECUREDUMP] Disabled");
+            println!("get_secure_dump_status(): [SECUREDUMP] Disabled");
         }
         if Path::new(SECUREDUMP_ENABLE_FILE).exists() {
             let _ = fs::remove_file(SECUREDUMP_ENABLE_FILE);
@@ -218,7 +219,7 @@ pub fn get_secure_dump_status(dump_paths: &mut DumpPaths) {
     } else {
         if !Path::new(SECUREDUMP_ENABLE_FILE).exists() {
             touch(SECUREDUMP_ENABLE_FILE);
-            println!("[SECUREDUMP] Enabled. Dump location changed to /opt/secure.");
+            println!("get_secure_dump_status(): [SECUREDUMP] Enabled. Dump location changed to /opt/secure.");
         }
         if Path::new(SECUREDUMP_DISABLE_FILE).exists() {
             let _ = fs::remove_file(SECUREDUMP_DISABLE_FILE);
@@ -294,7 +295,7 @@ pub fn create_lock_or_exit<P: AsRef<Path>>(path: P, is_t2_enabled: bool) -> bool
         if is_t2_enabled {
             t2_count_notify("SYST_WARN_NoMinidump", Some("1"));
         }
-        println!("Script is already working. {:?}. Skip launching another instance...", lock);
+        println!("create_lock_or_exit(): Script is already working. {:?}. Skip launching another instance...", lock);
         // TODO: add wait
         process::exit(0);
     }
@@ -302,7 +303,7 @@ pub fn create_lock_or_exit<P: AsRef<Path>>(path: P, is_t2_enabled: bool) -> bool
     match fs::create_dir(&lock) {
         Ok(_) => true,
         Err(err) => {
-            println!("Error creating {:?}: {}", lock, err);
+            println!("create_lock_or_exit(): Error creating {:?}: {}", lock, err);
             false
         }
     }
@@ -322,10 +323,7 @@ pub fn create_lock_or_wait<P: AsRef<Path>>(path: P) -> bool {
     let lock = lock_path(&path);
     loop {
         if is_another_instance_running(&path) {
-            println!(
-                "Script is already working. {:?}. Waiting to launch another instance...",
-                lock
-            );
+            println!("create_lock_or_wait(): Script is already working. {:?}. Waiting to launch another instance...", lock);
             thread::sleep(time::Duration::from_secs(2));
             continue;
         }
@@ -333,7 +331,7 @@ pub fn create_lock_or_wait<P: AsRef<Path>>(path: P) -> bool {
         match fs::create_dir(&lock) {
             Ok(_) => return true,
             Err(err) => {
-                println!("Error creating {:?}: {}", lock, err);
+                println!("create_lock_or_wait(): Error creating {:?}: {}", lock, err);
                 return false;
             }
         }
@@ -348,7 +346,7 @@ pub fn remove_lock<P: AsRef<Path>>(path: P) {
     let lock = lock_path(&path);
     if lock.is_dir() {
         if let Err(err) = fs::remove_dir(&lock) {
-            println!("Error deleting {:?}: {}", lock, err);
+            println!("remove_lock(): Error deleting {:?}: {}", lock, err);
         }
     }
 }
@@ -373,7 +371,7 @@ pub fn set_log_file(device_data: &DeviceData, log_mod_ts: &str, line: &str) -> S
         || file_name.contains("_box")
         || file_name.contains("_mod")
     {
-        println!("Core name is already processed: {}", file_name);
+        println!("set_log_file(): Core name is already processed: {}", file_name);
         return String::from(file_name);
     }
     format!(
@@ -396,11 +394,11 @@ pub fn set_log_file(device_data: &DeviceData, log_mod_ts: &str, line: &str) -> S
 /// * `true` if the box is rebooting (flag file exists), `false` otherwise.
 pub fn is_box_rebooting(is_t2_enabled: bool) -> bool {
     if Path::new(CRASH_UPLOAD_REBOOT_FLAG).exists() {
-        println!("Skipping Upload, Since Box is Rebooting now...");
+        println!("is_box_rebooting(): Skipping Upload, Since Box is Rebooting now...");
         if is_t2_enabled {
             t2_count_notify("SYST_INFO_CoreUpldSkipped", Some("1"));
         }
-        println!("Upload will happen on next reboot");
+        println!("is_box_rebooting(): Upload will happen on next reboot");
         // TODO: Add wait
         return true;
     }
@@ -501,7 +499,7 @@ pub fn is_upload_limit_reached(ts_file: &str) -> bool {
 
 
     if OpenOptions::new().create(true).append(true).open(path).is_err() {
-        println!("Failed to create or open {}", ts_file);
+        println!("is_upload_limit_reached(): Failed to create or open {}", ts_file);
         remove_lock(ts_file);
         return false;
     }
@@ -534,7 +532,7 @@ pub fn is_upload_limit_reached(ts_file: &str) -> bool {
 
     let limit_reached = now.saturating_sub(tenth_newest_crash_time) < LIMIT_SECONDS;
     if limit_reached {
-        println!("Not uploading the dump. Too many dumps.");
+        println!("is_upload_limit_reached(): Not uploading the dump. Too many dumps.");
     }
     remove_lock(ts_file);
     limit_reached
@@ -606,7 +604,7 @@ pub fn should_process_dump(dump_name: &str, build_type: &str, file_name: &str) -
     if dump_name == "minidump" || build_type != "prod" || !file_name.contains("Receiver") {
         true
     } else {
-        println!("Not processing dump file {}", file_name);
+        println!("should_process_dump(): Not processing dump file {}", file_name);
         false
     }
 }
@@ -674,7 +672,7 @@ pub fn remove_pending_dumps(path: &str, extn: &str) -> io::Result<()> {
         if file_path.is_file() {
             let file_name = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if file_name.ends_with(extn) || file_name.ends_with(".tgz") {
-                println!("Removing {} because upload limit has reached or build is blacklisted or TelemetryOptOut is set", basename(&file_path));
+                println!("remove_pending_dumps(): Removing {} because upload limit has reached or build is blacklisted or TelemetryOptOut is set", basename(&file_path));
                 let _ = fs::remove_file(&file_path);
             }
         }
@@ -699,20 +697,20 @@ pub fn process_crash_t2_info(file_path: &str, is_t2_enabled: bool) {
 
     // Check if file is a tarball
     if file.extension().and_then(|e| e.to_str()) == Some("tgz") {
-        println!("The File is already a tarball, this might be a retry or crash during shutdown");
+        println!("process_crash_t2_info(): The File is already a tarball, this might be a retry or crash during shutdown");
         if let Some(pos) = file_name_str.find("_mod_") {
             file_name_str = file_name_str.split_off(pos + "_mod_".len());
         }
-        println!("Original Filename: {}", basename(file));
-        println!("Removing the meta information New Filename: {}", basename(&file_name_str));
-        println!("This could be a retry or crash from previous boot; the appname can be truncated");
+        println!("process_crash_t2_info(): Original Filename: {}", basename(file));
+        println!("process_crash_t2_info(): Removing the meta information New Filename: {}", basename(&file_name_str));
+        println!("process_crash_t2_info(): This could be a retry or crash from previous boot; the appname can be truncated");
         t2_count_notify("SYS_INFO_TGZDUMP", Some("1"));
     }
 
     // Check for container delimiter in file name
     if file_name_str.contains(container_delimiter) {
         let parts: Vec<&str> = file_name_str.split(container_delimiter).collect();
-        println!("From the file name crashed process is a container");
+        println!("process_crash_t2_info(): From the file name crashed process is a container");
 
         if parts.len() >= 2 {
             let container_name = parts[0];
@@ -722,15 +720,15 @@ pub fn process_crash_t2_info(file_path: &str, is_t2_enabled: bool) {
 
             t2_count_notify("SYS_INFO_CrashedContainer", Some("1"));
 
-            println!("Container crash info Basic: {}, {}", app_name, process_name);
-            println!("Container crash info Advanced: {}, {}", container_name, container_status);
-            println!("NEW Appname, Process_Crashed, Status = {}, {}, {}", app_name, process_name, container_status);
+            println!("process_crash_t2_info(): Container crash info Basic: {}, {}", app_name, process_name);
+            println!("process_crash_t2_info(): Container crash info Advanced: {}, {}", container_name, container_status);
+            println!("process_crash_t2_info(): NEW Appname, Process_Crashed, Status = {}, {}, {}", app_name, process_name, container_status);
 
             t2_val_notify("APP_ERROR_Crashed_split", &[app_name, process_name, container_status]);
             t2_val_notify("APP_ERROR_Crashed_accum", &[app_name, process_name, container_status]);
 
-            println!("NEW Processname, App Name, AppState = {}, {}, {}", process_name, app_name, container_status);
-            println!("ContainerName, ContainerStatus = {}, {}", container_name, container_status);
+            println!("process_crash_t2_info(): NEW Processname, App Name, AppState = {}, {}, {}", process_name, app_name, container_status);
+            println!("process_crash_t2_info(): ContainerName, ContainerStatus = {}, {}", container_name, container_status);
             t2_val_notify("APP_ERROR_CrashInfo_accum", &[container_name, container_status]);
         }
     }
@@ -749,9 +747,9 @@ pub fn process_crash_t2_info(file_path: &str, is_t2_enabled: bool) {
 pub fn mark_as_crash_loop_and_upload(tgz_file: &str) { // portal_url: &str, crash_portal_path: &str) {
     let tgz_path = Path::new(tgz_file);
     let new_tgz_name = tgz_path.with_extension("crashloop.dmp.tgz");
-    println!("Renaming {} to {}", tgz_path.display(), new_tgz_name.display());
+    println!("mark_as_crash_loop_and_upload(): Renaming {} to {}", tgz_path.display(), new_tgz_name.display());
     if let Err(e) = safe_rename(tgz_path, &new_tgz_name) {
-        println!("Failed to rename crashloop tarball: {}", e);
+        println!("mark_as_crash_loop_and_upload(): Failed to rename crashloop tarball: {}", e);
     }
 }
 
@@ -781,11 +779,11 @@ pub fn find_oldest_dump(dir: &str) -> io::Result<Option<PathBuf>> {
 /// * `new_name` - Optional new name to rename to (to retain container info).
 pub fn save_dump(minidumps_path: &str, s3_filename: &str, new_name: Option<&str>) {
     if let Some(new_name) = new_name {
-        println!("Saving dump with original name to retain container info: {}", basename(new_name));
+        println!("save_dump(): Saving dump with original name to retain container info: {}", basename(new_name));
         let original_path = format!("{}/{}", minidumps_path, s3_filename);
         let new_path = format!("{}/{}", minidumps_path, new_name);
         if let Err(e) = safe_rename(&original_path, &new_path) {
-            println!("Failed to rename file: {}", e);
+            println!("save_dump(): Failed to rename file: {}", e);
         }
     }
 
@@ -795,7 +793,7 @@ pub fn save_dump(minidumps_path: &str, s3_filename: &str, new_name: Option<&str>
     while count > 5 {
         match find_oldest_dump(minidumps_path) {
             Ok(Some(oldest)) => {
-                println!("Removing old dump {}", oldest.display());
+                println!("save_dump(): Removing old dump {}", oldest.display());
                 if let Err(e) = fs::remove_file(&oldest) {
                     println!("Failed to remove old dump: {}", e);
                 }
@@ -804,7 +802,7 @@ pub fn save_dump(minidumps_path: &str, s3_filename: &str, new_name: Option<&str>
             _ => break,
         }
     }
-    println!("Total pending Minidumps: {}", count);
+    println!("save_dump(): Total pending Minidumps: {}", count);
 }
 
 /// Logs the current upload timestamp to the timestamp file and truncates it to the last 10 entries.
@@ -823,10 +821,10 @@ pub fn log_upload_timestamp(ts_file: &str) {
             .as_secs();
         if let Err(e) = OpenOptions::new().append(true).create(true).open(ts_file)
             .and_then(|mut f| writeln!(f, "{}", now)) {
-            println!("Failed to write timestamp: {}", e);
+            println!("log_upload_timestamp(): Failed to write timestamp: {}", e);
         }
         if let Err(e) = truncate_timestamp_file(ts_file) {
-            println!("Failed to truncate timestamp file: {}", e);
+            println!("log_upload_timestamp(): Failed to truncate timestamp file: {}", e);
         }
     }
     remove_lock(ts_file);
@@ -885,13 +883,12 @@ pub fn get_last_modified_time_of_file(path: &str) -> Option<String> {
 pub fn get_crashed_log_file(file_path: &str, is_t2_enabled: bool) -> io::Result<()> {
     let basename = basename(file_path);
 
-    let process_name = basename
-        .rsplitn(2, '_')
-        .nth(1)
-        .unwrap_or(&basename)
-        .trim_start_matches("./");
+    let process_name = match basename.rfind('_') {
+        Some(idx) => &basename[..idx],
+        None => &basename,
+    };
 
-    println!("Process crashed = {}", process_name);
+    println!("get_crashed_log_file(): Process crashed = {}", process_name);
 
     if is_t2_enabled {
         t2_val_notify("processCrash_split", &[process_name]);
@@ -916,9 +913,9 @@ pub fn get_crashed_log_file(file_path: &str, is_t2_enabled: bool) -> io::Result<
             }
         }
     }
-    println!("Crashed process log file(s): {}", log_files);
+    println!("get_crashed_log_file(): Crashed process log file(s): {}", log_files);
     if !app_name.is_empty() {
-        println!("Appname, Process_Crashed = {}, {}", app_name, process_name);
+        println!("get_crashed_log_file(): Appname, Process_Crashed = {}, {}", app_name, process_name);
     }
     // Write each log file to LOG_FILES
     let mut output = OpenOptions::new()
@@ -974,13 +971,13 @@ pub fn delete_all_but_most_recent_files(dir_path: &str) -> io::Result<()> {
         // Delete the oldest files
         for (file_path, _) in files.iter().skip(MAX_CORE_FILES) {
             if let Err(e) = fs::remove_file(file_path) {
-                println!("Failed to delete file {:?}: {}", file_path, e);
+                println!("delete_all_but_most_recent_files(): Failed to delete file {:?}: {}", file_path, e);
             } else {
-                println!("Deleted old dump file: {:?}", file_path);
+                println!("delete_all_but_most_recent_files(): Deleted old dump file: {:?}", file_path);
             }
         }
     } else {
-        println!("No files need to be deleted. Total files: {}", files.len());
+        println!("delete_all_but_most_recent_files(): No files need to be deleted. Total files: {}", files.len());
     }
     Ok(())
 }
@@ -1006,11 +1003,11 @@ pub fn cleanup(work_dir: &str, dump_name: &str, dump_extn: &str) -> std::io::Res
     // Early exit if directory is missing or empty
     if !work_dir_path.exists() || !work_dir_path.is_dir() || work_dir_path.read_dir()?.next().is_none()
     {
-        println!("Working directory {} is empty", work_dir);
+        println!("cleanup(): Working directory {} is empty", work_dir);
         return Ok(());
     }
 
-    println!("Cleanup {} directory {}", dump_name, work_dir);
+    println!("cleanup(): Cleaning up {} directory {}", dump_name, work_dir);
 
     // Remove files matching '*_mac*_dat*' older than 2 days
     let cutoff = SystemTime::now() - Duration::from_secs(60 * 60 * 24 * 2); // 2 days
@@ -1024,7 +1021,7 @@ pub fn cleanup(work_dir: &str, dump_name: &str, dump_extn: &str) -> std::io::Res
                     if let Ok(modified) = meta.modified() {
                         if modified < cutoff {
                             fs::remove_file(&path)?;
-                            println!("Removed file: {}", path.display());
+                            println!("cleanup(): Removed file: {}", path.display());
                         }
                     }
                 }
@@ -1054,7 +1051,7 @@ pub fn cleanup(work_dir: &str, dump_name: &str, dump_extn: &str) -> std::io::Res
                 let fname = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
                 if fname.contains("_mac") && fname.contains("_dat") {
                     fs::remove_file(&path)?;
-                    println!("Deleting unfinished file: {}", path.display());
+                    println!("cleanup(): Deleting unfinished file: {}", path.display());
                 }
             }
 
@@ -1066,7 +1063,7 @@ pub fn cleanup(work_dir: &str, dump_name: &str, dump_extn: &str) -> std::io::Res
                     let fname = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
                     if !fname.contains(dump_extn.trim_matches('*')) {
                         fs::remove_file(&path)?;
-                        println!("Deleting non-dump file: {}", path.display());
+                        println!("cleanup(): Deleting non-dump file: {}", path.display());
                     }
                 }
             }
@@ -1147,7 +1144,7 @@ pub fn add_crashed_log_file(device_data: &DeviceData, log_files:  &[&str]) -> io
                     writeln!(output, "{}", line)?;
                 }
 
-                println!("Adding File: {} to minidump tarball", process_log);
+                println!("add_log_file(): Adding File: {} to minidump tarball", process_log);
             }
         }
     }
@@ -1182,7 +1179,7 @@ pub fn copy_log_files_to_tmp(tmp_dir_name: &str, logfiles: &[&str]) -> Vec<Strin
 
     if usage_percent >= limit {
         println!(
-            "Skipping copying logs to tmp dir due to limited memory (used: {}%, limit: {}%)",
+            "copy_log_files_to_tmp(): Skipping copying logs to tmp dir due to limited memory (used: {}%, limit: {}%)",
             usage_percent, limit
         );
         for &file in logfiles {
@@ -1192,24 +1189,24 @@ pub fn copy_log_files_to_tmp(tmp_dir_name: &str, logfiles: &[&str]) -> Vec<Strin
         }
     } else {
         println!(
-            "Copying logs to tmp dir as memory available (used: {}%, limit: {}%)",
+            "copy_log_files_to_tmp(): Copying logs to tmp dir as memory available (used: {}%, limit: {}%)",
             usage_percent, limit
         );
         if let Err(e) = fs::create_dir_all(&tmp_dir) {
-            println!("Failed to create tmp dir {}: {}", tmp_dir, e);
+            println!("copy_log_files_to_tmp(): Failed to create tmp dir {}: {}", tmp_dir, e);
         }
         for &file in logfiles {
             let src = Path::new(file);
             if src.exists() {
                 let dest = Path::new(&tmp_dir).join(src.file_name().unwrap());
                 if let Err(e) = fs::copy(src, &dest) {
-                    println!("Failed to copy {:?} to {:?}: {}", src, dest, e);
+                    println!("copy_log_files_to_tmp(): Failed to copy {:?} to {:?}: {}", src, dest, e);
                 } else {
                     out_files.push(dest.to_string_lossy().to_string());
                 }
             }
         }
-        println!("Logs copied to {} temporary", tmp_dir);
+        println!("copy_log_files_to_tmp(): Logs copied to {} temporary", tmp_dir);
     }
     out_files
 }
@@ -1284,7 +1281,7 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
     let files = match find_dump_files(dump_paths.get_working_dir(), dump_paths.get_dumps_extn()) {
         Ok(f) => f,
         Err(e) => {
-            println!("Error finding dump files: {}", e);
+            println!("process_dumps(): Error finding dump files: {}", e);
             return;
         }
     };
@@ -1293,7 +1290,7 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
         let sanitized = match sanitize_and_rename(&file) {
             Ok(f) => f,
             Err(e) => {
-                println!("Sanitize/rename failed for {:?}: {}", file, e);
+                println!("process_dumps(): Sanitize/rename failed for {:?}: {}", file, e);
                 continue;
             }
         };
@@ -1304,7 +1301,7 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
         
         if file.is_file() {
             if is_tarball(&sanitized) {
-                println!("Skip archiving {} as it is a tarball already.", basename(&sanitized));
+                println!("process_dumps(): Skip archiving {} as it is a tarball already.", basename(&sanitized));
                 continue;
             }
 
@@ -1329,7 +1326,7 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
             let dump_file_path = dump_dir.join(&dump_file_name);
 
             if let Err(e) = safe_rename(&sanitized, &dump_file_path) {
-                println!("Failed to rename {} to {}: {}", basename(&sanitized), basename(&dump_file_name), e);
+                println!("process_dumps(): Failed to rename {} to {}: {}", basename(&sanitized), basename(&dump_file_name), e);
                 continue;
             }
 
@@ -1340,7 +1337,7 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
 
             // Log size of the file before compression
             if let Ok(metadata) = std::fs::metadata(&dump_file_name) {
-                println!("Size of the file: {} bytes",metadata.len());
+                println!("process_dumps(): Size of the file: {} bytes",metadata.len());
             }
 
             if device_data.get_is_t2_enabled() && !dump_paths.get_dump_name().is_empty() {
@@ -1361,28 +1358,28 @@ pub fn process_dumps(device_data: &DeviceData, dump_paths: &DumpPaths, crash_ts:
             let tar_result = compress_files(tgz_file.to_str().unwrap(), &[&dump_file_name], &logfiles_refs);
 
             if tar_result.is_ok() {
-                println!("Success Compressing the files, {} {} {} {}", basename(&tgz_file), basename(&dump_file_name), basename(VERSION_FILE), basename(CORE_LOG));
+                println!("process_dumps(): Success Compressing the files, {} {} {} {}", basename(&tgz_file), basename(&dump_file_name), basename(VERSION_FILE), basename(CORE_LOG));
             }
             else {
-                println!("Compression failed, will retry after copying logs to /tmp");
+                println!("process_dumps(): Compression failed, will retry after copying logs to /tmp");
                 let out_files = copy_log_files_to_tmp(&dump_file_name, &logfiles_refs);
                 let out_files_refs: Vec<&str> = out_files.iter().map(|s| s.as_str()).collect();
                 let retry_tar_result  = compress_files(tgz_file.to_str().unwrap(), &[&dump_file_name], &out_files_refs);
                 if retry_tar_result.is_ok() {
-                    println!("Success Compressing the files, {} {}", basename(&tgz_file), basename(&dump_file_name));
+                    println!("process_dumps(): Success Compressing the files, {} {}", basename(&tgz_file), basename(&dump_file_name));
                 } else {
-                    println!("Compression Failed .");
+                    println!("process_dumps(): Compression Failed .");
                 }
             }
 
             if let Ok(metadata) = std::fs::metadata(&tgz_file) {
-                println!("Size of the compressed file: {} bytes", metadata.len());
+                println!("process_dumps(): Size of the compressed file: {} bytes", metadata.len());
             }
 
             let tmp_dir = format!("/tmp/{}", dump_file_name);
             if Path::new(&tmp_dir).is_dir() {
                 rm_rf(&tmp_dir);
-                println!("Temporary Directory Deleted: {}", basename(&tmp_dir));
+                println!("process_dumps(): Temporary Directory Deleted: {}", basename(&tmp_dir));
             }
             rm_rf(&dump_file_name);
 
@@ -1412,7 +1409,7 @@ fn compress_files(tgz_file: &str, main_files: &[&str], extra_files: &[&str]) -> 
     if status.success() {
         Ok(())
     } else {
-        Err(io::Error::new(io::ErrorKind::Other, "Compression Failed"))
+        Err(io::Error::new(io::ErrorKind::Other, "compress_files(): Compression Failed"))
     }
 }
 
@@ -1456,7 +1453,7 @@ fn remove_logs(working_dir: &str) -> io::Result<()> {
         if path.is_file() {
             let name = path.file_name().unwrap_or_default().to_string_lossy();
             if name.ends_with(".log") || name.ends_with(".txt") {
-                println!("Removing {}", path.display());
+                println!("remove_logs(): Removing {}", path.display());
                 rm_rf(path.to_str().unwrap());
             }
         }
@@ -1503,14 +1500,14 @@ fn handle_tarballs(device_data: &DeviceData, dump_paths: &DumpPaths, no_network:
     let tarballs = match find_dump_files(dump_paths.get_working_dir(), dump_paths.get_tar_extn()) {
         Ok(t) => t,
         Err(e) => {
-            println!("Error finding tarballs: {}", e);
+            println!("handle_tarballs(): Error finding tarballs: {}", e);
             return;
         }
     };
 
     for tarball in tarballs {
         if let Err(e) = handle_single_tarball(device_data, dump_paths, &tarball, no_network, crash_ts) {
-            println!("Error handling tarball {:?}: {}", tarball, e);
+            println!("handle_tarballs(): Error handling tarball {:?}: {}", tarball, e);
         }
     }
 }
@@ -1533,7 +1530,7 @@ fn handle_single_tarball(device_data: &DeviceData, dump_paths: &DumpPaths, tarba
     if is_recovery_time_reached() {
         rm_rf(DENY_UPLOAD_FILE);
     } else {
-        println!("Shifting the recovery time forward.");
+        println!("handle_single_tarball(): Shifting the recovery time forward.");
         set_recovery_time();
         let _ = remove_pending_dumps(
             dump_paths.get_working_dir(),
@@ -1545,7 +1542,7 @@ fn handle_single_tarball(device_data: &DeviceData, dump_paths: &DumpPaths, tarba
 
     if dump_paths.get_dump_name() == "minidump" && is_upload_limit_reached(dump_paths.get_ts_file())
     {
-        println!("Upload rate limit has been reached.");
+        println!("handle_single_tarball(): Upload rate limit has been reached.");
         mark_as_crash_loop_and_upload(&tarball_str);
         set_recovery_time();
         let _ = remove_pending_dumps(
@@ -1558,14 +1555,14 @@ fn handle_single_tarball(device_data: &DeviceData, dump_paths: &DumpPaths, tarba
     
     // 2. no_network logic: skip upload and just save the dump
     if dump_paths.get_dump_name() == "minidump" && no_network {
-        println!("Network is not available, skipping upload and saving dump.");
+        println!("handle_single_tarball(): Network is not available, skipping upload and saving dump.");
         save_dump(dump_paths.get_minidumps_path(), s3_filename, Some(crash_ts));
         return Ok(());
     }
 
     // 3. Privacy mode check
     if device_data.get_device_type() == "mediaclient" && is_privacy_mode_do_not_share() {
-        println!("Privacy Mode is DO_NOT_SHARE. Stop Uploading the data to the cloud");
+        println!("handle_single_tarball(): Privacy Mode is DO_NOT_SHARE. Stop Uploading the data to the cloud");
         let _ = remove_pending_dumps(
             dump_paths.get_working_dir(),
             dump_paths.get_dumps_extn(),
@@ -1619,10 +1616,10 @@ fn rename_tarball_for_s3(tarball: &Path, sanitized_name: &str) -> std::io::Resul
 fn upload_tarball_with_retries(s3_filename: &str, dump_paths: &DumpPaths, is_t2_enabled: bool) -> bool {
     let mut upload_status = false;
     for attempt in 1..=3 {
-        println!("[{}]: {}: {} S3 Upload Attempt {}", file!(), attempt, dump_paths.get_dump_name(), s3_filename);
+        println!("upload_tarball_with_retries(): {}: {} S3 Upload Attempt {}", attempt, dump_paths.get_dump_name(), s3_filename);
         match upload_to_s3(&[s3_filename]) {
             Ok(exit_status) if exit_status.success() => {
-                println!("{} uploadToS3 SUCCESS: status: {:?}", dump_paths.get_dump_name(), exit_status);
+                println!("upload_tarball_with_retries(): {} uploadToS3 SUCCESS: status: {:?}", dump_paths.get_dump_name(), exit_status);
                 upload_status = true;
                 if dump_paths.get_dump_name() == "minidump" && is_t2_enabled {
                     t2_count_notify("SYST_INFO_minidumpUpld", Some("1"));
@@ -1630,10 +1627,10 @@ fn upload_tarball_with_retries(s3_filename: &str, dump_paths: &DumpPaths, is_t2_
                 break;
             }
             Ok(exit_status) => {
-                println!("Execution Status: {:?}, S3 Amazon Upload of {} Failed", exit_status, dump_paths.get_dump_name());
+                println!("upload_tarball_with_retries(): Execution Status: {:?}, S3 Amazon Upload of {} Failed", exit_status, dump_paths.get_dump_name());
             }
             Err(e) => {
-                println!("Upload to S3 failed: {}", e);
+                println!("upload_tarball_with_retries(): Upload to S3 failed: {}", e);
             }
         }
         std::thread::sleep(std::time::Duration::from_secs(2));
@@ -1653,16 +1650,16 @@ fn post_upload_cleanup(upload_success: bool, dump_paths: &DumpPaths, tarball: &P
     let s3_path = parent.join(s3_filename);
 
     if upload_success {
-        println!("Removing file {}", s3_filename);
+        println!("post_upload_cleanup(): Removing file {}", s3_filename);
         let _ = fs::remove_file(&s3_path);
         log_upload_timestamp(dump_paths.get_ts_file());
     } else {
-        println!("S3 Amazon Upload of {} Failed..!", dump_paths.get_dump_name());
+        println!("post_upload_cleanup(): S3 Amazon Upload of {} Failed..!", dump_paths.get_dump_name());
         if dump_paths.get_dump_name() == "minidump" {
-            println!("Check and save the dump {}", s3_filename);
+            println!("post_upload_cleanup(): Check and save the dump {}", s3_filename);
             save_dump(dump_paths.get_minidumps_path(), s3_filename, None);
         } else {
-            println!("Removing file {}", s3_filename);
+            println!("post_upload_cleanup(): Removing file {}", s3_filename);
             let _ = fs::remove_file(&s3_path);
         }
         // TODO: Should exit?
