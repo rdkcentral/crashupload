@@ -7,7 +7,7 @@ pub const LOGMAPPER_FILE: &str = "/etc/breakpad-logmapper.conf";
 pub const LOG_FILES: &str = "/tmp/minidump_log_files.txt";
 
 pub const LOG_PATH: &str = "/opt/rdk";
-pub const CORE_LOG: &str = "/opt/rdk/core_log.txt";
+pub const CORE_LOG: &str = "/opt/logs/core_log.txt";
 
 pub const DEVICE_PROP_FILE: &str = "/etc/device.properties";
 

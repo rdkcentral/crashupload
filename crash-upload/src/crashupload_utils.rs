@@ -1131,35 +1131,33 @@ fn get_tmp_usage_percent() -> Option<u8> {
 ///
 /// # Returns
 /// * `Ok(())` on success, or an error if file operations fail.
-pub fn add_crashed_log_file(device_data: &DeviceData, log_files:  &[&str]) -> io::Result<()> {
+pub fn add_crashed_log_file(device_data: &DeviceData, log_files:  &[&str], working_dir: &str) -> io::Result<()> {
     let line_count = if device_data.build_type == "prod" { 500 } else { 5000 };
 
     for file_path in log_files {
         let path = Path::new(file_path);
         if path.is_file() {
             if let Some(log_mod_ts) = get_last_modified_time_of_file(file_path) {
-                let process_log = set_log_file(device_data, &log_mod_ts, file_path);
+                let process_log_name = set_log_file(device_data, &log_mod_ts, file_path);
+                let process_log_path = Path::new(working_dir).join(&process_log_name);
 
-                // Use std::fs and BufReader for minimal memory usage
                 let file = File::open(path)?;
                 let lines: Vec<String> = BufReader::new(file)
                     .lines()
                     .map_while(Result::ok)
                     .collect();
 
-                // Take the last N lines
                 let start = lines.len().saturating_sub(line_count);
-                let mut output = File::create(&process_log)?;
+                let mut output = File::create(&process_log_path)?;
                 for line in &lines[start..] {
                     writeln!(output, "{}", line)?;
                 }
 
-                println!("add_log_file(): Adding File: {} to minidump tarball", process_log);
+                println!("add_log_file(): Adding File: {} to minidump tarball", process_log_path.display());
             }
         }
     }
 
-    // Remove the original log files after processing
     for &file_path in log_files {
         let path = Path::new(file_path);
         if path.exists() {
@@ -1408,11 +1406,11 @@ pub fn process_dumps(
             let logfiles_refs: Vec<&str> = logfiles_abs.iter().map(|s| s.as_str()).collect();
 
             if dump_paths.dump_name == "minidump" {
-                if let Err(e) = add_crashed_log_file(device_data, &logfiles_refs) {
+                if let Err(e) = add_crashed_log_file(device_data, &logfiles_refs, dump_paths.get_working_dir()) {
                     println!("process_dumps(): Failed to add crashed log file: {}", e);
                 }
             }
-            
+
             let tar_result = compress_files(
                 tgz_file_abs.to_str().unwrap(),
                 &[dump_file_path_abs.to_str().unwrap()],
