@@ -48,7 +48,7 @@ fn main() {
 
     // Exit early if no dumps exist
     if !crashupload_utils::check_dumps_exist(dump_paths.get_minidumps_path(), dump_paths.get_core_path()) {
-        println!("No dumps found. Exiting...");
+        println!("main(): No dumps found. Exiting...");
         std::process::exit(0);
     }
 
@@ -80,6 +80,9 @@ fn main() {
         thread::sleep(Duration::from_secs(5));
     };
     dump_paths.set_ts_file(format!("/tmp/.{}_upload_timestamps", dump_paths.get_dump_name()));
+
+    println!("main(): [DEBUG] dump_paths: {:#?}\n", dump_paths);
+    println!("main(): [DEBUG] device_data: {:#?}\n ", device_data);
 
     // Locking logic
     if wait_for_lock == "wait_for_lock" {
