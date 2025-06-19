@@ -99,6 +99,32 @@ fn ensure_core_log_exists() {
     }
 }
 
+fn write_uploadtos3params(
+    dump_paths: &DumpPaths,
+    device_data: &DeviceData,
+    partner_id: &str,
+    enable_ocsp_stapling: &str,
+    enable_ocsp: &str,
+    curl_log_option: &str,
+) -> std::io::Result<()> {
+    let params = format!(
+        "{} {} {} {} {} {} {} {} {} {} {} {}",
+        dump_paths.get_working_dir(),
+        partner_id,
+        dump_paths.get_dump_name(),
+        device_data.get_device_type(),
+        VERSION_FILE,
+        if device_data.get_is_encryption_enabled() { "true" } else { "false" },
+        enable_ocsp_stapling,
+        enable_ocsp,
+        device_data.get_is_tls_enabled(),
+        device_data.get_build_type(),
+        device_data.get_model_num(),
+        curl_log_option
+    );
+    std::fs::write(S3_UPLOAD_PARAM_FILE, params)
+}
+
 // #[cfg(feature = "shared_api")]
 // pub use crate::upload_to_s3::upload_to_s3;
 
@@ -1153,7 +1179,7 @@ pub fn add_crashed_log_file(device_data: &DeviceData, log_files:  &[&str], worki
                     writeln!(output, "{}", line)?;
                 }
 
-                println!("add_log_file(): Adding File: {} to minidump tarball", process_log_path.display());
+                println!("add_crashed_log_file(): Adding File: {} to minidump tarball", process_log_path.display());
             }
         }
     }
@@ -1671,7 +1697,7 @@ fn handle_single_tarball(device_data: &DeviceData, dump_paths: &DumpPaths, tarba
     }
 
     // 5. Upload with retries
-    let upload_success = upload_tarball_with_retries(&s3_filename_sanitized, dump_paths, device_data.get_is_t2_enabled());
+    let upload_success = upload_tarball_with_retries(&s3_filename_sanitized, dump_paths, device_data);
 
     // 6. Post-upload cleanup
     post_upload_cleanup(upload_success, dump_paths, tarball, &s3_filename_sanitized);
@@ -1708,15 +1734,26 @@ fn rename_tarball_for_s3(tarball: &Path, sanitized_name: &str) -> std::io::Resul
 ///
 /// # Returns
 /// * `true` if upload succeeded, `false` otherwise.
-fn upload_tarball_with_retries(s3_filename: &str, dump_paths: &DumpPaths, is_t2_enabled: bool) -> bool {
+fn upload_tarball_with_retries(s3_filename: &str, dump_paths: &DumpPaths, device_data: &DeviceData) -> bool {
     let mut upload_status = false;
     for attempt in 1..=3 {
         println!("upload_tarball_with_retries(): {}: {} S3 Upload Attempt {}", attempt, dump_paths.get_dump_name(), s3_filename);
-        match upload_to_s3(&[s3_filename]) {
+        let curl_log_option = "%{remote_ip} %{remote_port}";
+        if let Err(e) = write_uploadtos3params(dump_paths, device_data, "", ENABLE_OSCP_STAPLING, ENABLE_OSCP, curl_log_option) {
+            println!("upload_tarball_with_retries(): Failed to write upload parameters: {}", e);
+            continue;
+        }
+        let upload_res = upload_to_s3(&[s3_filename]);
+
+        if let Err(e) = std::fs::remove_file(S3_UPLOAD_PARAM_FILE) {
+            println!("upload_tarball_with_retries(): Failed to remove {}: {}", S3_UPLOAD_PARAM_FILE, e);
+        }
+
+        match upload_res {
             Ok(exit_status) if exit_status.success() => {
                 println!("upload_tarball_with_retries(): {} uploadToS3 SUCCESS: status: {:?}", dump_paths.get_dump_name(), exit_status);
                 upload_status = true;
-                if dump_paths.get_dump_name() == "minidump" && is_t2_enabled {
+                if dump_paths.get_dump_name() == "minidump" && device_data.get_is_t2_enabled() {
                     t2_count_notify("SYST_INFO_minidumpUpld", Some("1"));
                 }
                 break;

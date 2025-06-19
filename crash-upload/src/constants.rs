@@ -19,6 +19,7 @@ pub const SECUREDUMP_ENABLE_FILE: &str = "/tmp/.SecureDumpEnable";
 pub const SECUREDUMP_DISABLE_FILE: &str = "/tmp/.SecureDumpDisable";
 pub const CRASH_UPLOAD_REBOOT_FLAG: &str = "/tmp/set_crash_reboot_flag";
 pub const DENY_UPLOAD_FILE: &str = "/tmp/.deny_dump_uploads_till";
+pub const S3_UPLOAD_PARAM_FILE: &str = "/tmp/uploadtos3params";
 
 pub const UPLOAD_ON_STARTUP: &str = "/opt/.upload_on_startup";
 pub const ON_STARTUP_DUMPS_CLEANED_UP_BASE: &str = "/tmp/.on_startup_dumps_cleaned_up";
@@ -36,6 +37,8 @@ pub const SYSTEM_TIME_TIMEOUT: usize = 1;
 
 pub const ENCRYPTION_RFC: &str = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.encryptionEnabled";
 pub const CRASH_PORTAL_URL_RFC: &str = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl";
+pub const ENABLE_OSCP_STAPLING: &str = "/tmp/.EnableOCSPStapling";
+pub const ENABLE_OSCP: &str = "/tmp/.EnableOCSPCA";
 
 /* UNUSED
 pub const INCLUDE_PROP_FILE: &str = "/opt/include.properties";
@@ -43,8 +46,7 @@ pub const COREDUMP_PROP_FILE: &str = "/opt/coredump.properties";
 pub const HTTP_CODE_FILE: &str = "/tmp/httpcode";
 pub const CURL_UPLOAD_TIMEOUT: usize = 45;
 pub const S3_FILENAME: &str = "s3filename";
-pub const ENABLE_OSCP_STAPLING: &str = "/tmp/.EnableOCSPStapling";
-pub const ENABLE_OSCP: &str = "/tmp/.EnableOCSPCA";
+
 pub const POTOMAC_USER: &str = "ccpstbscp";
 pub const SHA1_DEFAULT_VALUE: &str = "0000000000000000000000000000000000000000";
 pub const TIMESTAMP_DEFAULT_VALUE: &str = "2000-01-01-00-00-00";
