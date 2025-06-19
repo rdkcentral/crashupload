@@ -1256,7 +1256,9 @@ pub fn copy_log_files_to_tmp(tmp_dir_name: &str, logfiles: &[&str]) -> Vec<Strin
 pub fn upload_to_s3(args: &[&str]) -> std::io::Result<std::process::ExitStatus> {
     let script = "/lib/rdk/uploadDumpsToS3.sh";
     if Path::new(script).exists() {
-        Command::new(script).args(args).status()
+        let mut cmd_args: Vec<&str> = args.to_vec();
+        cmd_args.push("crash-upload");
+        Command::new(script).args(&cmd_args).status()
     } else {
         Err(std::io::Error::new(
             std::io::ErrorKind::NotFound,
