@@ -13,6 +13,7 @@ pub const DEVICE_PROP_FILE: &str = "/etc/device.properties";
 
 pub const T2_SHARED_SCRIPT: &str = "/lib/rdk/t2Shared_api.sh";
 pub const MAX_CORE_FILES: usize = 4;
+pub const S3_UPLOAD_SCRIPT: &str = "/lib/rdk/uploadDumpsToS3.sh";
 
 pub const SECUREDUMP_TR181_NAME: &str = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.SecDump.Enable";
 pub const SECUREDUMP_ENABLE_FILE: &str = "/tmp/.SecureDumpEnable";
