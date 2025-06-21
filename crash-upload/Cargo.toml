@@ -13,8 +13,3 @@ json-parser-interface = { path = "../crates/json-parser-interface" }
 platform-interface = { path = "../crates/platform-interface" }
 utils = { path = "../crates/utils" }
 chrono = "0.4"
-#crash-upload-cpc = { path = "../../../cpg-utils-cpc/crash-upload-cpc", optional = true }
-
-#[features]
-#default = []
-#shared_api = ["crash-upload-cpc/shared_api"]
