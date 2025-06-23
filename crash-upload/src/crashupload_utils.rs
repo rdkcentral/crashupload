@@ -1778,7 +1778,7 @@ fn rename_tarball_for_s3(tarball: &Path, sanitized_name: &str) -> std::io::Resul
 ///
 /// # Returns
 /// * `true` if upload succeeded, `false` otherwise.
-n upload_tarball_with_retries(
+fn upload_tarball_with_retries(
     s3_full_path: &str,
     dump_paths: &DumpPaths,
     device_data: &DeviceData,
