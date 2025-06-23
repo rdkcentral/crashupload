@@ -10,7 +10,7 @@ mod t2_api;
 pub const PLATFORM_LIB_VER: &str = "v1.0";
 
 // Re-export RFC API functions for external use.
-pub use rfc_api::{get_rfc_param, set_rfc_param};
+pub use rfc_api::{get_rfc_param, set_rfc_param, dmcli_get};
 
 // Re-export T2 API functions for external use.
 pub use t2_api::{t2_count_notify, t2_val_notify};
