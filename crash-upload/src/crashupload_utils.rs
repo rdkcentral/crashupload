@@ -1244,8 +1244,9 @@ pub fn copy_log_files_to_tmp(tmp_dir_name: &str, logfiles: &[&str]) -> Vec<Strin
 }
 
 #[cfg(feature = "shared_api")]
-pub fn upload_to_s3(args: &[&str], dump_paths: &DumpPaths, device_data: &DeviceData, curl_log_option: &str) -> std::io::Result<()> {
+pub fn upload_to_s3_lib(args: &[&str], dump_paths: &DumpPaths, device_data: &DeviceData, curl_log_option: &str) -> std::io::Result<()> {
     // Call the Rust implementation from crash-upload-cpc
+    let file = args.get(0).copied().unwrap_or("");
     let mut force_mtls = String::new();
     let _ = utils::get_property_value_from_file(DEVICE_PROP_FILE, "FORCE_MTLS", &mut force_mtls);
     crash_upload_cpc::upload_to_s3(file, 
@@ -1263,7 +1264,7 @@ pub fn upload_to_s3(args: &[&str], dump_paths: &DumpPaths, device_data: &DeviceD
         curl_log_option,
         device_data.get_is_t2_enabled(),
         force_mtls.as_str(),
-)
+    )
 }
 
 /// Calls the uploadDumpsToS3.sh script with the given arguments if it exists.
@@ -1274,7 +1275,7 @@ pub fn upload_to_s3(args: &[&str], dump_paths: &DumpPaths, device_data: &DeviceD
 /// # Returns
 /// * `Ok(exit_status)` if the script ran, or an error if not found or failed.
 #[cfg(not(feature = "shared_api"))]
-pub fn upload_to_s3(args: &[&str]) -> std::io::Result<std::process::ExitStatus> {
+pub fn upload_to_s3_script(args: &[&str]) -> std::io::Result<std::process::ExitStatus> {
     if Path::new(S3_UPLOAD_SCRIPT).exists() {
         let mut cmd_args: Vec<&str> = args.to_vec();
         cmd_args.push("crash-upload");
@@ -1777,7 +1778,7 @@ fn rename_tarball_for_s3(tarball: &Path, sanitized_name: &str) -> std::io::Resul
 ///
 /// # Returns
 /// * `true` if upload succeeded, `false` otherwise.
-fn upload_tarball_with_retries(
+n upload_tarball_with_retries(
     s3_full_path: &str,
     dump_paths: &DumpPaths,
     device_data: &DeviceData,
@@ -1787,35 +1788,55 @@ fn upload_tarball_with_retries(
         println!("upload_tarball_with_retries: {}: {} S3 Upload Attempt {}", attempt, dump_paths.get_dump_name(), s3_full_path);
         
         let curl_log_option = "%{remote_ip} %{remote_port}";
-        
-        if let Err(e) = write_uploadtos3params(dump_paths, device_data, "", ENABLE_OSCP_STAPLING, ENABLE_OSCP, curl_log_option) {
-            println!("upload_tarball_with_retries: Failed to write upload parameters: {}", e);
-            continue;
-        }
-        let upload_res = upload_to_s3(&[s3_full_path]);
 
-        if let Err(e) = std::fs::remove_file(S3_UPLOAD_PARAM_FILE) {
-            println!("upload_tarball_with_retries: Failed to remove {}: {}", S3_UPLOAD_PARAM_FILE, e);
-        }
+        let upload_res: Result<(), String> = {
+            #[cfg(feature = "shared_api")]
+            {
+                match upload_to_s3_lib(&[s3_full_path], dump_paths, device_data, curl_log_option) {
+                    Ok(()) => Ok(()),
+                    Err(e) => Err(format!("upload_to_s3 failed: {}", e)),
+                }
+            }
+            #[cfg(not(feature = "shared_api"))]
+            {
+                if let Err(e) = write_uploadtos3params(dump_paths, device_data, "", ENABLE_OSCP_STAPLING, ENABLE_OSCP, curl_log_option) {
+                    println!("upload_tarball_with_retries: Failed to write upload parameters: {}", e);
+                    return false;
+                }
+                let res = upload_to_s3_script(&[s3_full_path]);
+                if let Err(e) = std::fs::remove_file(S3_UPLOAD_PARAM_FILE) {
+                    println!("upload_tarball_with_retries: Failed to remove {}: {}", S3_UPLOAD_PARAM_FILE, e);
+                }
+                match res {
+                    Ok(exit_status) if exit_status.success() => Ok(()),
+                    Ok(exit_status) => Err(format!(
+                        "Script ran but failed with status: {:?}",
+                        exit_status
+                    )),
+                    Err(e) => Err(format!("upload_to_s3_script failed: {}", e)),
+                }
+            }
+        };
 
         match upload_res {
-            Ok(exit_status) if exit_status.success() => {
+            Ok(()) => {
                 println!(
-                    "upload_tarball_with_retries: {} uploadToS3 SUCCESS: status: {:?}",
-                    dump_paths.get_dump_name(),
-                    exit_status
+                    "upload_tarball_with_retries: {} uploadToS3 SUCCESS",
+                    dump_paths.get_dump_name()
                 );
                 upload_status = true;
-                if dump_paths.get_dump_name() == "minidump" && device_data.get_is_t2_enabled() {
+                if dump_paths.get_dump_name() == "minidump"
+                    && device_data.get_is_t2_enabled()
+                {
                     t2_count_notify("SYST_INFO_minidumpUpld", Some("1"));
                 }
                 break;
             }
-            Ok(exit_status) => {
+            Err(ref e) if e.contains("Script ran but failed with status") => {
                 println!(
-                    "upload_tarball_with_retries: Execution Status: {:?}, S3 Amazon Upload of {} Failed",
-                    exit_status,
-                    dump_paths.get_dump_name()
+                    "upload_tarball_with_retries: S3 Amazon Upload of {} failed with script exit status: {}",
+                    dump_paths.get_dump_name(),
+                    e
                 );
             }
             Err(e) => {
