@@ -90,8 +90,6 @@ pub fn basename<P: AsRef<Path>>(path: P) -> String {
 }
 
 fn ensure_core_log_exists() {
-    use std::fs::OpenOptions;
-    use std::os::unix::fs::PermissionsExt;
     if !Path::new(CORE_LOG).exists() {
         if let Ok(f) = OpenOptions::new().create(true).write(true).open(CORE_LOG) {
             let _ = f.set_permissions(fs::Permissions::from_mode(0o666));
@@ -1277,12 +1275,12 @@ pub fn upload_to_s3(args: &[&str], dump_paths: &DumpPaths, device_data: &DeviceD
 /// * `Ok(exit_status)` if the script ran, or an error if not found or failed.
 #[cfg(not(feature = "shared_api"))]
 pub fn upload_to_s3(args: &[&str]) -> std::io::Result<std::process::ExitStatus> {
-    if Path::new(constants::S3_UPLOAD_SCRIPT).exists() {
+    if Path::new(S3_UPLOAD_SCRIPT).exists() {
         let mut cmd_args: Vec<&str> = args.to_vec();
         cmd_args.push("crash-upload");
-        let status = std::process::Command::new(constants::S3_UPLOAD_SCRIPT).args(&cmd_args).status()?;
+        let status = std::process::Command::new(S3_UPLOAD_SCRIPT).args(&cmd_args).status()?;
         if status.success() {
-            Ok(())
+            Ok(status)
         } else {
             Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
@@ -1422,7 +1420,7 @@ pub fn process_dumps(
                 let _ = fs::copy(VERSION_FILE, &version_file_path);
             }
 
-            if let Ok(metadata) = std::fs::metadata(&dump_file_path_abs) {
+            if let Ok(metadata) = std::fs::metadata(&dump_file_path) {
                 println!(
                     "process_dumps: Size of the file: {} bytes",
                     metadata.len()
@@ -1472,16 +1470,16 @@ pub fn process_dumps(
             };
 
             let tar_result = compress_files(
-                tgz_file_abs.to_str().unwrap(),
-                &[dump_file_path_abs.to_str().unwrap()],
+                tgz_file.to_str().unwrap(),
+                &[dump_file_path.to_str().unwrap()],
                 &logfiles_refs,
             );
 
             if tar_result.is_ok() {
                 println!(
                     "process_dumps: Success Compressing the files, {} {} {} {}",
-                    basename(&tgz_file_abs),
-                    basename(&dump_file_path_abs),
+                    basename(&tgz_file),
+                    basename(&dump_file_path),
                     basename(VERSION_FILE),
                     basename(CORE_LOG)
                 );
