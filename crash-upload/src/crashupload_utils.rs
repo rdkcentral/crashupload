@@ -95,6 +95,7 @@ fn ensure_core_log_exists() {
             let _ = f.set_permissions(fs::Permissions::from_mode(0o666));
         }
     }
+    let _ = Command::new("touch").arg(CORE_LOG).status();
 }
 
 fn write_uploadtos3params(
@@ -171,9 +172,9 @@ pub fn set_device_data(device_data: &mut DeviceData) {
     device_data.set_tls(tls);
 
     // Encryption enabled if file exists, and set RFC param
-    let encryption_enabled = if Path::new("/etc/encryption_enabled").exists() {
-        set_rfc_param(ENCRYPTION_RFC, "true");
-        true
+    let encryption_enabled = if Path::new("/etc/os-release").exists() {
+        if set_rfc_param(ENCRYPTION_RFC, "true") { true }
+        else { false }
     } else {
         false
     };
@@ -241,7 +242,7 @@ pub fn get_secure_dump_status(dump_paths: &mut DumpPaths) {
     if !is_sec_dump_enabled {
         if Path::new(SECUREDUMP_ENABLE_FILE).exists() {
             touch(SECUREDUMP_DISABLE_FILE);
-            println!("get_secure_dump_status: [SECUREDUMP] Disabled");
+            println!("get_secure_dump_status: Disabled");
         }
         if Path::new(SECUREDUMP_ENABLE_FILE).exists() {
             let _ = fs::remove_file(SECUREDUMP_ENABLE_FILE);
@@ -250,10 +251,11 @@ pub fn get_secure_dump_status(dump_paths: &mut DumpPaths) {
         dump_paths.set_minidumps_path("/opt/minidumps");
         dump_paths.set_core_back_path("/opt/corefiles_back");
         dump_paths.set_persistent_sec_path("/opt");
+        println!("get_secure_dump_status: Dump location changed /opt.");
     } else {
         if !Path::new(SECUREDUMP_ENABLE_FILE).exists() {
             touch(SECUREDUMP_ENABLE_FILE);
-            println!("get_secure_dump_status: [SECUREDUMP] Enabled. Dump location changed to /opt/secure.");
+            println!("get_secure_dump_status: Enabled");
         }
         if Path::new(SECUREDUMP_DISABLE_FILE).exists() {
             let _ = fs::remove_file(SECUREDUMP_DISABLE_FILE);
@@ -262,6 +264,7 @@ pub fn get_secure_dump_status(dump_paths: &mut DumpPaths) {
         dump_paths.set_minidumps_path("/opt/secure/minidumps");
         dump_paths.set_core_back_path("/opt/secure/corefiles_back");
         dump_paths.set_persistent_sec_path("/opt/secure");
+        println!("get_secure_dump_status: Dump location changed /opt/secure.");
     }
 }
 

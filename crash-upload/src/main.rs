@@ -48,7 +48,7 @@ fn main() {
 
     // Exit early if no dumps exist
     if !crashupload_utils::check_dumps_exist(dump_paths.get_minidumps_path(), dump_paths.get_core_path()) {
-        println!("main(): No dumps found. Exiting...");
+        println!("main(): No dumps found in {} or {}. Exiting...", dump_paths.get_minidumps_path(), dump_paths.get_core_path());
         std::process::exit(0);
     }
 
@@ -60,7 +60,7 @@ fn main() {
     
     // Configure dump paths and metadata based on dump_flag
     if dump_flag == 1 {
-        println!("starting core dump processing...");
+        println!("Starting coredump processing...");
         dump_paths.set_dump_name("coredump");
         let core_path = dump_paths.get_core_path().to_string();
         dump_paths.set_working_dir(&core_path);
