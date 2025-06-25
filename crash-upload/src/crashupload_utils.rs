@@ -1422,9 +1422,12 @@ pub fn process_dumps(
 
             ensure_core_log_exists();
 
-            let version_file_path = dump_dir.join("version.txt");
+            let version_file_path = Path::new(work_dir).join("version.txt");
+            println!("####Before copy Version file path: {}", version_file_path.display());
             if !version_file_path.exists() {
+                println!("####Before copy, Version file path (exist): {}", version_file_path.display());
                 let _ = fs::copy(VERSION_FILE, &version_file_path);
+                println!("####After copy Version file path: {}", version_file_path.display());
             }
 
             if let Ok(metadata) = std::fs::metadata(&dump_file_path) {
