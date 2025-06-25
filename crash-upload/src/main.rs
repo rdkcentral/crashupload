@@ -215,6 +215,8 @@ fn main() {
     if !Path::new(w_dir).is_dir() {
         std::process::exit(1);
     }
+    let image_name_main = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
+    println!("#### Main Image Name: {}", image_name_main);
 
     // Main processing loop (up to 3 attempts, as in shell script)
     for _ in 0..3 {

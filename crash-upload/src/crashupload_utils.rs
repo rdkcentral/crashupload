@@ -1363,6 +1363,9 @@ pub fn process_dumps(
         }
     };
 
+    let image_name_proc = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
+    println!("#### ProcessDumps Image Name: {}", image_name_proc);
+
     for file in files {
         let orig_file_name = basename(&file);
 
@@ -1407,6 +1410,9 @@ pub fn process_dumps(
 
             let dump_dir = Path::new(work_dir);
             let dump_file_path = dump_dir.join(&dump_file_name);
+            println!("#### Dump file path: {}", dump_file_path.display());
+            println!("#### Dump File Name: {}", dump_file_name);
+
 
             if sanitized != dump_file_path {
                 if let Err(e) = safe_rename(&sanitized, &dump_file_path) {
@@ -1423,11 +1429,9 @@ pub fn process_dumps(
             ensure_core_log_exists();
 
             let version_file_path = Path::new(work_dir).join("version.txt");
-            println!("####Before copy Version file path: {}", version_file_path.display());
             if !version_file_path.exists() {
-                println!("####Before copy, Version file path (exist): {}", version_file_path.display());
                 let _ = fs::copy(VERSION_FILE, &version_file_path);
-                println!("####After copy Version file path: {}", version_file_path.display());
+                println!("Version file path: {}", version_file_path.display());
             }
 
             if let Ok(metadata) = std::fs::metadata(&dump_file_path) {
@@ -1487,7 +1491,7 @@ pub fn process_dumps(
 
             if tar_result.is_ok() {
                 println!(
-                    "process_dumps: Success Compressing the files, {} {} {} {}",
+                    "process_dumps: Success Compressing the files, {}\n {}\n {}\n {}\n",
                     basename(&tgz_file),
                     basename(&dump_file_path),
                     basename(VERSION_FILE),
@@ -1625,7 +1629,7 @@ fn remove_logs(working_dir: &str) -> io::Result<()> {
             let name = path.file_name().unwrap_or_default().to_string_lossy();
             if name.ends_with(".log") || name.ends_with(".txt") {
                 println!("remove_logs: Removing {}", path.display());
-                rm_rf(path.to_str().unwrap());
+                fs::remove_file(path)?;
             }
         }
     }
