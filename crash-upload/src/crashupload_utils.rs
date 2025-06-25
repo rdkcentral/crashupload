@@ -1070,6 +1070,7 @@ pub fn cleanup(work_dir: &str, dump_name: &str, dump_extn: &str) -> std::io::Res
     if !Path::new(UPLOAD_ON_STARTUP).exists() {
         let version_txt = Path::new(work_dir).join("version.txt");
         if version_txt.exists() {
+            println!("cleanup: Removing version.txt file: {}", version_txt.display());
             let _ = fs::remove_file(&version_txt);
         }
 
@@ -1252,12 +1253,14 @@ pub fn upload_to_s3_lib(args: &[&str], dump_paths: &DumpPaths, device_data: &Dev
     let file = args.get(0).copied().unwrap_or("");
     let mut force_mtls = String::new();
     let _ = utils::get_property_value_from_file(DEVICE_PROP_FILE, "FORCE_MTLS", &mut force_mtls);
+    let image_name = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
     crash_upload_cpc::upload_to_s3(file, 
         dump_paths.get_working_dir(), 
         "", 
         dump_paths.get_dump_name(),
         device_data.get_device_type(),
         VERSION_FILE,
+        &image_name,
         device_data.get_is_encryption_enabled(),
         ENABLE_OSCP_STAPLING,
         ENABLE_OSCP,
