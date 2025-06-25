@@ -1186,14 +1186,6 @@ pub fn add_crashed_log_file(device_data: &DeviceData, log_files:  &[&str], worki
             }
         }
     }
-
-    for &file_path in log_files {
-        let path = Path::new(file_path);
-        if path.exists() {
-            println!("add_crashed_log_file: Removing original log file: {}", path.display());
-            let _ = fs::remove_file(path);
-        }
-    }
     Ok(())
 }
 
