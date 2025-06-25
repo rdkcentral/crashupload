@@ -770,6 +770,7 @@ pub fn process_crash_t2_info(file_path: &str, is_t2_enabled: bool) {
         }
     }
     let _ = get_crashed_log_file(&file_name_str, is_t2_enabled);
+
 }
 
 /// Renames a tarball to mark it as crashlooped and (optionally) uploads it to the crash portal.
@@ -1189,6 +1190,7 @@ pub fn add_crashed_log_file(device_data: &DeviceData, log_files:  &[&str], worki
     for &file_path in log_files {
         let path = Path::new(file_path);
         if path.exists() {
+            println!("add_crashed_log_file: Removing original log file: {}", path.display());
             let _ = fs::remove_file(path);
         }
     }
@@ -1367,6 +1369,7 @@ pub fn process_dumps(
     println!("#### ProcessDumps Image Name: {}", image_name_proc);
 
     for file in files {
+        println!("process_dumps: -- Processing file: {}", file.display());
         let orig_file_name = basename(&file);
 
         if !should_process_dump(dump_paths.get_dump_name(), device_data.get_build_type(), &orig_file_name) {
@@ -1432,6 +1435,8 @@ pub fn process_dumps(
             if !version_file_path.exists() {
                 let _ = fs::copy(VERSION_FILE, &version_file_path);
                 println!("Version file path: {}", version_file_path.display());
+                let image_name_main = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
+                println!("#### Device Image Name: {} [{}]", image_name_main, VERSION_FILE);
             }
 
             if let Ok(metadata) = std::fs::metadata(&dump_file_path) {
@@ -1469,7 +1474,16 @@ pub fn process_dumps(
                 })
                 .collect();
 
+            println!("process_dumps: Log files (ABS) to be added: \n{:#?}\n", 
+                logfiles_abs
+            );
+
             let logfiles_refs: Vec<&str> = logfiles_abs.iter().map(|s| s.as_str()).collect();
+
+            println!(
+                "process_dumps: Log files (REF) to be added: \n{:#?}\n",
+                logfiles_refs
+            );
 
             if dump_paths.dump_name == "minidump" {
                 if let Err(e) = add_crashed_log_file(device_data, &logfiles_refs, work_dir) {
@@ -1494,7 +1508,7 @@ pub fn process_dumps(
                     "process_dumps: Success Compressing the files, {}\n {}\n {}\n {}\n",
                     basename(&tgz_file),
                     basename(&dump_file_path),
-                    basename(VERSION_FILE),
+                    VERSION_FILE,
                     basename(CORE_LOG)
                 );
             } else {
@@ -1540,6 +1554,9 @@ pub fn process_dumps(
                 );
             }
 
+            let image_name_pd2 = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
+            println!("#### ProcessDumps 2 Image Name: {}", image_name_pd2);
+
             // 22. Remove the original dump file after compression
             rm_rf(dump_file_path.to_str().unwrap());
 
@@ -1547,8 +1564,12 @@ pub fn process_dumps(
             if dump_paths.dump_name != "coredump" {
                 let _ = remove_logs(work_dir);
             }
+            let image_name_pd3 = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
+            println!("#### ProcessDumps 3 Image Name: {}", image_name_pd3);
         }
     }
+    let image_name_pd4 = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
+    println!("#### ProcessDumps 4 Image Name: {}", image_name_pd4);
     handle_tarballs(device_data, dump_paths, no_network, crash_ts);
 }
 
