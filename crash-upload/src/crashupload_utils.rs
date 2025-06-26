@@ -702,6 +702,8 @@ pub fn get_file_count(dir: &str, pattern: &str) -> std::io::Result<usize> {
 /// # Returns
 /// * `Ok(())` on success, or an error if file operations fail.
 pub fn remove_pending_dumps(path: &str, extn: &str) -> io::Result<()> {
+    println!("remove_pending_dumps: ###DEBUG### Skipping pending dumps removal for debugging purposes");
+    if false {
     let dir_path = Path::new(path);
     if !dir_path.exists() || !dir_path.is_dir() {
         return Ok(());
@@ -716,6 +718,7 @@ pub fn remove_pending_dumps(path: &str, extn: &str) -> io::Result<()> {
                 let _ = fs::remove_file(&file_path);
             }
         }
+    }
     }
     Ok(())
 }
@@ -1541,11 +1544,17 @@ pub fn process_dumps(
             }
 
             // 22. Remove the original dump file after compression
+            println!("process_dumps: Skipping original dump file removal for debugging purposes");
+            if false {
             rm_rf(dump_file_path.to_str().unwrap());
+            }
 
             // 23. For minidump, remove logs from working dir
             if dump_paths.dump_name != "coredump" {
+                println!("process_dumps: ###DEBUG### Skipping log removal in working dir for debugging purposes ");
+                if false {
                 let _ = remove_logs(work_dir);
+                }
             }
         }
     }
