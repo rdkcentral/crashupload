@@ -2,6 +2,20 @@
 //!
 //! This module provides functions to get and set TR-181 parameters using the `tr181` binary.
 //! It is used for interacting with device configuration at runtime.
+//!
+//! ## TR-181 and RFC
+//! TR-181 is a standard for device data model used in broadband networks. Remote Feature
+//! Control (RFC) allows configuring device behavior through standardized parameters.
+//! This module abstracts the interaction with these parameters through simple get/set functions.
+//!
+//! ## Key Functions
+//! - [`set_rfc_param`]: Set a TR-181 parameter to a specified value
+//! - [`get_rfc_param`]: Get the value of a TR-181 parameter
+//! - [`dmcli_get`]: Alternative method to get parameter values using the dmcli utility
+//!
+//! ## Common Parameter Paths
+//! TR-181 parameters typically follow a hierarchical structure such as:
+//! `Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.<FeatureName>.Enable`
 
 use std::path::Path;
 use std::process::Command;
@@ -98,7 +112,28 @@ pub fn get_rfc_param<R: AsRef<str>>(rfc: R, res: &mut String) -> bool {
     }
 }
 
-
+/// Retrieves a parameter value using the `dmcli` command-line utility.
+///
+/// This function executes the `dmcli` command with the "eRT getv" arguments to retrieve
+/// the value of the specified parameter. It then parses the output to extract just the
+/// parameter value from the response string.
+///
+/// # Arguments
+/// * `param` - The parameter name to retrieve.
+/// * `result` - Mutable reference to a string where the retrieved value will be stored.
+///
+/// # Example
+/// ```
+/// use platform_interface::rfc_api::dmcli_get;
+/// let mut value = String::new();
+/// dmcli_get("Device.DeviceInfo.ModelName", &mut value);
+/// println!("Model name: {}", value);
+/// ```
+///
+/// # Notes
+/// The function specifically looks for lines containing "string" in the output
+/// and extracts the value using string manipulation equivalent to:
+/// `grep string | cut -d":" -f3- | cut -d" " -f2- | tr -d ' '`
 pub fn dmcli_get(param: &str, result: &mut String) {
     let output = Command::new("dmcli")
         .args(["eRT", "getv", param])

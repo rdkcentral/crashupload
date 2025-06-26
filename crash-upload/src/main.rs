@@ -1,3 +1,36 @@
+//! Crash Upload Binary - Main Entry Point
+//! 
+//! This module provides the entry point for the crash upload utility, which detects,
+//! processes, and uploads crash dumps (minidumps and coredumps) to cloud storage.
+//! 
+//! # Command-Line Usage
+//! 
+//! The binary accepts three required command-line arguments:
+//! ```
+//! crash-upload <dump_flag> <upload_flag> <wait_for_lock>
+//! ```
+//! 
+//! - `dump_flag`: Integer (1 for coredump processing, any other value for minidump)
+//! - `upload_flag`: String ("secure" for secure paths, any other value for standard paths)
+//! - `wait_for_lock`: String ("wait_for_lock" to wait if locked, any other value to exit)
+//! 
+//! # Workflow
+//! 
+//! The main workflow consists of:
+//! 1. Configuration and initialization (loading device data, setting paths)
+//! 2. Early exit checks (no dumps exist, box is rebooting)
+//! 3. Network and system time verification
+//! 4. Dump processing (finding, compressing, and uploading dumps)
+//! 5. Cleanup and finalization
+//! 
+//! # Integration Points
+//! 
+//! - Device property system (for device metadata)
+//! - Filesystem (for finding and manipulating dump files)
+//! - Network subsystem (for upload capabilities)
+//! - System time service (for timestamp generation)
+//! - Mutex-like locking (for preventing concurrent execution)
+//! 
 // standard library imports
 use std::path::Path;
 use std::time::Duration;
@@ -13,6 +46,29 @@ mod crashupload_utils;
 // Utility crates
 use crashupload_utils::*;
 
+/// Main entry point for the crash upload binary.
+/// 
+/// This function implements the complete crash upload workflow:
+/// 1. Parse command-line arguments and initialize configuration
+/// 2. Configure paths based on dump type (minidump or coredump)
+/// 3. Check for early exit conditions (no dumps, box rebooting)
+/// 4. Wait for network and system time if needed
+/// 5. Process and upload dumps with retry capability
+/// 6. Clean up and exit
+/// 
+/// # Command-Line Arguments
+/// 
+/// * `args[1]`: Dump flag (1 for coredump, any other value for minidump)
+/// * `args[2]`: Upload flag ("secure" for secure paths, any other value for standard)
+/// * `args[3]`: Wait flag ("wait_for_lock" to wait if locked, any other to exit)
+/// 
+/// # Side Effects
+/// 
+/// - Creates and removes lock files
+/// - May upload files to cloud storage
+/// - May delete or compress files on the filesystem
+/// - Logs progress to stdout
+/// - May exit process early under certain conditions
 fn main() {
     println!("main(): Starting Crash Upload Binary...");
 

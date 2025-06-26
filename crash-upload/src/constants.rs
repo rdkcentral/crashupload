@@ -2,38 +2,74 @@
 //!
 //! This module defines constants and configuration structs used throughout the crash upload system,
 //! including file paths, RFC names, and device/dump metadata.
+//!
+//! ## Constants Categories
+//!
+//! * **Log Files & Paths**: Constants for log file locations and related configurations
+//! * **Property Files**: Paths to device and system property files
+//! * **Feature Toggle Files**: Files that enable/disable certain features like secure dump
+//! * **Network & System Time**: Constants related to network availability and system time checks
+//! * **TR-181 Parameters**: RFC parameter paths for various configuration options
+//!
+//! ## Configuration Structures
+//!
+//! * [`DumpPaths`]: Holds paths and file extensions for dump processing operations
+//! * [`DeviceData`]: Contains device-specific metadata like MAC address, model number, etc.
 
+/// Path to the log mapper configuration file.
 pub const LOGMAPPER_FILE: &str = "/etc/breakpad-logmapper.conf";
+/// Path to the file listing minidump log files.
 pub const LOG_FILES: &str = "/tmp/minidump_log_files.txt";
 
+/// Base path for RDK logs.
 pub const LOG_PATH: &str = "/opt/rdk";
+/// Path to the core dump log file.
 pub const CORE_LOG: &str = "/opt/logs/core_log.txt";
 
+/// Path to the device properties file.
 pub const DEVICE_PROP_FILE: &str = "/etc/device.properties";
 
+/// Path to the Telemetry2 shared script.
 pub const T2_SHARED_SCRIPT: &str = "/lib/rdk/t2Shared_api.sh";
+/// Maximum number of core files to process.
 pub const MAX_CORE_FILES: usize = 4;
+/// Path to the script for uploading dumps to S3.
 pub const S3_UPLOAD_SCRIPT: &str = "/lib/rdk/uploadDumpsToS3.sh";
 
+/// TR-181 parameter name for secure dump feature toggle.
 pub const SECUREDUMP_TR181_NAME: &str = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.SecDump.Enable";
+/// File indicating secure dump is enabled.
 pub const SECUREDUMP_ENABLE_FILE: &str = "/tmp/.SecureDumpEnable";
+/// File indicating secure dump is disabled.
 pub const SECUREDUMP_DISABLE_FILE: &str = "/tmp/.SecureDumpDisable";
+/// Flag file to trigger reboot after crash upload.
 pub const CRASH_UPLOAD_REBOOT_FLAG: &str = "/tmp/set_crash_reboot_flag";
+/// File containing timestamp until which dump uploads are denied.
 pub const DENY_UPLOAD_FILE: &str = "/tmp/.deny_dump_uploads_till";
+/// File containing parameters for S3 uploads.
 pub const S3_UPLOAD_PARAM_FILE: &str = "/tmp/uploadtos3params";
 
+/// Flag file to indicate crash uploads should happen on startup.
 pub const UPLOAD_ON_STARTUP: &str = "/opt/.upload_on_startup";
+/// Base path for file indicating startup dumps were cleaned up.
 pub const ON_STARTUP_DUMPS_CLEANED_UP_BASE: &str = "/tmp/.on_startup_dumps_cleaned_up";
+/// File to flag crash loop detection (TODO: implement).
 pub const CRASH_LOOP_FLAG_FILE: &str = ""; // TODO
 
-
+/// File used for coredump mutex coordination.
 pub const COREDUMP_MTX_FILE: &str = "/tmp/coredump_mutex_release";
 
+/// File indicating network route availability.
 pub const NETWORK_FILE: &str = "/tmp/route_available";
+/// File indicating system time has been received.
 pub const SYSTEM_TIME_FILE: &str = "/tmp/stt_received";
+/// Number of iterations for network availability check.
 pub const NETWORK_CHECK_ITERATION: usize = 18;
+/// Timeout in seconds between network check iterations.
 pub const NETWORK_CHECK_TIMEOUT: usize = 10;
+/// Number of iterations for system time check.
 pub const SYSTEM_TIME_ITERATION: usize = 10;
+/// Timeout in seconds between system time check iterations.
 pub const SYSTEM_TIME_TIMEOUT: usize = 1;
 
 pub const ENCRYPTION_RFC: &str = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.encryptionEnabled";
@@ -56,6 +92,9 @@ pub const MODEL_NUM_DEFAULT_VALUE: &str = "UNKNOWN";
 */
 
 /// Holds all relevant paths and extensions for dump processing.
+///
+/// This structure stores all the path information needed for processing crash dumps,
+/// including source and destination directories, file extensions, and working directories.
 #[derive(Debug)]
 pub struct DumpPaths {
     pub dump_name: String,
@@ -116,6 +155,10 @@ impl DumpPaths {
 }
 
 /// Holds device-specific metadata and configuration.
+///
+/// This structure contains information about the device itself, such as its
+/// type, model, identifiers, and configuration settings that affect the
+/// crash upload process.
 #[derive(Debug)]
 pub struct DeviceData {
     pub device_type: String,
@@ -176,7 +219,12 @@ impl DeviceData {
 }
 
 /// Enum representing the type of signal received.
+///
+/// Used to differentiate between different types of termination signals
+/// that may be received by the crash upload process.
 pub enum CrashSignal {
+    /// Normal termination signal (SIGTERM)
     Term,
+    /// Kill signal (SIGKILL)
     Kill,
 }

@@ -1,7 +1,11 @@
-//! File operation helpers.
+//! File and system operation utilities.
 //!
-//! This module provides utility functions for common file operations such as
-//! creating files (touch), removing files, and recursively removing directories.
+//! This module provides utility functions for common operations:
+//! - File operations such as creating files (touch) and removing files/directories
+//! - System operations such as flushing system logs
+//!
+//! These functions provide Rust implementations of common shell operations
+//! to avoid spawning external processes when possible.
 
 use std::fs::{self, OpenOptions};
 use std::path::Path;
@@ -10,6 +14,9 @@ use std::process::Command;
 use crate::get_property_value_from_file;
 
 /// Creates a file if it does not exist, or updates its modification time if it does (like Unix `touch`).
+///
+/// This function creates an empty file at the specified path if it doesn't exist,
+/// or updates the modification time if the file already exists.
 ///
 /// # Arguments
 /// * `path` - Path to the file to touch.
@@ -25,6 +32,9 @@ pub fn touch<P: AsRef<Path>>(path: P) {
 
 /// Recursively removes a directory and its contents, or removes a file if the path is not a directory.
 /// Ignores errors if the path does not exist.
+///
+/// This function behaves like the Unix `rm -rf` command, removing files or directories
+/// regardless of their contents, and suppressing errors for non-existent paths.
 ///
 /// # Arguments
 /// * `path` - Path to the directory or file to remove.
@@ -45,11 +55,22 @@ pub fn rm_rf<P: AsRef<Path>>(path: P) {
     };
 }
 
-/// Flushes system logs, mimicking the flushLogger shell function.
+/// Flushes system logs to ensure they're written to disk.
 ///
-/// - Logs a message using println!().
-/// - Flushes journald buffers if available.
-/// - Calls dumpLogs.sh if SYSLOG_NG_ENABLED is not true in device.properties.
+/// This function implements the behavior of the flushLogger shell function:
+/// - Logs a message indicating the function was called
+/// - Flushes journald buffers if the system uses journald
+/// - Calls dumpLogs.sh if SYSLOG_NG_ENABLED is not set to "true" in device.properties
+///
+/// # Example
+/// ```
+/// use utils::flush_logger;
+/// flush_logger();
+/// ```
+///
+/// # Notes
+/// This function is primarily used to ensure logs are persisted before potentially
+/// disruptive operations like reboots or crashes.
 pub fn flush_logger() {
     println!("flush_logger is called");
 
@@ -60,7 +81,7 @@ pub fn flush_logger() {
 
     // Check SYSLOG_NG_ENABLED from device.properties
     let mut syslog_ng_enabled = String::new();
-    let _ = get_property_value_from_file("/etc/device.properties", "SYSLOG_NG_ENABLED", &mut syslog_ng_enabled);
+    let _ = get_property_value_from_file( "/etc/device.properties", "SYSLOG_NG_ENABLED", &mut syslog_ng_enabled);
     if syslog_ng_enabled.trim() != "true" {
         let _ = Command::new("nice")
             .args(["-n", "19", "/lib/rdk/dumpLogs.sh"])

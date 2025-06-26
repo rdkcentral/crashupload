@@ -1,4 +1,50 @@
-// src/utils.rs
+//! Crash upload utility functions and implementation.
+//!
+//! This module provides the core functionality for the crash upload system, including:
+//!
+//! - **Dump file detection and processing**: Functions to identify, sanitize, and process
+//!   various types of crash dumps (minidumps and coredumps)
+//!
+//! - **Tarball creation and management**: Utilities to compress dump files with relevant
+//!   logs into tarballs for upload
+//!
+//! - **Upload control and rate limiting**: Functions to manage upload rates, recovery time,
+//!   and crash loop detection
+//!
+//! - **Security and privacy controls**: Implementation of secure dump handling and privacy
+//!   mode checks
+//!
+//! - **Lock management**: Mutex-like functionality to prevent concurrent execution of
+//!   critical sections
+//!
+//! - **File and path utilities**: Specialized functions for file manipulation, path handling,
+//!   and directory management
+//!
+//! - **Telemetry integration**: Functions to report crash events and upload status to the
+//!   Telemetry2 (T2) system
+//!
+//! ## Key Workflows
+//!
+//! The main workflow in this module is the dump processing pipeline:
+//! 1. Detecting crash dumps in configured directories
+//! 2. Sanitizing file names and paths
+//! 3. Collecting relevant log files and device information
+//! 4. Creating compressed archives (tarballs) containing dumps and logs
+//! 5. Uploading archives to cloud storage (S3) with retries
+//! 6. Managing cleanup and retention of local dumps
+//!
+//! ## Integration Points
+//!
+//! This module integrates with several platform components:
+//! - **TR-181/RFC system** (via platform-interface): For configuration parameters
+//! - **Telemetry2 (T2)**: For reporting crash and upload events
+//! - **S3 storage**: For uploading crash dumps to the cloud
+//! - **Device property system**: For obtaining device metadata
+//!
+//! Most functions in this module are designed to be self-contained and follow
+//! the single responsibility principle for maintainability.
+
+// crashupload/src/crashupload_utils.rs
 use chrono::{DateTime, Local};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufRead, BufReader, Write};
@@ -13,35 +59,33 @@ use crate::constants::*;
 use platform_interface::*;
 use utils::*;
 
+/// Determines if a file is a minidump based on its name.
+///
+/// Checks if the filename contains the substring ".dmp" anywhere in the string,
+/// which matches the shell pattern "*.dmp*".
+///
+/// # Arguments
+/// * `name` - The filename to check.
+///
+/// # Returns
+/// * `true` if the filename contains ".dmp", `false` otherwise.
 #[inline]
 fn is_minidump_file(name: &str) -> bool {
     // *.dmp* matches any file with ".dmp" after the first character
     name.find(".dmp").is_some()
 }
 
-#[inline]
-fn is_minidump_tarball(name: &str) -> bool {
-    // *.dmp.tgz matches files ending with ".dmp.tgz"
-    name.ends_with(".dmp.tgz")
-}
-
-#[inline]
-fn is_coredump_file(name: &str) -> bool {
-    // *core.prog*.gz* matches files containing "core.prog" and ".gz" (in that order)
-    if let Some(core_idx) = name.find("core.prog") {
-        if let Some(gz_idx) = name[core_idx..].find(".gz") {
-            return true;
-        }
-    }
-    false
-}
-
-#[inline]
-fn is_coredump_tarball(name: &str) -> bool {
-    // *.core.tgz matches files ending with ".core.tgz"
-    name.ends_with(".core.tgz")
-}
-
+/// Determines if a file is a core pattern file based on its name.
+///
+/// A file is considered a core pattern file if it contains "_core" followed by
+/// a dot somewhere after the "_core" substring. This matches the shell pattern
+/// "*_core*.*".
+///
+/// # Arguments
+/// * `name` - The filename to check.
+///
+/// # Returns
+/// * `true` if the filename matches the core pattern format, `false` otherwise.
 pub fn is_core_pattern_file(name: &str) -> bool {
     if let Some(core_idx) = name.find("_core") {
         // There must be a '.' after the '_core'
@@ -52,6 +96,16 @@ pub fn is_core_pattern_file(name: &str) -> bool {
     }
 }
 
+/// Checks if a directory is empty or cannot be read.
+///
+/// This function tries to read the directory entries. If the directory cannot be read
+/// (due to permissions or other issues), it's treated as if it were empty.
+///
+/// # Arguments
+/// * `dir` - Path to the directory to check.
+///
+/// # Returns
+/// * `true` if the directory is empty or unreadable, `false` otherwise.
 pub fn is_dir_empty_or_unreadable<P: AsRef<Path>>(dir: P) -> bool {
     match fs::read_dir(dir) {
         Ok(mut entries) => entries.next().is_none(),
@@ -59,6 +113,19 @@ pub fn is_dir_empty_or_unreadable<P: AsRef<Path>>(dir: P) -> bool {
     }
 }
 
+/// Safely renames a file, with fallback to copy-and-delete if rename fails with EXDEV error.
+///
+/// This function attempts to rename a file from `src` to `dst`. If the rename fails with
+/// error code 18 (EXDEV, "Cross-device link"), it falls back to copying the file and then
+/// deleting the original. This handles cases where the source and destination are on
+/// different filesystems.
+///
+/// # Arguments
+/// * `src` - Source path.
+/// * `dst` - Destination path. If relative, it's resolved relative to `src`'s parent.
+///
+/// # Returns
+/// * `Ok(())` on success, or an error if both rename and copy-delete fail.
 pub fn safe_rename<S: AsRef<Path>, D: AsRef<Path>>(src: S, dst: D) -> io::Result<()> {
     let src_path = src.as_ref();
     let dst_path = {
@@ -80,6 +147,16 @@ pub fn safe_rename<S: AsRef<Path>, D: AsRef<Path>>(src: S, dst: D) -> io::Result
     }
 }
 
+/// Extracts the basename (filename) from a path.
+///
+/// This function extracts just the filename portion from a path. If the path doesn't
+/// have a valid filename component, returns the entire path as a string.
+///
+/// # Arguments
+/// * `path` - Path to extract the basename from.
+///
+/// # Returns
+/// * A `String` containing the basename (filename without directory components).
 #[inline]
 pub fn basename<P: AsRef<Path>>(path: P) -> String {
     path.as_ref()
@@ -89,6 +166,15 @@ pub fn basename<P: AsRef<Path>>(path: P) -> String {
         .unwrap_or_else(|| path.as_ref().to_string_lossy().to_string())
 }
 
+/// Ensures the core log file exists, creating it with appropriate permissions if needed.
+///
+/// This function checks if the core log file exists at the path defined by `CORE_LOG`.
+/// If not, it creates the file with 0666 permissions (readable and writable by everyone).
+/// It then uses `touch` to update the file's timestamp regardless.
+///
+/// # Side Effects
+/// - May create a new file at `CORE_LOG` path.
+/// - Updates the file's timestamp.
 fn ensure_core_log_exists() {
     if !Path::new(CORE_LOG).exists() {
         if let Ok(f) = OpenOptions::new().create(true).write(true).open(CORE_LOG) {
@@ -98,6 +184,23 @@ fn ensure_core_log_exists() {
     let _ = Command::new("touch").arg(CORE_LOG).status();
 }
 
+#[cfg(not(feature = "shared_api"))]
+/// Writes parameters for S3 upload to a parameter file for shell script consumption.
+///
+/// Creates a space-separated parameter string with all necessary arguments for the S3 upload
+/// process and writes it to the file specified by `S3_UPLOAD_PARAM_FILE`. Used when the
+/// `shared_api` feature is not enabled.
+///
+/// # Arguments
+/// * `dump_paths` - Reference to crash dump path configuration.
+/// * `device_data` - Reference to device metadata.
+/// * `partner_id` - Partner identifier string.
+/// * `enable_ocsp_stapling` - OCSP stapling configuration flag.
+/// * `enable_ocsp` - OCSP configuration flag.
+/// * `curl_log_option` - Curl logging option string.
+///
+/// # Returns
+/// * `Ok(())` on success, or an error if file write fails.
 fn write_uploadtos3params(
     dump_paths: &DumpPaths,
     device_data: &DeviceData,
@@ -124,21 +227,24 @@ fn write_uploadtos3params(
     std::fs::write(S3_UPLOAD_PARAM_FILE, params)
 }
 
-// #[cfg(feature = "shared_api")]
-// pub use crate::upload_to_s3::upload_to_s3;
-
 /// Populates a [`DeviceData`] struct with device properties from system files and TR-181.
 /// 
-/// This function mirrors the environment setup in `uploadDumps.sh`, reading values from
-/// device properties, version file, MAC address, and TR-181 parameters. It uses only
-/// setters on the struct for encapsulation and future-proofing.
+/// This function reads various device properties from multiple sources:
+/// - Device properties file (box type, model number, device type, build type)
+/// - Version file (SHA1 value)
+/// - Network configuration (MAC address)
+/// - System files (T2 enablement, TLS configuration, encryption settings)
+/// - TR-181 parameters (portal URL)
+///
+/// The collected information is essential for crash upload identification, processing, and routing.
 ///
 /// # Arguments
 /// * `device_data` - Mutable reference to a [`DeviceData`] struct to populate.
 ///
 /// # Side Effects
-/// - Reads from the filesystem and TR-181.
-/// - May set RFC parameters if encryption is enabled.
+/// - Reads from filesystem and TR-181 parameters
+/// - May set RFC parameters if encryption is enabled
+/// - No files are modified
 pub fn set_device_data(device_data: &mut DeviceData) {
     // Populate from device.properties
     let mut box_type = String::new();
@@ -186,17 +292,18 @@ pub fn set_device_data(device_data: &mut DeviceData) {
     device_data.set_portal_url(portal_url);
 }
 
-/// Checks if any dump files matching a pattern exist in a directory.
+/// Checks if any crash dump files exist in the specified directories.
 ///
-/// This function scans the given directory for files matching the provided wildcard pattern,
-/// similar to the shell logic: `[ -e $MINIDUMPS_PATH/*.dmp* ]` or `[ -e $CORE_PATH/*_core*.* ]`.
+/// This function examines two types of dumps in their respective directories:
+/// - Minidumps: Files containing ".dmp" in their name in the minidumps directory
+/// - Core dumps: Files matching the "*_core*.*" pattern in the core dump directory
 ///
 /// # Arguments
-/// * `dir` - Directory path to search.
-/// * `wildcard` - Substring to match in file names (e.g., ".dmp" or "_core").
+/// * `minidumps_path` - Directory path to search for minidump files
+/// * `core_path` - Directory path to search for core dump files
 ///
 /// # Returns
-/// * `true` if at least one matching file exists, `false` otherwise.
+/// * `true` if at least one dump file (of either type) exists, `false` otherwise
 pub fn check_dumps_exist(minidumps_path: &str, core_path: &str) -> bool {
     let minidumps_dir = std::path::Path::new(minidumps_path);
     let core_dir = std::path::Path::new(core_path);
@@ -222,18 +329,22 @@ pub fn check_dumps_exist(minidumps_path: &str, core_path: &str) -> bool {
     minidump_exists || core_exists
 }
 
-/// Determines and sets secure dump paths and flags based on SecureDump enablement.
+/// Configures secure or non-secure dump paths based on SecureDump enablement status.
 ///
-/// This function checks for SecureDump enable/disable flags and RFC, and updates the provided
-/// `DumpPaths` struct accordingly. It mirrors the logic in `uploadDumps.sh` for handling
-/// secure and non-secure dump locations and flags.
+/// This function determines if SecureDump is enabled by checking flag files and TR-181 parameters,
+/// then updates the dump paths accordingly:
+/// - When enabled: Uses paths under /opt/secure/
+/// - When disabled: Uses standard paths under /opt/ and /var/
+///
+/// It also manages the appropriate flag files to maintain the system's secure dump state.
 ///
 /// # Arguments
-/// * `dump_paths` - Mutable reference to a [`DumpPaths`] struct to update.
+/// * `dump_paths` - Mutable reference to a [`DumpPaths`] struct to update with appropriate paths
 ///
 /// # Side Effects
-/// - Touches or removes SecureDump enable/disable flag files.
-/// - Updates dump paths for secure or non-secure operation.
+/// - Creates or removes SecureDump enable/disable flag files
+/// - Updates all path settings in the provided `dump_paths` struct
+/// - Logs the SecureDump status
 pub fn get_secure_dump_status(dump_paths: &mut DumpPaths) {
     println!("get_secure_dump_status: Checking SecureDump status...");
     let mut is_sec_dump_enabled = false;
@@ -268,13 +379,19 @@ pub fn get_secure_dump_status(dump_paths: &mut DumpPaths) {
     }
 }
 
-/// Sets the secure dump enabled flag based on file presence or RFC value.
+/// Determines if SecureDump is enabled by checking flag files or TR-181 parameters.
 ///
-/// Checks for the presence of SecureDump enable/disable files, or queries the RFC if neither
-/// file is present. Updates the provided boolean accordingly.
+/// This function implements a priority-based check for SecureDump enablement:
+/// 1. If SECUREDUMP_ENABLE_FILE exists, SecureDump is enabled
+/// 2. If SECUREDUMP_DISABLE_FILE exists, SecureDump is disabled
+/// 3. Otherwise, check the TR-181 parameter for the setting
 ///
 /// # Arguments
-/// * `is_sec_dump_enabled` - Mutable reference to a boolean to set.
+/// * `is_sec_dump_enabled` - Mutable reference to a boolean to set based on the determination
+///
+/// # Side Effects
+/// - Reads from the filesystem and possibly TR-181 configuration
+/// - Modifies the passed boolean reference
 fn set_secure_dump_flag(is_sec_dump_enabled: &mut bool) {
     if Path::new(SECUREDUMP_ENABLE_FILE).exists() {
         *is_sec_dump_enabled = true;
@@ -288,15 +405,17 @@ fn set_secure_dump_flag(is_sec_dump_enabled: &mut bool) {
     }
 }
 
-/// Returns the lock directory path for a given resource path.
+/// Creates a standard lock directory path for a given resource path.
 ///
-/// Appends `.lock.d` as the extension to the provided path to create a unique lock directory.
+/// This function converts any path into a corresponding lock directory path
+/// by changing its extension to ".lock.d". This lock directory is used
+/// to implement a filesystem-based mutex mechanism.
 ///
 /// # Arguments
-/// * `path` - Path to be locked.
+/// * `path` - Path to be locked (can be any file or directory path)
 ///
 /// # Returns
-/// * `PathBuf` representing the lock directory.
+/// * `PathBuf` representing the derived lock directory path
 #[inline]
 fn lock_path<P: AsRef<Path>>(path: P) -> PathBuf {
     let mut p = path.as_ref().to_path_buf();
@@ -304,28 +423,40 @@ fn lock_path<P: AsRef<Path>>(path: P) -> PathBuf {
     p
 }
 
-/// Checks if another instance is running by testing for the lock directory.
+/// Checks if another process instance is running by testing for an existing lock directory.
+///
+/// This function is used to implement mutual exclusion between process instances.
+/// It determines if another instance is running by checking for the existence of
+/// a lock directory associated with the given path.
 ///
 /// # Arguments
-/// * `path` - Path to check for lock.
-///
+/// * `path` - Path to check for an existing lock
 /// # Returns
-/// * `true` if the lock directory exists, `false` otherwise.
+/// * `true` if a lock directory exists (another instance is running), `false` otherwise
 #[inline]
 fn is_another_instance_running<P: AsRef<Path>>(path: P) -> bool {
     lock_path(path).is_dir()
 }
 
-/// Attempts to create a lock directory for the given path. Exits if already locked.
+/// Creates a lock directory or exits the process if already locked.
 ///
-/// If another instance is running (lock exists), prints a message and exits the process.
-/// Otherwise, creates the lock directory and returns `true` on success.
+/// This function implements an "exit on contention" locking strategy:
+/// - If another instance is running (lock exists), it logs a message, 
+///   potentially sends a T2 notification, and exits the process
+/// - Otherwise, it creates the lock directory and returns true on success
 ///
 /// # Arguments
-/// * `path` - Path to lock.
+/// * `path` - Path to lock
+/// * `is_t2_enabled` - Whether T2 telemetry is enabled (for sending notifications)
 ///
 /// # Returns
-/// * `true` if lock was created, otherwise exits or returns `false`.
+/// * `true` if lock was created successfully
+/// * `false` if lock creation failed due to filesystem errors
+///
+/// # Side Effects
+/// - May exit the process if lock already exists
+/// - May send T2 telemetry notification if enabled
+/// - Creates a lock directory on the filesystem if successful
 pub fn create_lock_or_exit<P: AsRef<Path>>(path: P, is_t2_enabled: bool) -> bool {
     let lock = lock_path(&path);
     if is_another_instance_running(&path) {
@@ -346,16 +477,22 @@ pub fn create_lock_or_exit<P: AsRef<Path>>(path: P, is_t2_enabled: bool) -> bool
     }
 }
 
-/// Attempts to create a lock directory for the given path, waiting if already locked.
+/// Creates a lock directory, waiting and retrying if already locked.
 ///
-/// If another instance is running (lock exists), waits and retries every 2 seconds.
-/// Returns `true` if lock is acquired, `false` if creation fails.
+/// This function implements a "wait on contention" locking strategy:
+/// - If another instance is running (lock exists), it waits and retries every 2 seconds
+/// - It continues retrying indefinitely until either the lock is acquired or creation fails
 ///
 /// # Arguments
-/// * `path` - Path to lock.
+/// * `path` - Path to lock
 ///
 /// # Returns
-/// * `true` if lock was created, `false` otherwise.
+/// * `true` if lock was created successfully
+/// * `false` if lock creation failed due to filesystem errors
+///
+/// # Side Effects
+/// - May block thread execution while waiting for lock
+/// - Creates a lock directory on the filesystem if successful
 pub fn create_lock_or_wait<P: AsRef<Path>>(path: P) -> bool {
     let lock = lock_path(&path);
     loop {
@@ -375,10 +512,18 @@ pub fn create_lock_or_wait<P: AsRef<Path>>(path: P) -> bool {
     }
 }
 
-/// Removes the lock directory for the given path, if it exists.
+/// Removes a lock directory for the given resource path.
+///
+/// This function cleans up the lock directory created by `create_lock_or_exit` or
+/// `create_lock_or_wait`, effectively releasing the lock. It silently handles the
+/// case where the lock directory doesn't exist.
 ///
 /// # Arguments
-/// * `path` - Path whose lock should be removed.
+/// * `path` - Path whose associated lock should be removed
+///
+/// # Side Effects
+/// - Deletes the lock directory from the filesystem if it exists
+/// - Logs any errors that occur during removal
 pub fn remove_lock<P: AsRef<Path>>(path: P) {
     let lock = lock_path(&path);
     if lock.is_dir() {
@@ -427,8 +572,13 @@ pub fn set_log_file(device_data: &DeviceData, log_mod_ts: &str, line: &str) -> S
 /// If the reboot flag exists, logs a message, sends a T2 notification, and returns `true`.
 /// Otherwise, returns `false`.
 ///
+/// # Arguments
+/// * `is_t2_enabled` - Whether T2 telemetry is enabled (for sending notifications)
+///
 /// # Returns
 /// * `true` if the box is rebooting (flag file exists), `false` otherwise.
+/// # Side Effects
+/// - May send T2 telemetry notification if enabled
 pub fn is_box_rebooting(is_t2_enabled: bool) -> bool {
     if Path::new(CRASH_UPLOAD_REBOOT_FLAG).exists() {
         println!("is_box_rebooting: Skipping Upload, Since the box is rebooting now...");
@@ -481,6 +631,9 @@ pub fn sanitize(input: &str) -> String {
 ///
 /// # Returns
 /// * `true` if uploads are allowed, `false` if still in the denial window.
+///
+/// # Side Effects
+/// - Reads from the deny upload file on the filesystem
 pub fn is_recovery_time_reached() -> bool {
     let path = Path::new(DENY_UPLOAD_FILE);
     if !path.exists() {
@@ -528,6 +681,10 @@ pub fn set_recovery_time() {
 ///
 /// # Returns
 /// * `true` if the upload rate limit is reached, `false` otherwise.
+///
+/// # Side Effects
+/// - Acquires and releases a lock on the timestamp file
+/// - Reads from the timestamp file
 pub fn is_upload_limit_reached(ts_file: &str) -> bool {
     create_lock_or_wait(ts_file);
 
@@ -581,6 +738,10 @@ pub fn is_upload_limit_reached(ts_file: &str) -> bool {
 ///
 /// # Arguments
 /// * `dump_paths` - Reference to the dump paths struct.
+///
+/// # Side Effects
+/// - Deletes the crash loop flag file if it exists
+/// - Removes lock directories associated with the dump paths
 #[inline]
 fn remove_crash_locks_and_flag(dump_paths: &DumpPaths) {
     let loop_file = Path::new(CRASH_LOOP_FLAG_FILE);
@@ -598,6 +759,10 @@ fn remove_crash_locks_and_flag(dump_paths: &DumpPaths) {
 ///
 /// # Arguments
 /// * `dump_paths` - Reference to the dump paths struct.
+///
+/// # Side Effects
+/// - Cleans up dump files in the working directory
+/// - Removes lock files and crash loop flags
 pub fn finalize(dump_paths: &DumpPaths) {
     println!("finalize: ##DEBUG## Skipping cleanup and removing crash locks and flag for debugging purposes");
     if false {
@@ -618,6 +783,10 @@ pub fn finalize(dump_paths: &DumpPaths) {
 /// # Arguments
 /// * `signal` - The signal type (CrashSignal::Term or CrashSignal::Kill).
 /// * `dump_paths` - Reference to the dump paths struct.
+///
+/// # Side Effects
+/// - Logs the signal type
+/// - Removes crash loop flag and lock files
 pub fn handle_crash_signal(signal: CrashSignal, dump_paths: &DumpPaths) {
     match signal {
         CrashSignal::Term => println!("systemd terminating, Removing the script locks"),
@@ -626,7 +795,6 @@ pub fn handle_crash_signal(signal: CrashSignal, dump_paths: &DumpPaths) {
     remove_crash_locks_and_flag(dump_paths);
 }
 
-/* UNUSED */
 /// Determines if a dump file should be processed/uploaded based on dump type, device type, and file name.
 ///
 /// - Always returns `true` for minidumps.
@@ -649,6 +817,21 @@ pub fn should_process_dump(dump_name: &str, build_type: &str, file_name: &str) -
     }
 }
 
+/// Determines if a file name matches a specified pattern.
+///
+/// This function implements shell-like wildcard pattern matching for specific crash-related
+/// file patterns. It supports the following patterns:
+/// - "*.dmp*": Files containing ".dmp" anywhere in the name
+/// - "*.dmp.tgz": Files ending with ".dmp.tgz"
+/// - "*core.prog*.gz*": Files containing "core.prog" followed by ".gz" somewhere later
+/// - "*.core.tgz": Files ending with ".core.tgz"
+///
+/// # Arguments
+/// * `name` - The file name to check against the pattern.
+/// * `pattern` - The pattern to match against (one of the supported patterns above).
+///
+/// # Returns
+/// * `true` if the file name matches the pattern, `false` otherwise.
 fn matches_pattern(name: &str, pattern: &str) -> bool {
     match pattern {
         "*.dmp*" => name.contains(".dmp"),
@@ -665,11 +848,11 @@ fn matches_pattern(name: &str, pattern: &str) -> bool {
     }
 }
 
-/// Counts the number of dump files in a directory matching a given extension substring.
+/// Counts the number of dump files in a directory matching a given pattern.
 ///
 /// # Arguments
 /// * `dir` - Directory path to search.
-/// * `extn` - Substring to match in file names (e.g., ".dmp" or "core").
+/// * `pattern` - Pattern to match in file names (e.g., "*.dmp*" or "*.core.tgz").
 ///
 /// # Returns
 /// * `Ok(count)` with the number of matching files, or an error if the directory can't be read.
@@ -696,11 +879,14 @@ pub fn get_file_count(dir: &str, pattern: &str) -> std::io::Result<usize> {
 /// or TelemetryOptOut is set. It removes all files matching the given extension or `.tgz`.
 ///
 /// # Arguments
-/// * `dir` - Directory path to search.
+/// * `path` - Directory path to search.
 /// * `extn` - Extension to match (e.g., "dmp" or "core").
 ///
 /// # Returns
 /// * `Ok(())` on success, or an error if file operations fail.
+///
+/// # Side Effects
+/// - Deletes files from the filesystem that match the criteria
 pub fn remove_pending_dumps(path: &str, extn: &str) -> io::Result<()> {
     println!("remove_pending_dumps: ###DEBUG### Skipping pending dumps removal for debugging purposes");
     if false {
@@ -732,6 +918,12 @@ pub fn remove_pending_dumps(path: &str, extn: &str) -> io::Result<()> {
 ///
 /// # Arguments
 /// * `file_path` - Path to the crash dump file (as &str).
+/// * `is_t2_enabled` - Whether T2 telemetry is enabled (for sending notifications)
+///
+/// # Side Effects
+/// - May send multiple T2 telemetry notifications
+/// - Logs crash information
+/// - Calls `get_crashed_log_file` which may write to log files
 pub fn process_crash_t2_info(file_path: &str, is_t2_enabled: bool) {
     println!("process_crash_t2_info: Processing the crash telemetry info");
     let file = Path::new(file_path);
@@ -783,11 +975,10 @@ pub fn process_crash_t2_info(file_path: &str, is_t2_enabled: bool) {
 ///
 /// # Arguments
 /// * `tgz_file` - Path to the tarball file.
-/// * `portal_url` - Crash portal URL.
-/// * `crash_portal_path` - Crash portal path.
 ///
 /// # Side Effects
 /// - Renames the file to `.crashloop.dmp.tgz`.
+/// - Logs the rename operation and any errors.
 pub fn mark_as_crash_loop_and_upload(tgz_file: &str) { // portal_url: &str, crash_portal_path: &str) {
     let tgz_path = Path::new(tgz_file);
     let new_tgz_name = tgz_path.with_extension("crashloop.dmp.tgz");
@@ -799,11 +990,15 @@ pub fn mark_as_crash_loop_and_upload(tgz_file: &str) { // portal_url: &str, cras
 
 /// Finds the oldest file in a directory.
 ///
+/// Scans a directory for files, sorts them by modification time, and returns the oldest one.
+/// This is typically used for retention policies and cleanup of old dumps.
+///
 /// # Arguments
 /// * `dir` - Directory path to search.
 ///
 /// # Returns
-/// * `Ok(Some(path))` with the oldest file, or `Ok(None)` if no files found.
+/// * `Ok(Some(path))` with the oldest file, or `Ok(None)` if no files found or directory is empty.
+/// * `Err` if there was an error reading the directory or file metadata.
 pub fn find_oldest_dump(dir: &str) -> io::Result<Option<PathBuf>> {
     let mut files: Vec<_> = fs::read_dir(dir)?
         .filter_map(|entry| entry.ok())
@@ -817,10 +1012,18 @@ pub fn find_oldest_dump(dir: &str) -> io::Result<Option<PathBuf>> {
 
 /// Saves a dump file, renaming if needed, and ensures only the most recent 5 minidumps are kept.
 ///
+/// This function has two main responsibilities:
+/// 1. Renames the dump file to preserve container information (if `new_name` is provided)
+/// 2. Enforces a retention policy by keeping only the 5 most recent dump files
+///
 /// # Arguments
-/// * `minidumps_path` - Directory containing minidumps.
-/// * `s3_filename` - The current filename.
-/// * `new_name` - Optional new name to rename to (to retain container info).
+/// * `minidumps_path` - Directory containing minidumps
+/// * `s3_filename` - The current filename of the dump
+/// * `new_name` - Optional new name to rename to (to retain container info)
+///
+/// # Side Effects
+/// - May rename files in the minidumps directory
+/// - May delete old dump files to maintain the retention limit
 pub fn save_dump(minidumps_path: &str, s3_filename: &str, new_name: Option<&str>) {
     if let Some(new_name) = new_name {
         println!("save_dump: Saving dump with original name to retain container info: {}", basename(new_name));
@@ -851,8 +1054,17 @@ pub fn save_dump(minidumps_path: &str, s3_filename: &str, new_name: Option<&str>
 
 /// Logs the current upload timestamp to the timestamp file and truncates it to the last 10 entries.
 ///
+/// This function is used to maintain a record of recent uploads for rate limiting purposes.
+/// For production builds, it adds the current time to the timestamp file and calls
+/// `truncate_timestamp_file()` to keep only the 10 most recent entries.
+///
 /// # Arguments
-/// * `ts_file` - Path to the timestamp file.
+/// * `ts_file` - Path to the timestamp file
+///
+/// # Side Effects
+/// - Acquires and releases a lock on the timestamp file
+/// - Appends the current timestamp to the file
+/// - Truncates the file to keep only the 10 most recent entries
 pub fn log_upload_timestamp(ts_file: &str) {
     create_lock_or_wait(ts_file);
 
@@ -876,11 +1088,19 @@ pub fn log_upload_timestamp(ts_file: &str) {
 
 /// Truncates the timestamp file to the last 10 lines.
 ///
+/// This function maintains a fixed-size history of upload timestamps by keeping
+/// only the 10 most recent entries. It reads all lines, selects the 10 newest,
+/// and overwrites the file with just those lines.
+///
 /// # Arguments
-/// * `ts_file` - Path to the timestamp file.
+/// * `ts_file` - Path to the timestamp file
 ///
 /// # Returns
-/// * `Ok(())` on success, or an error if file operations fail.
+/// * `Ok(())` on success, or an error if file operations fail
+///
+/// # Side Effects
+/// - Acquires and releases a lock on the timestamp file
+/// - Modifies the content of the timestamp file
 pub fn truncate_timestamp_file(ts_file: &str) -> io::Result<()> {
     create_lock_or_wait(ts_file);
     let ts_path = Path::new(ts_file);
@@ -901,11 +1121,17 @@ pub fn truncate_timestamp_file(ts_file: &str) -> io::Result<()> {
 
 /// Gets the last modified time of a file as a formatted string.
 ///
+/// Retrieves the file's modification timestamp and formats it as 
+/// "YYYY-MM-DD-HH-MM-SS" for use in log file naming and comparisons.
+///
 /// # Arguments
-/// * `path` - Path to the file.
+/// * `path` - Path to the file
 ///
 /// # Returns
-/// * `Some(String)` with the formatted time, or `None` if not available.
+/// * `Some(String)` with the formatted time string, or `None` if:
+///   - The path doesn't exist
+///   - The path isn't a regular file
+///   - The metadata or modification time couldn't be retrieved
 pub fn get_last_modified_time_of_file(path: &str) -> Option<String> {
     let path_ref = Path::new(path);
     if !path_ref.is_file() {
@@ -919,11 +1145,22 @@ pub fn get_last_modified_time_of_file(path: &str) -> Option<String> {
 
 /// Maps a crashed process to its log files using the logmapper config and writes them to LOG_FILES.
 ///
+/// This function performs several key operations:
+/// 1. Extracts the process name from the crashed file path
+/// 2. Sends telemetry notifications about the crashed process
+/// 3. Looks up associated log files in the LOGMAPPER_FILE configuration
+/// 4. Writes the full paths of those log files to the LOG_FILES file
+///
 /// # Arguments
-/// * `file_path` - Path or name of the crashed file.
+/// * `file_path` - Path or name of the crashed file
+/// * `is_t2_enabled` - Whether T2 telemetry is enabled (for sending notifications)
 ///
 /// # Returns
-/// * `Ok(())` on success, or an error if file operations fail.
+/// * `Ok(())` on success, or an error if file operations fail
+///
+/// # Side Effects
+/// - May send multiple T2 telemetry notifications
+/// - Writes to the LOG_FILES file
 pub fn get_crashed_log_file(file_path: &str, is_t2_enabled: bool) -> io::Result<()> {
     let basename = basename(file_path);
 
@@ -984,10 +1221,14 @@ pub fn get_crashed_log_file(file_path: &str, is_t2_enabled: bool) -> io::Result<
 /// keeping only the newest `MAX_CORE_FILES` files and deleting the rest.
 ///
 /// # Arguments
-/// * `dir_path` - Directory path as &str.
+/// * `dir_path` - Directory path as &str
 ///
 /// # Returns
-/// * `Ok(())` on success, or an error if file operations fail.
+/// * `Ok(())` on success, or an error if file operations fail
+///
+/// # Side Effects
+/// - Deletes files from the filesystem that exceed the retention limit
+/// - Logs the deletion operations or their failure
 pub fn delete_all_but_most_recent_files(dir_path: &str) -> io::Result<()> {
     let path = Path::new(dir_path);
     if !path.is_dir() {
@@ -1026,21 +1267,25 @@ pub fn delete_all_but_most_recent_files(dir_path: &str) -> io::Result<()> {
     Ok(())
 }
 
-/// /// Cleans up the working directory by removing old, unfinished, and non-dump files,
+/// Cleans up the working directory by removing old, unfinished, and non-dump files,
 /// and limits the number of dump files to the configured maximum.
 ///
-/// - Removes files matching `*_mac*_dat*` older than 2 days.
-/// - On first startup, removes unfinished and non-dump files, and limits dump file count.
-/// - Removes version.txt if not uploading on startup.
-/// - Uses only `&str` for arguments for efficiency.
+/// This function performs several cleanup operations:
+/// - Removes files matching `*_mac*_dat*` older than 2 days
+/// - On first startup, removes unfinished and non-dump files, and limits dump file count
+/// - Removes version.txt if not uploading on startup
 ///
 /// # Arguments
-/// * `work_dir` - Working directory path.
-/// * `dump_name` - Dump type ("coredump" or "minidump").
-/// * `dump_extn` - Dump file extension pattern (e.g., "*.dmp*").
+/// * `work_dir` - Working directory path
+/// * `dump_name` - Dump type ("coredump" or "minidump")
+/// * `dump_extn` - Dump file extension pattern (e.g., "*.dmp*")
 ///
 /// # Returns
-/// * `Ok(())` on success, or an error if file operations fail.
+/// * `Ok(())` on success, or an error if file operations fail
+///
+/// # Side Effects
+/// - Deletes files from the filesystem based on various criteria
+/// - Creates a flag file to indicate cleanup has been performed
 pub fn cleanup(work_dir: &str, dump_name: &str, dump_extn: &str) -> std::io::Result<()> {
     let work_dir_path = Path::new(work_dir);
 
@@ -1127,9 +1372,13 @@ pub fn cleanup(work_dir: &str, dump_name: &str, dump_extn: &str) -> std::io::Res
 /// Returns the usage percent of the /tmp partition by invoking `df`.
 ///
 /// Mimics the shell logic: `df -h /tmp | grep '\tmp' | awk '{print $5}'`
+/// This is used to determine if there's enough space to copy log files to /tmp.
 ///
 /// # Returns
-/// * `Some(u8)` with the usage percent, or `None` if it cannot be determined.
+/// * `Some(u8)` with the usage percent (0-100), or `None` if:
+///   - The `df` command fails to execute
+///   - The output doesn't contain expected data
+///   - The percentage value cannot be parsed
 #[inline]
 fn get_tmp_usage_percent() -> Option<u8> {
     let output = Command::new("df")
@@ -1155,17 +1404,23 @@ fn get_tmp_usage_percent() -> Option<u8> {
 
 /// Adds crashed log files to the minidump tarball, processing each log file as needed.
 ///
-/// For each file in `log_files`, if it exists, extracts the last N lines (N=500 for prod, 5000 otherwise),
-/// writes them to a sanitized process log file, and logs the action.  
-/// After processing, removes the original log files.  
-/// This function is reusable and accepts any slice of log file paths.
+/// For each log file:
+/// 1. Gets the file's last modified timestamp
+/// 2. Creates a sanitized process log file name using device metadata
+/// 3. Extracts the last N lines (N=500 for prod, 5000 otherwise)
+/// 4. Writes those lines to a new file in the working directory
 ///
 /// # Arguments
-/// * `device_data` - Reference to device metadata (for log file naming).
-/// * `log_files` - Slice of log file paths (`&[&str]`).
+/// * `device_data` - Reference to device metadata (for log file naming)
+/// * `log_files` - Slice of log file paths to process and add
+/// * `working_dir` - Directory where processed log files will be written
 ///
 /// # Returns
-/// * `Ok(())` on success, or an error if file operations fail.
+/// * `Ok(())` on success, or an error if file operations fail
+///
+/// # Side Effects
+/// - Creates new log files in the working directory
+/// - Logs each file addition
 pub fn add_crashed_log_file(device_data: &DeviceData, log_files:  &[&str], working_dir: &str) -> io::Result<()> {
     let line_count = if device_data.build_type == "prod" { 500 } else { 5000 };
 
@@ -1195,18 +1450,22 @@ pub fn add_crashed_log_file(device_data: &DeviceData, log_files:  &[&str], worki
     Ok(())
 }
 
-
 /// Copies log files to a temporary directory under /tmp if there is enough free space.
 ///
-/// If /tmp usage is below the threshold (70%), copies each log file to `/tmp/<tmp_dir_name>`.
-/// Otherwise, returns the original file paths. Returns the paths of the files to use for archiving.
+/// This function implements a space-aware strategy for log file handling:
+/// - If /tmp usage is below 70%, copies each log file to a temp directory
+/// - Otherwise, uses the original file paths to avoid filling /tmp
 ///
 /// # Arguments
-/// * `tmp_dir_name` - Name for the temporary directory under /tmp.
-/// * `logfiles` - Slice of log file paths (`&[&str]`).
+/// * `tmp_dir_name` - Name for the temporary directory under /tmp
+/// * `logfiles` - Slice of log file paths to potentially copy
 ///
 /// # Returns
-/// * `Vec<String>`: Paths to use for archiving (either in /tmp or original).
+/// * `Vec<String>` containing paths to use for archiving (either in /tmp or original)
+///
+/// # Side Effects
+/// - May create a directory in /tmp
+/// - May copy files to the temporary directory
 pub fn copy_log_files_to_tmp(tmp_dir_name: &str, logfiles: &[&str]) -> Vec<String> {
     let tmp_dir = format!("/tmp/{}", tmp_dir_name);
     let usage_percent = get_tmp_usage_percent().unwrap_or(0);
@@ -1247,6 +1506,25 @@ pub fn copy_log_files_to_tmp(tmp_dir_name: &str, logfiles: &[&str]) -> Vec<Strin
     out_files
 }
 
+/// Uploads a crash dump file to S3 using the Rust implementation from crash-upload-cpc.
+///
+/// This function is only available when the "shared_api" feature is enabled.
+/// It implements the actual upload logic, handling encryption, TLS configuration,
+/// and authentication based on device settings.
+///
+/// # Arguments
+/// * `args` - Arguments for the upload, with args[0] being the file to upload
+/// * `dump_paths` - Reference to dump paths configuration
+/// * `device_data` - Reference to device metadata
+/// * `curl_log_option` - Curl logging options string
+///
+/// # Returns
+/// * `Ok(())` on successful upload, or an error if upload fails
+///
+/// # Side Effects
+/// - Creates a backup of the file before uploading
+/// - Logs upload status and details
+/// - Makes network requests to S3
 #[cfg(feature = "shared_api")]
 pub fn upload_to_s3_lib(args: &[&str], dump_paths: &DumpPaths, device_data: &DeviceData, curl_log_option: &str) -> std::io::Result<()> {
     // Call the Rust implementation from crash-upload-cpc
@@ -1286,11 +1564,19 @@ pub fn upload_to_s3_lib(args: &[&str], dump_paths: &DumpPaths, device_data: &Dev
 
 /// Calls the uploadDumpsToS3.sh script with the given arguments if it exists.
 ///
+/// This function is only available when the "shared_api" feature is NOT enabled.
+/// It delegates the upload responsibility to a shell script.
+///
 /// # Arguments
-/// * `args` - Arguments to pass to the script.
+/// * `args` - Arguments to pass to the script, with args[0] being the file to upload
 ///
 /// # Returns
-/// * `Ok(exit_status)` if the script ran, or an error if not found or failed.
+/// * `Ok(exit_status)` if the script ran successfully
+/// * `Err` if the script wasn't found or failed with a non-zero exit code
+///
+/// # Side Effects
+/// - Executes an external shell script
+/// - The shell script will make network requests and manipulate files
 #[cfg(not(feature = "shared_api"))]
 pub fn upload_to_s3_script(args: &[&str]) -> std::io::Result<std::process::ExitStatus> {
     if Path::new(S3_UPLOAD_SCRIPT).exists() {
@@ -1315,8 +1601,18 @@ pub fn upload_to_s3_script(args: &[&str]) -> std::io::Result<std::process::ExitS
 
 /// Calls getPrivacyControlMode from utils.sh and returns its output as a String.
 ///
+/// This function interfaces with the platform's privacy control system by
+/// sourcing the utils.sh script and calling its getPrivacyControlMode function.
+///
 /// # Returns
-/// * `Some(String)` if successful, `None` otherwise.
+/// * `Some(String)` containing the privacy mode ("DO_NOT_SHARE", etc.) if successful
+/// * `None` if:
+///   - The utils.sh script doesn't exist
+///   - The command execution fails
+///   - The command exits with a non-zero status
+///
+/// # Side Effects
+/// - Executes a shell command
 pub fn get_privacy_control_mode() -> Option<String> {
     let script = "/lib/rdk/utils.sh";
     if Path::new(script).exists() {
@@ -1337,26 +1633,25 @@ pub fn get_privacy_control_mode() -> Option<String> {
 
 /// Processes all dump files in the working directory: sanitizes, compresses, and uploads or saves them.
 ///
-/// This function mirrors the main dump processing logic from `uploadDumps.sh`, including:
-/// - Sanitizing and renaming dump files
-/// - Processing telemetry info for minidumps
-/// - Skipping files that are already tarballs
-/// - Using `crash_ts` for log/tarball naming
-/// - Compressing dumps and associated log files into tarballs
-/// - Handling fallback if compression fails
-/// - Cleaning up temporary files and logs
-/// - Delegating tarball upload or save logic to `handle_tarballs`
+/// This function implements the main dump processing workflow:
+/// 1. Finds all dump files in the working directory
+/// 2. For each file:
+///    - Sanitizes and renames it
+///    - Processes telemetry info for minidumps
+///    - Creates a tarball with the dump and relevant log files
+///    - Cleans up temporary files
+/// 3. Hands off tarballs for upload or local storage
 ///
 /// # Arguments
-/// * `device_data` - Reference to device metadata (for naming and telemetry).
-/// * `dump_paths` - Reference to dump paths and configuration.
-/// * `crash_ts` - Crash timestamp string for naming files (faithful to shell script).
-/// * `no_network` - If true, skips upload and just saves the dump locally.
+/// * `device_data` - Reference to device metadata (for naming and telemetry)
+/// * `dump_paths` - Reference to dump paths and configuration
+/// * `crash_ts` - Crash timestamp string for naming files
+/// * `no_network` - If true, skips upload and just saves the dump locally
 ///
 /// # Side Effects
-/// - Modifies files in the working directory (renames, compresses, deletes).
-/// - May create or remove log files and temporary directories.
-/// - Calls `handle_tarballs` for tarball upload/save logic.
+/// - Modifies files in the working directory (renames, compresses, deletes)
+/// - May create or remove log files and temporary directories
+/// - Calls other functions that may upload files or send telemetry
 pub fn process_dumps(
     device_data: &DeviceData,
     dump_paths: &DumpPaths,
@@ -1574,13 +1869,20 @@ pub fn process_dumps(
 
 /// Compresses the given files into a tarball using the `tar` command.
 ///
+/// This function creates a gzipped tarball containing both the primary dump files
+/// and any associated log files by executing the system `tar` command.
+///
 /// # Arguments
-/// * `tgz_file` - Output tarball file name.
-/// * `main_files` - Main files to include.
-/// * `extra_files` - Additional files to include.
+/// * `tarball_path` - Output tarball file path
+/// * `dump_files` - Primary dump files to include in the tarball
+/// * `log_files` - Additional log files to include in the tarball
 ///
 /// # Returns
-/// * `Ok(())` if compression succeeded, error otherwise.
+/// * `Ok(())` if compression succeeded, error otherwise
+///
+/// # Side Effects
+/// - Creates a new tarball file at the specified path
+/// - Executes the system `tar` command
 #[inline]
 pub fn compress_files(
     tarball_path: &str,
@@ -1606,9 +1908,16 @@ pub fn compress_files(
     }
 }
 
-
-
 /// Checks if the given file is a tarball (ends with .tgz).
+///
+/// A simple utility function that examines the file extension to determine
+/// if a file is a compressed tarball archive.
+///
+/// # Arguments
+/// * `file` - Reference to a `Path` to check
+///
+/// # Returns
+/// * `true` if the file has a .tgz extension, `false` otherwise
 #[inline]
 fn is_tarball(file: &Path) -> bool {
     file.extension().map(|e| e == "tgz").unwrap_or(false)
@@ -1616,11 +1925,20 @@ fn is_tarball(file: &Path) -> bool {
 
 /// Sanitizes the file name and renames the file if needed.
 ///
+/// This function sanitizes the file path by removing unsafe characters, then
+/// renames the file on disk if the sanitized name differs from the original.
+/// This ensures filenames are compatible with upload and storage systems.
+///
 /// # Arguments
-/// * `file` - Path to the file.
+/// * `file` - Reference to the `Path` of the file to sanitize
 ///
 /// # Returns
-/// * `Ok(new_path)` with the sanitized path, or error.
+/// * `Ok(PathBuf)` containing the sanitized path (which may be the same as the
+///   original if no sanitization was needed)
+/// * `Err` if the rename operation fails
+///
+/// # Side Effects
+/// - May rename the file on the filesystem if sanitization changes the name
 #[inline]
 fn sanitize_and_rename(file: &Path) -> io::Result<PathBuf> {
     let orig = file.to_string_lossy();
@@ -1635,11 +1953,18 @@ fn sanitize_and_rename(file: &Path) -> io::Result<PathBuf> {
 
 /// Removes all .log and .txt files from the given directory.
 ///
+/// This function is used to clean up log files after they've been packaged
+/// into a tarball. It scans the directory and deletes any file with a .log or
+/// .txt extension.
+///
 /// # Arguments
-/// * `working_dir` - Directory to clean.
+/// * `working_dir` - Directory path to clean
 ///
 /// # Returns
-/// * `Ok(())` on success, or error.
+/// * `Ok(())` on success, or an error if directory operations fail
+///
+/// # Side Effects
+/// - Deletes .log and .txt files from the specified directory
 #[inline]
 fn remove_logs(working_dir: &str) -> io::Result<()> {
     for entry in fs::read_dir(working_dir)? {
@@ -1656,14 +1981,18 @@ fn remove_logs(working_dir: &str) -> io::Result<()> {
     Ok(())
 }
 
-/// Finds all files in a directory matching the given extension substring.
+/// Finds all files in a directory matching the given pattern.
+///
+/// This function scans a directory and collects all files whose names match
+/// the specified pattern (using the `matches_pattern` function).
 ///
 /// # Arguments
-/// * `working_dir` - Directory to search.
-/// * `dumps_extn` - Substring to match in file names.
+/// * `dir` - Directory path to search
+/// * `pattern` - Pattern to match in file names (e.g., "*.dmp*", "*.core.tgz")
 ///
 /// # Returns
-/// * `Ok(Vec<PathBuf>)` with matching files, or error.
+/// * `Ok(Vec<PathBuf>)` containing paths to all matching files
+/// * `Err` if there was an error reading the directory
 pub fn find_dump_files(dir: &str, pattern: &str) -> std::io::Result<Vec<std::path::PathBuf>> {
     let dir_path = std::path::Path::new(dir);
     let mut files = Vec::new();
@@ -1684,9 +2013,21 @@ pub fn find_dump_files(dir: &str, pattern: &str) -> std::io::Result<Vec<std::pat
 /// Handles all tarballs in the working directory: applies rate limiting, privacy checks,
 /// uploads with retries, and performs post-upload cleanup.
 ///
+/// This function is the main coordinator for tarball processing after dumps have been
+/// compressed. It finds all tarballs in the working directory and processes each one
+/// through `handle_single_tarball()`.
+///
 /// # Arguments
-/// * `device_data` - Reference to device metadata.
-/// * `dump_paths` - Reference to dump paths and config.
+/// * `device_data` - Reference to device metadata for upload identification
+/// * `dump_paths` - Reference to dump paths and configuration
+/// * `no_network` - Whether to skip upload and just save dumps locally
+/// * `crash_ts` - Crash timestamp string for file naming
+///
+/// # Side Effects
+/// - May upload files to S3
+/// - May delete or rename files
+/// - May send telemetry notifications
+/// - Logs processing status for each tarball
 fn handle_tarballs(device_data: &DeviceData, dump_paths: &DumpPaths, no_network: bool, crash_ts: &str) {
     if is_box_rebooting(device_data.is_t2_enabled) {
         return;
@@ -1710,13 +2051,29 @@ fn handle_tarballs(device_data: &DeviceData, dump_paths: &DumpPaths, no_network:
 
 /// Handles a single tarball: checks rate limits, privacy, uploads with retries, and cleans up.
 ///
+/// This function implements the complete processing workflow for a single tarball:
+/// 1. Checks recovery time and rate limits
+/// 2. Handles no-network mode if enabled
+/// 3. Checks privacy settings
+/// 4. Sanitizes the filename for S3
+/// 5. Uploads the tarball with retries
+/// 6. Performs post-upload cleanup
+///
 /// # Arguments
-/// * `device_data` - Reference to device metadata.
-/// * `dump_paths` - Reference to dump paths and config.
-/// * `tarball` - Path to the tarball file.
+/// * `device_data` - Reference to device metadata for upload identification
+/// * `dump_paths` - Reference to dump paths and configuration
+/// * `tarball` - Path to the tarball file to process
+/// * `no_network` - Whether to skip upload and just save dumps locally
+/// * `crash_ts` - Crash timestamp string for file naming
 ///
 /// # Returns
-/// * `Ok(())` on success, or error.
+/// * `Ok(())` on success, or an error if any operation fails
+///
+/// # Side Effects
+/// - May upload files to S3
+/// - May delete or rename files
+/// - May set recovery time
+/// - May remove pending dumps
 fn handle_single_tarball(device_data: &DeviceData, dump_paths: &DumpPaths, tarball: &Path, no_network: bool, crash_ts: &str) -> std::io::Result<()> {
     let tarball_str = tarball.to_string_lossy();
     let s3_filename = tarball.file_name().and_then(|n| n.to_str()).unwrap_or("");
@@ -1783,6 +2140,15 @@ fn handle_single_tarball(device_data: &DeviceData, dump_paths: &DumpPaths, tarba
 }
 
 /// Returns true if privacy mode is DO_NOT_SHARE (from utils.sh).
+///
+/// This function checks if the device's privacy mode is set to "DO_NOT_SHARE",
+/// which indicates that no data should be uploaded to the cloud.
+///
+/// # Returns
+/// * `true` if privacy mode is "DO_NOT_SHARE", `false` otherwise
+///
+/// # Side Effects
+/// - Calls `get_privacy_control_mode()` which executes a shell command
 #[inline]
 fn is_privacy_mode_do_not_share() -> bool {
     matches!(get_privacy_control_mode().as_deref(), Some("DO_NOT_SHARE"))
@@ -1790,12 +2156,19 @@ fn is_privacy_mode_do_not_share() -> bool {
 
 /// Renames a tarball file to a sanitized name for S3 upload.
 ///
+/// This function replaces special characters in the tarball filename that might
+/// cause problems during S3 upload. It performs the actual filesystem rename
+/// operation.
+///
 /// # Arguments
-/// * `tarball` - Path to the original tarball.
-/// * `sanitized_name` - Sanitized file name.
+/// * `tarball` - Path to the original tarball
+/// * `sanitized_name` - Sanitized file name to use
 ///
 /// # Returns
-/// * `Ok(())` on success, or error.
+/// * `Ok(())` on success, or an error if the rename fails
+///
+/// # Side Effects
+/// - Renames a file on the filesystem
 fn rename_tarball_for_s3(tarball: &Path, sanitized_name: &str) -> std::io::Result<()> {
     let parent = tarball.parent().unwrap_or_else(|| Path::new(""));
     let orig_path = parent.join(tarball.file_name().unwrap());
@@ -1805,12 +2178,23 @@ fn rename_tarball_for_s3(tarball: &Path, sanitized_name: &str) -> std::io::Resul
 
 /// Uploads a tarball to S3, retrying up to 3 times.
 ///
+/// This function attempts to upload a tarball to S3, with up to 3 retry attempts
+/// if the upload fails. It handles both the Rust and shell script upload implementations
+/// based on the feature flags, and logs the upload status.
+///
 /// # Arguments
-/// * `s3_filename` - Name of the tarball file to upload.
-/// * `dump_paths` - Reference to dump paths and config.
+/// * `s3_full_path` - Full path to the tarball file to upload
+/// * `dump_paths` - Reference to dump paths and configuration
+/// * `device_data` - Reference to device metadata for upload identification
 ///
 /// # Returns
-/// * `true` if upload succeeded, `false` otherwise.
+/// * `true` if any upload attempt succeeded, `false` if all attempts failed
+///
+/// # Side Effects
+/// - Makes network requests to S3
+/// - May create temporary files for upload parameters
+/// - May send telemetry notifications
+/// - Logs upload status
 fn upload_tarball_with_retries(
     s3_full_path: &str,
     dump_paths: &DumpPaths,
@@ -1883,11 +2267,21 @@ fn upload_tarball_with_retries(
 
 /// Cleans up after upload: removes tarball if successful, logs timestamp, or saves/removes on failure.
 ///
+/// This function handles the post-upload cleanup process, with different behavior based on
+/// whether the upload succeeded:
+/// - On success: Removes the tarball and logs the upload timestamp
+/// - On failure: For minidumps, saves the dump locally; for other types, removes the file
+///
 /// # Arguments
-/// * `upload_success` - Whether the upload succeeded.
-/// * `dump_paths` - Reference to dump paths and config.
-/// * `tarball` - Path to the tarball file.
-/// * `s3_filename` - Name of the tarball file.
+/// * `upload_success` - Whether the upload succeeded
+/// * `dump_paths` - Reference to dump paths and configuration
+/// * `tarball` - Path to the tarball file
+/// * `s3_filename` - Name of the tarball file
+///
+/// # Side Effects
+/// - May delete files from the filesystem
+/// - May log timestamps to the timestamp file
+/// - May save dumps to the minidumps directory
 fn post_upload_cleanup(upload_success: bool, dump_paths: &DumpPaths, tarball: &Path, s3_filename: &str) { 
     let parent = tarball.parent().unwrap_or_else(|| Path::new(""));
     let s3_path = parent.join(s3_filename);

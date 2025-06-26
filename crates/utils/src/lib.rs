@@ -1,10 +1,17 @@
-//! Utilities library.
+//! Utilities library for the crash upload system.
 //!
-//! This crate provides utility functions for file operations, device information retrieval,
-//! and other helpers used throughout the crash upload system.
+//! This crate provides various utility functions and helpers used throughout the crash upload system:
+//!
+//! - **File operations**: Functions for creating files, removing files/directories, and other
+//!   filesystem operations (see the [`command`] module)
+//!
+//! - **Device information**: Utilities for retrieving device properties such as MAC address,
+//!   version information, and config values from property files (see the [`device_info`] module)
+//!
+//! Most commonly used functions are re-exported at the crate root for convenience.
 
-mod command;
-mod device_info;
+pub mod command;
+pub mod device_info;
 
 /// Utilities library version.
 pub const UTILS_LIB_VER: &str = "v1.0";
