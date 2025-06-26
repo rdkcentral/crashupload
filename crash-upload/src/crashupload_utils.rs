@@ -1250,7 +1250,18 @@ pub fn copy_log_files_to_tmp(tmp_dir_name: &str, logfiles: &[&str]) -> Vec<Strin
 #[cfg(feature = "shared_api")]
 pub fn upload_to_s3_lib(args: &[&str], dump_paths: &DumpPaths, device_data: &DeviceData, curl_log_option: &str) -> std::io::Result<()> {
     // Call the Rust implementation from crash-upload-cpc
+    println!("upload_to_s3_lib: Uploading to S3 using Rust implementation");
+    println!("upload_to_s3_lib: Tars to be uploaded: {:#?}", args);
     let file = args.get(0).copied().unwrap_or("");
+    println!("upload_to_s3_lib: ###DEBUG### File to upload: {:#?}", file);
+    if !file.is_empty() {
+        let backup_path = format!("{}.backup", file);
+        println!("upload_to_s3_lib: ###DEBUG### Backing up file to: {}", backup_path);
+        if let Err(e) = std::fs::copy(file, &backup_path) {
+            println!("upload_to_s3_lib: Warning - Failed to create backup: {}", e);
+            // Continue with upload even if backup fails
+        }
+    }
     let mut force_mtls = String::new();
     let _ = utils::get_property_value_from_file(DEVICE_PROP_FILE, "FORCE_MTLS", &mut force_mtls);
     let image_name = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
