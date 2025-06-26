@@ -32,6 +32,7 @@ pub const VERSION_FILE: &str = "/version.txt";
 ///
 /// # Example
 /// ```
+/// use utils::get_property_value_from_file;
 /// let mut value = String::new();
 /// let found = get_property_value_from_file("/opt/device.properties", "MODEL_NUM", &mut value);
 /// if found {
@@ -75,6 +76,7 @@ pub fn get_property_value_from_file<P: AsRef<Path>, K: AsRef<str>>(path: P, key:
 ///
 /// # Example
 /// ```
+/// use utils::get_sha1_value;
 /// let mut sha1 = String::new();
 /// if get_sha1_value(&mut sha1) {
 ///     println!("SHA1: {}", sha1);
