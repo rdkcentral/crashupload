@@ -46,7 +46,7 @@ fn t2_msg_client_path() -> &'static Path {
 /// # Example
 /// ```
 /// use platform_interface::t2_api::t2_count_notify;
-/// t2_count_notify("SYST_INFO_minidumpUpld", None);
+/// t2_count_notify("SYST_INFO_minidumpUpld", None::<&str>);
 /// ```
 pub fn t2_count_notify<M: AsRef<str>, C: AsRef<str>>(marker: M, count: Option<C>) -> bool {
     let t2_client = t2_msg_client_path();
