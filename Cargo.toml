@@ -11,3 +11,10 @@ members = [
     "test/platform-interface-test",
     "test/utils-test",
 ]
+
+[profile.release]
+strip = true
+opt-level = "z"
+codegen-units = 1
+lto = true
+panic = "abort"
