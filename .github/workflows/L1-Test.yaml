@@ -34,6 +34,7 @@ jobs:
         cargo tarpaulin --all-features --workspace --timeout 120 \
           --out xml --output-dir ./coverage/ \
           --exclude-files "tests/*" "benches/*" "**/tests.rs" "**/test_*.rs" \
+          --skip-clean \
           --verbose
 
     - name: Upload coverage to Codecov
