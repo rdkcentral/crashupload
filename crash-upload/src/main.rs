@@ -14,7 +14,7 @@ mod crashupload_utils;
 use crashupload_utils::*;
 
 fn main() {
-    println!("Starting Crash Upload Binary...");
+    println!("main(): Starting Crash Upload Binary...");
 
     // TODO: Signal handling (trap/finalize on SIGTERM/SIGKILL/EXIT)
 
@@ -30,7 +30,7 @@ fn main() {
     let wait_for_lock = &args[3];
 
     // Instantiate configuration structs
-    println!("Instantiating DumpPaths and DeviceData instances...");
+    println!("main(): Instantiating DumpPaths and DeviceData instances...");
     let mut device_data = constants::DeviceData::new();
     let mut dump_paths = constants::DumpPaths::new();
 
@@ -60,7 +60,7 @@ fn main() {
     
     // Configure dump paths and metadata based on dump_flag
     if dump_flag == 1 {
-        println!("Starting coredump processing...");
+        println!("main(): Starting coredump processing...");
         dump_paths.set_dump_name("coredump");
         let core_path = dump_paths.get_core_path().to_string();
         dump_paths.set_working_dir(&core_path);
@@ -69,7 +69,7 @@ fn main() {
         dump_paths.set_lock_dir_prefix("/tmp/.uploadCoredumps");
         dump_paths.set_crash_portal_path("/opt/crashportal_uploads/coredumps/");
     } else {
-        println!("Starting minidump processing...");
+        println!("main(): Starting minidump processing...");
         dump_paths.set_dump_name("minidump");
         let minidumps_path = dump_paths.get_minidumps_path().to_string();
         dump_paths.set_working_dir(&minidumps_path);
@@ -104,10 +104,10 @@ fn main() {
             .unwrap_or(0);
         if uptime_val < 480 {
             let sleep_time = 480 - uptime_val;
-            println!("Deferring reboot for {} seconds", sleep_time);
+            println!("main(): Deferring reboot for {} seconds", sleep_time);
             thread::sleep(Duration::from_secs(sleep_time));
             if Path::new(constants::CRASH_UPLOAD_REBOOT_FLAG).exists() {
-                println!("Process crashed exiting from the Deferring reboot");
+                println!("main(): Process crashed exiting from the Deferring reboot");
                 finalize(&dump_paths);
                 std::process::exit(0);
             }
@@ -117,7 +117,7 @@ fn main() {
     // Check if working directory is empty
     let w_dir = dump_paths.get_working_dir();
     if crashupload_utils::is_dir_empty_or_unreadable(w_dir) {
-        println!("Working directory is empty or unreadable: {}", w_dir);
+        println!("main(): Working directory is empty or unreadable: {}", w_dir);
         crashupload_utils::finalize(&dump_paths);
         std::process::exit(0); // or exit(1) if you want to signal error
     }
@@ -128,13 +128,13 @@ fn main() {
     let route_file = Path::new(constants::NETWORK_FILE);
 
     while counter <= constants::NETWORK_CHECK_ITERATION {
-        println!("Check network status count {}", counter);
+        println!("main(): Check network status count {}", counter);
         if route_file.exists() {
-            println!("Route is Available break the loop");
+            println!("main(): Route is Available break the loop");
             break;
         } else {
             println!(
-                "Route is not available, Sleep for {} seconds",
+                "main(): Route is not available, Sleep for {} seconds",
                 constants::NETWORK_CHECK_TIMEOUT
             );
             thread::sleep(Duration::from_secs(constants::NETWORK_CHECK_TIMEOUT as u64));
@@ -143,37 +143,37 @@ fn main() {
     }
 
     if !route_file.exists() {
-        println!("Route is not available. tar dump and save it, as max wait reached");
+        println!("main(): Route is not available. tar dump and save it, as max wait reached");
         no_network = true;
     }
 
     // System time availability check
-    println!("IP Acquisition completed, Test if system time is received");
+    println!("main(): IP Acquisition completed, Test if system time is received");
     let stt_file = Path::new(constants::SYSTEM_TIME_FILE);
     if !stt_file.exists() {
         while counter <= constants::SYSTEM_TIME_ITERATION {
             if !stt_file.exists() {
-                println!("Waiting for STT, iteration {}", counter);
+                println!("main(): Waiting for STT, iteration {}", counter);
                 thread::sleep(Duration::from_secs(constants::SYSTEM_TIME_TIMEOUT as u64));
             } else {
-                println!("Received {} flag", constants::SYSTEM_TIME_FILE);
+                println!("main(): Received {} flag", constants::SYSTEM_TIME_FILE);
                 break;
             }
 
             if counter == constants::SYSTEM_TIME_ITERATION {
-                println!("Continue without {} flag", constants::SYSTEM_TIME_FILE);
+                println!("main(): Continue without {} flag", constants::SYSTEM_TIME_FILE);
             }
             counter += 1;
         }
     } else {
-        println!("Received {} flag", constants::SYSTEM_TIME_FILE);
+        println!("main(): Received {} flag", constants::SYSTEM_TIME_FILE);
     }
 
     // trap finalize EXIT
 
     // Wait for coredump completion if needed
     if !Path::new(constants::COREDUMP_MTX_FILE).exists() && dump_flag == 1 {
-        println!("Waiting for Coredump completion");
+        println!("main(): Waiting for Coredump completion");
         thread::sleep(Duration::from_secs(21));
     }
 
@@ -184,7 +184,7 @@ fn main() {
     }
 
     // Print device MAC address
-    println!("Mac Address is {}", device_data.get_mac_addr());
+    println!("main(): Mac Address is {}", device_data.get_mac_addr());
 
     // Count dumps using utility function
     let dump_count = match crashupload_utils::get_file_count(
@@ -195,7 +195,7 @@ fn main() {
         Err(_) => 0,
     };
     if dump_count == 0 {
-        println!("No {} for uploading exist", dump_paths.get_dump_name());
+        println!("main(): No {} for uploading exist", dump_paths.get_dump_name());
         crashupload_utils::finalize(&dump_paths);
         std::process::exit(0);
     }
@@ -208,15 +208,15 @@ fn main() {
     );
 
     // Print portal URL and build ID using getters
-    println!("Portal URL {}", device_data.get_portal_url());
-    println!("buildID is {}", device_data.get_sha1());
+    println!("main(): Portal URL {}", device_data.get_portal_url());
+    println!("main(): buildID is {}", device_data.get_sha1());
 
     // Final check: working directory must be a directory
     if !Path::new(w_dir).is_dir() {
         std::process::exit(1);
     }
     let image_name_main = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
-    println!("#### Main Image Name: {}", image_name_main);
+    println!("main(): Device Firmware: {}", image_name_main);
 
     // Main processing loop (up to 3 attempts, as in shell script)
     for _ in 0..3 {

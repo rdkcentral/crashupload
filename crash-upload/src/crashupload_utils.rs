@@ -599,12 +599,15 @@ fn remove_crash_locks_and_flag(dump_paths: &DumpPaths) {
 /// # Arguments
 /// * `dump_paths` - Reference to the dump paths struct.
 pub fn finalize(dump_paths: &DumpPaths) {
+    println!("finalize: ##DEBUG## Skipping cleanup and removing crash locks and flag for debugging purposes");
+    if false {
     let _ = cleanup(
         dump_paths.get_working_dir(),
         dump_paths.get_dump_name(),
         dump_paths.get_dumps_extn(),
     );
     remove_crash_locks_and_flag(dump_paths);
+}
 }
 
 /// Handles cleanup on receiving a crash-related signal (SIGTERM or SIGKILL).
@@ -1357,9 +1360,6 @@ pub fn process_dumps(
         }
     };
 
-    let image_name_proc = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
-    println!("#### ProcessDumps Image Name: {}", image_name_proc);
-
     for file in files {
         println!("process_dumps: -- Processing file: {}", file.display());
         let orig_file_name = basename(&file);
@@ -1405,8 +1405,8 @@ pub fn process_dumps(
 
             let dump_dir = Path::new(work_dir);
             let dump_file_path = dump_dir.join(&dump_file_name);
-            println!("#### Dump file path: {}", dump_file_path.display());
-            println!("#### Dump File Name: {}", dump_file_name);
+            println!("process_dumps: Dump file path: {}", dump_file_path.display());
+            println!("process_dumps: Dump File Name: {}", dump_file_name);
 
 
             if sanitized != dump_file_path {
@@ -1426,9 +1426,7 @@ pub fn process_dumps(
             let version_file_path = Path::new(work_dir).join("version.txt");
             if !version_file_path.exists() {
                 let _ = fs::copy(VERSION_FILE, &version_file_path);
-                println!("Version file path: {}", version_file_path.display());
-                let image_name_main = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
-                println!("#### Device Image Name: {} [{}]", image_name_main, VERSION_FILE);
+                println!("process_dumps: Version file path: {}", version_file_path.display());
             }
 
             if let Ok(metadata) = std::fs::metadata(&dump_file_path) {
@@ -1465,10 +1463,6 @@ pub fn process_dumps(
                     }
                 })
                 .collect();
-
-            println!("process_dumps: Log files (ABS) to be added: \n{:#?}\n", 
-                logfiles_abs
-            );
 
             let logfiles_refs: Vec<&str> = logfiles_abs.iter().map(|s| s.as_str()).collect();
 
@@ -1546,9 +1540,6 @@ pub fn process_dumps(
                 );
             }
 
-            let image_name_pd2 = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
-            println!("#### ProcessDumps 2 Image Name: {}", image_name_pd2);
-
             // 22. Remove the original dump file after compression
             rm_rf(dump_file_path.to_str().unwrap());
 
@@ -1556,12 +1547,8 @@ pub fn process_dumps(
             if dump_paths.dump_name != "coredump" {
                 let _ = remove_logs(work_dir);
             }
-            let image_name_pd3 = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
-            println!("#### ProcessDumps 3 Image Name: {}", image_name_pd3);
         }
     }
-    let image_name_pd4 = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
-    println!("#### ProcessDumps 4 Image Name: {}", image_name_pd4);
     handle_tarballs(device_data, dump_paths, no_network, crash_ts);
 }
 
@@ -1884,6 +1871,11 @@ fn upload_tarball_with_retries(
 fn post_upload_cleanup(upload_success: bool, dump_paths: &DumpPaths, tarball: &Path, s3_filename: &str) { 
     let parent = tarball.parent().unwrap_or_else(|| Path::new(""));
     let s3_path = parent.join(s3_filename);
+    println!("post_upload_cleanup: s3_path: {}", s3_path.display());
+    println!("post_upload_cleanup: s3_filename: {}", s3_filename);
+
+    println!("post_upload_cleanup: ##DEBUG## Skipping Cleanup intentionally for debugging purposes");
+    if false {
 
     if upload_success {
         println!("post_upload_cleanup: Removing file {}", s3_filename);
@@ -1898,6 +1890,7 @@ fn post_upload_cleanup(upload_success: bool, dump_paths: &DumpPaths, tarball: &P
             println!("post_upload_cleanup: Removing file {}", s3_filename);
             let _ = fs::remove_file(&s3_path);
         }
+    }
         // TODO: Should exit?
     }
 }
