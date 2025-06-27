@@ -15,26 +15,39 @@ jobs:
     name: Test & Coverage
     runs-on: ubuntu-latest
     container:
-      image: rust:latest
+      image: ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install dependencies
+    - name: Install Rust Toolchain components
       run: |
-        apt-get update && apt-get install -y git pkg-config libssl-dev
-        cargo install cargo-tarpaulin
+        if ! command -v cargo &> /dev/null; then
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          export PATH="$HOME/.cargo/bin:$PATH"
+        fi
+        rustup update stable
+        rustup default stable
+
+    - name: Add Rust to PATH
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install cargo-tarpaulin
+      run: cargo install cargo-tarpaulin
+
+    - name: Install additional dependencies
+      run: |
+        apt-get update && apt-get install -y git pkg-config libssl-dev || true
 
     - name: Run all tests
       run: cargo test --all-features --workspace --verbose
 
     - name: Run tests with tarpaulin for coverage
       run: |
-        sudo -E cargo tarpaulin --all-features --workspace --timeout 120 \
+        cargo tarpaulin --all-features --workspace --timeout 120 \
           --out xml --output-dir ./coverage/ \
           --exclude-files "tests/*" "benches/*" "**/tests.rs" "**/test_*.rs" \
-          --skip-clean \
           --verbose
 
     - name: Upload coverage to Codecov
