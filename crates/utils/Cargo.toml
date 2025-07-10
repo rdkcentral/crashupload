@@ -1,0 +1,11 @@
+[package]
+name = "utils"
+version = "0.1.0"
+edition = "2021"
+description = "Common Utility crates"
+repository = "https://github.com/rdkcentral/crashupload/tree/feature-sample-rust/crates/utils"
+homepage = "https://github.com/rdkcentral/crashupload/tree/feature-sample-rust/crates/utils"
+
+[dependencies]
+# Uncomment to Link this library dynamically
+#crate_type = ["dynlib"]
