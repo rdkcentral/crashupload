@@ -709,8 +709,10 @@ processCrashTelemtryInfo()
         logMessage "Container crash info Advance: $containerName, $containerStatus"
         logMessage "NEW Appname, Process_Crashed, Status = $Appname, $ProcessName, $containerStatus"
         logMessage "NEW Processname, App Name, AppState = $ProcessName, $Appname, $containerStatus"
-        logMessage "ContainerName, ContainerStatus = $containerName, $containerStatus"
-        t2ValNotify "NewProcessCrash_split" "$containerName, $containerStatus"
+        logMessage "ContainerName = $containerName"
+        t2ValNotify "NewProcessCrash_split" "$containerName"
+        logMessage "ContainerStatus = $containerStatus"
+        t2ValNotify "AppcrashType_split" "$containerStatus"	
         
     fi
     # This is a temporary call; we need to get marker confirmation from the Triage Team.
