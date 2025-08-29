@@ -719,9 +719,10 @@ processCrashTelemtryInfo()
         t2ValNotify "APP_ERROR_Crashed_split" "$Appname, $ProcessName, $containerStatus"
         t2ValNotify "APP_ERROR_Crashed_accum" "$Appname, $ProcessName, $containerStatus"
         logMessage "NEW Processname, App Name, AppState = $ProcessName, $Appname, $containerStatus"
-        logMessage "ContainerName, ContainerStatus = $containerName, $containerStatus"
-        t2ValNotify "APP_ERROR_CrashInfo_accum" "$containerName, $containerStatus"
-
+		logMessage "ContainerName = $containerName"
+        t2ValNotify "APP_ERROR_CrashInfo" "$containerName"
+        logMessage "ContainerStatus = $containerStatus"
+        t2ValNotify "APP_ERROR_CrashInfo_status" "$containerStatus"
         
     fi
     # This is a temporary call; we need to get marker confirmation from the Triage Team.
