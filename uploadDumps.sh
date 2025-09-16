@@ -459,13 +459,8 @@ if [ -z "$WORKING_DIR" ] || [ -z "$(ls -A $WORKING_DIR 2> /dev/null)" ];then
 	exit 0
 fi
 
-if [ "$DEVICE_TYPE" = "broadband" ] || [ "$DEVICE_TYPE" = "extender" ];then
-     PORTAL_URL="rdkbcrashportal.stb.r53.xcal.tv"
-     REQUEST_TYPE=18
-else
-    PORTAL_URL=$(tr181 -g Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl 2>&1)
-    REQUEST_TYPE=17
-fi
+PORTAL_URL=$(tr181 -g Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl 2>&1)
+REQUEST_TYPE=17
 
 DENY_UPLOADS_FILE="/tmp/.deny_dump_uploads_till"
 ON_STARTUP_DUMPS_CLEANED_UP_BASE="/tmp/.on_startup_dumps_cleaned_up"
