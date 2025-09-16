@@ -155,8 +155,6 @@ export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 # causes a pipeline to produce a failure return code in case of errors
 set -o pipefail
 
-S3BUCKET="ccp-stbcrashes"
-s3bucketurl="s3.amazonaws.com"
 HTTP_CODE="/tmp/httpcode"
 S3_FILENAME=""
 CURL_UPLOAD_TIMEOUT=45
