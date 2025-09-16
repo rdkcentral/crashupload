@@ -611,7 +611,7 @@ if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
 fi
 
 
-if [ "$DEVICE_TYPE" != "broadband" ] || [ "$DEVICE_TYPE" = "extender" ];then
+if [ "$DEVICE_TYPE" = "broadband" ] || [ "$DEVICE_TYPE" = "extender" ];then
     network_commn_status
 else    
     # wait the internet connection once after boot
@@ -689,6 +689,9 @@ is_box_rebooting()
 # Get the MAC address of the box
 read -r MAC < /tmp/.macAddress
 MAC="${MAC//:}"
+
+# Ensure MAC is not empty
+checkMAC
 logMessage "Mac address is $MAC"
 
 count=$(find "$WORKING_DIR" -name "$DUMPS_EXTN" | wc -l)
