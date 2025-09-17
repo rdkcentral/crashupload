@@ -260,7 +260,6 @@ remove_lock()
     fi
 }
 
-POTOMAC_USER=ccpstbscp
 # Assign the input arguments
 # CRASHTS was previously taken from first argument to the script, but we decided to just generate it here.
 CRASHTS=$(date +%Y-%m-%d-%H-%M-%S)
@@ -459,29 +458,8 @@ if [ -z "$WORKING_DIR" ] || [ -z "$(ls -A $WORKING_DIR 2> /dev/null)" ];then
 	exit 0
 fi
 
-PORTAL_URL=$(tr181 -g Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl 2>&1)
-REQUEST_TYPE=17
-
 DENY_UPLOADS_FILE="/tmp/.deny_dump_uploads_till"
 ON_STARTUP_DUMPS_CLEANED_UP_BASE="/tmp/.on_startup_dumps_cleaned_up"
-
-encryptionEnable=false
-if [ "$DEVICE_TYPE" == "broadband" ]; then
-    #we are swaping dmcli and syscfg because dmcli will not work once rbus is down
-    logMessage "Checking for Encryption Support through syscfg"
-    encryptionEnable=`syscfg get encryptcloudupload`
-    if [ "$encryptionEnable" = "" -a "$BOX_TYPE" = "XB3" ]; then
-        logMessage "syscfg value got null, it may be due to calling script from atom side"
-        encryptionEnable=`rpcclient $ARM_ARPING_IP "syscfg get encryptcloudupload" | cut -d$'\n' -f4`
-        if [ "$encryptionEnable" = "" ];then
-            logMessage "Checking for Encryption Support through dmcli"
-            encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value`
-            encryptionEnable=`echo $encryptionEnable | cut -d ":" -f 3 | tr -d ' '`
-        fi
-    fi
-elif [ -f /etc/os-release ]; then
-    encryptionEnable=`tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable 2>&1 > /dev/null`
-fi
 
 # append timestamp in seconds to $TIMESTAMP_FILENAME
 # Uses globals: TIMESTAMP_FILENAME
@@ -660,14 +638,16 @@ fi
 # Upon exit, remove locking
 trap finalize EXIT
 
-#skip upload if opt out is set to true
-getOptOutStatus
-opt_out=$?
-if [ $opt_out -eq 1 ]; then
-    logMessage "Coreupload is disabled as TelemetryOptOut is set"
-    removePendingDumps
-    exit
-fi
+if [ "$DEVICE_TYPE" != "broadband" ];then
+    #skip upload if opt out is set to true
+    getOptOutStatus
+    opt_out=$?
+    if [ $opt_out -eq 1 ]; then
+        logMessage "Coreupload is disabled as TelemetryOptOut is set"
+        removePendingDumps
+        exit
+    fi
+fi    
 
 if [ ! -f /tmp/coredump_mutex_release ] && [ "$DUMP_FLAG" == "1" ]; then
      logMessage "Waiting for Coredump Completion"
