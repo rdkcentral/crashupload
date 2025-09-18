@@ -1,0 +1,290 @@
+//! Crash Upload Binary - Main Entry Point
+//! 
+//! This module provides the entry point for the crash upload utility, which detects,
+//! processes, and uploads crash dumps (minidumps and coredumps) to cloud storage.
+//! 
+//! # Command-Line Usage
+//! 
+//! The binary accepts three required command-line arguments:
+//! ```
+//! crash-upload <dump_flag> <upload_flag> <wait_for_lock>
+//! ```
+//! 
+//! - `dump_flag`: Integer (1 for coredump processing, any other value for minidump)
+//! - `upload_flag`: String ("secure" for secure paths, any other value for standard paths)
+//! - `wait_for_lock`: String ("wait_for_lock" to wait if locked, any other value to exit)
+//! 
+//! # Workflow
+//! 
+//! The main workflow consists of:
+//! 1. Configuration and initialization (loading device data, setting paths)
+//! 2. Early exit checks (no dumps exist, box is rebooting)
+//! 3. Network and system time verification
+//! 4. Dump processing (finding, compressing, and uploading dumps)
+//! 5. Cleanup and finalization
+//! 
+//! # Integration Points
+//! 
+//! - Device property system (for device metadata)
+//! - Filesystem (for finding and manipulating dump files)
+//! - Network subsystem (for upload capabilities)
+//! - System time service (for timestamp generation)
+//! - Mutex-like locking (for preventing concurrent execution)
+//! 
+// standard library imports
+use std::path::Path;
+use std::time::Duration;
+use std::{env, fs, thread};
+
+// external crate imports
+use chrono::Local;
+
+// crashupload internal module imports
+mod constants;
+mod crashupload_utils;
+
+// Utility crates
+use crashupload_utils::*;
+
+/// Main entry point for the crash upload binary.
+/// 
+/// This function implements the complete crash upload workflow:
+/// 1. Parse command-line arguments and initialize configuration
+/// 2. Configure paths based on dump type (minidump or coredump)
+/// 3. Check for early exit conditions (no dumps, box rebooting)
+/// 4. Wait for network and system time if needed
+/// 5. Process and upload dumps with retry capability
+/// 6. Clean up and exit
+/// 
+/// # Command-Line Arguments
+/// 
+/// * `args[1]`: Dump flag (1 for coredump, any other value for minidump)
+/// * `args[2]`: Upload flag ("secure" for secure paths, any other value for standard)
+/// * `args[3]`: Wait flag ("wait_for_lock" to wait if locked, any other to exit)
+/// 
+/// # Side Effects
+/// 
+/// - Creates and removes lock files
+/// - May upload files to cloud storage
+/// - May delete or compress files on the filesystem
+/// - Logs progress to stdout
+/// - May exit process early under certain conditions
+fn main() {
+    println!("main(): Starting Crash Upload Binary...");
+
+    // TODO: Signal handling (trap/finalize on SIGTERM/SIGKILL/EXIT)
+
+    // Parse command-line arguments
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 4 {
+        println!("Usage: {} <integer> <string> <string>", args[0]);
+        std::process::exit(1);
+    }
+
+    let dump_flag = args[1].parse::<u32>().expect("Dump flag must be a number");
+    let upload_flag = &args[2];
+    let wait_for_lock = &args[3];
+
+    // Instantiate configuration structs
+    println!("main(): Instantiating DumpPaths and DeviceData instances...");
+    let mut device_data = constants::DeviceData::new();
+    let mut dump_paths = constants::DumpPaths::new();
+
+    // Populate device data from system properties
+    crashupload_utils::set_device_data(&mut device_data);
+
+    // Set dump paths based on upload flag
+    if upload_flag == "secure" {
+        dump_paths.set_core_path("/opt/secure/corefiles");
+        dump_paths.set_minidumps_path("/opt/secure/minidumps");
+    } else {
+        dump_paths.set_core_path("/var/lib/systemd/coredump");
+        dump_paths.set_minidumps_path("/opt/minidumps");
+    }
+
+    // Exit early if no dumps exist
+    if !crashupload_utils::check_dumps_exist(dump_paths.get_minidumps_path(), dump_paths.get_core_path()) {
+        println!("main(): No dumps found in {} or {}. Exiting...", dump_paths.get_minidumps_path(), dump_paths.get_core_path());
+        std::process::exit(0);
+    }
+
+    // Set secure dump status if needed
+    crashupload_utils::get_secure_dump_status(&mut dump_paths);
+
+    // Generate crash timestamp
+    let crash_ts = Local::now().format("%Y-%m-%d-%H-%M-%S").to_string();
+    
+    // Configure dump paths and metadata based on dump_flag
+    if dump_flag == 1 {
+        println!("main(): Starting coredump processing...");
+        dump_paths.set_dump_name("coredump");
+        let core_path = dump_paths.get_core_path().to_string();
+        dump_paths.set_working_dir(&core_path);
+        dump_paths.set_dumps_extn("*core.prog*.gz*");
+        dump_paths.set_tar_extn("*.core.tgz");
+        dump_paths.set_lock_dir_prefix("/tmp/.uploadCoredumps");
+        dump_paths.set_crash_portal_path("/opt/crashportal_uploads/coredumps/");
+    } else {
+        println!("main(): Starting minidump processing...");
+        dump_paths.set_dump_name("minidump");
+        let minidumps_path = dump_paths.get_minidumps_path().to_string();
+        dump_paths.set_working_dir(&minidumps_path);
+        dump_paths.set_dumps_extn("*.dmp*");
+        dump_paths.set_tar_extn("*.dmp.tgz");
+        dump_paths.set_lock_dir_prefix("/tmp/.uploadMinidumps");
+        dump_paths.set_crash_portal_path("/opt/crashportal_uploads/coredumps/");
+        thread::sleep(Duration::from_secs(5));
+    };
+    dump_paths.set_ts_file(format!("/tmp/.{}_upload_timestamps", dump_paths.get_dump_name()));
+
+    println!("main(): [DEBUG] dump_paths: {:#?}\n", dump_paths);
+    println!("main(): [DEBUG] device_data: {:#?}\n ", device_data);
+
+    // Locking logic
+    if wait_for_lock == "wait_for_lock" {
+        crashupload_utils::create_lock_or_wait(dump_paths.get_lock_dir_prefix());
+    } else {
+        crashupload_utils::create_lock_or_exit(dump_paths.get_lock_dir_prefix(), device_data.get_is_t2_enabled());
+    }
+
+    // Defer upload if device just booted (hybrid/mediaclient)
+    let tmp_device_type = device_data.get_device_type();
+    if tmp_device_type == "hybrid" || tmp_device_type == "mediaclient" {
+        let uptime_str = fs::read_to_string("/proc/uptime").expect("Unable to read uptime");
+        let uptime_val = uptime_str
+            .split('.')
+            .next()
+            .unwrap_or("0")
+            .trim()
+            .parse::<u64>()
+            .unwrap_or(0);
+        if uptime_val < 480 {
+            let sleep_time = 480 - uptime_val;
+            println!("main(): Deferring reboot for {} seconds", sleep_time);
+            thread::sleep(Duration::from_secs(sleep_time));
+            if Path::new(constants::CRASH_UPLOAD_REBOOT_FLAG).exists() {
+                println!("main(): Process crashed exiting from the Deferring reboot");
+                finalize(&dump_paths);
+                std::process::exit(0);
+            }
+        }
+    }
+    
+    // Check if working directory is empty
+    let w_dir = dump_paths.get_working_dir();
+    if crashupload_utils::is_dir_empty_or_unreadable(w_dir) {
+        println!("main(): Working directory is empty or unreadable: {}", w_dir);
+        crashupload_utils::finalize(&dump_paths);
+        std::process::exit(0); // or exit(1) if you want to signal error
+    }
+
+    // Network availability check
+    let mut counter = 1;
+    let mut no_network = false;
+    let route_file = Path::new(constants::NETWORK_FILE);
+
+    while counter <= constants::NETWORK_CHECK_ITERATION {
+        println!("main(): Check network status count {}", counter);
+        if route_file.exists() {
+            println!("main(): Route is Available break the loop");
+            break;
+        } else {
+            println!(
+                "main(): Route is not available, Sleep for {} seconds",
+                constants::NETWORK_CHECK_TIMEOUT
+            );
+            thread::sleep(Duration::from_secs(constants::NETWORK_CHECK_TIMEOUT as u64));
+            counter += 1;
+        }
+    }
+
+    if !route_file.exists() {
+        println!("main(): Route is not available. tar dump and save it, as max wait reached");
+        no_network = true;
+    }
+
+    // System time availability check
+    println!("main(): IP Acquisition completed, Test if system time is received");
+    let stt_file = Path::new(constants::SYSTEM_TIME_FILE);
+    if !stt_file.exists() {
+        while counter <= constants::SYSTEM_TIME_ITERATION {
+            if !stt_file.exists() {
+                println!("main(): Waiting for STT, iteration {}", counter);
+                thread::sleep(Duration::from_secs(constants::SYSTEM_TIME_TIMEOUT as u64));
+            } else {
+                println!("main(): Received {} flag", constants::SYSTEM_TIME_FILE);
+                break;
+            }
+
+            if counter == constants::SYSTEM_TIME_ITERATION {
+                println!("main(): Continue without {} flag", constants::SYSTEM_TIME_FILE);
+            }
+            counter += 1;
+        }
+    } else {
+        println!("main(): Received {} flag", constants::SYSTEM_TIME_FILE);
+    }
+
+    // trap finalize EXIT
+
+    // Wait for coredump completion if needed
+    if !Path::new(constants::COREDUMP_MTX_FILE).exists() && dump_flag == 1 {
+        println!("main(): Waiting for Coredump completion");
+        thread::sleep(Duration::from_secs(21));
+    }
+
+    // Early exit if box is rebooting
+    if is_box_rebooting(device_data.get_is_t2_enabled()) {
+        crashupload_utils::finalize(&dump_paths);
+        std::process::exit(0);
+    }
+
+    // Print device MAC address
+    println!("main(): Mac Address is {}", device_data.get_mac_addr());
+
+    // Count dumps using utility function
+    let dump_count = match crashupload_utils::get_file_count(
+        dump_paths.get_working_dir(),
+        dump_paths.get_dumps_extn(),
+        ) {
+        Ok(dump_cnt) => dump_cnt,
+        Err(_) => 0,
+    };
+    if dump_count == 0 {
+        println!("main(): No {} for uploading exist", dump_paths.get_dump_name());
+        crashupload_utils::finalize(&dump_paths);
+        std::process::exit(0);
+    }
+
+    // Cleanup old dumps using utility function
+    let _ = cleanup(
+        dump_paths.get_working_dir(),
+        dump_paths.get_dump_name(),
+        dump_paths.get_dumps_extn(),
+    );
+
+    // Print portal URL and build ID using getters
+    println!("main(): Portal URL {}", device_data.get_portal_url());
+    println!("main(): buildID is {}", device_data.get_sha1());
+
+    // Final check: working directory must be a directory
+    if !Path::new(w_dir).is_dir() {
+        std::process::exit(1);
+    }
+    let image_name_main = std::fs::read_to_string("/version.txt").unwrap().lines().next().unwrap().split("imagename:").nth(1).unwrap().trim().to_string();
+    println!("main(): Device Firmware: {}", image_name_main);
+
+    // Main processing loop (up to 3 attempts, as in shell script)
+    for _ in 0..3 {
+        let files = crashupload_utils::find_dump_files(
+            dump_paths.get_working_dir(),
+            dump_paths.get_dumps_extn(),
+        ).unwrap_or_default();
+        if files.is_empty() {
+            break;
+        }
+        crashupload_utils::process_dumps(&device_data, &dump_paths, &crash_ts, no_network);
+    }
+
+    finalize(&dump_paths);
+}

@@ -1,0 +1,7 @@
+[package]
+name = "curl-interface-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+curl-interface = {path = "../../crates/curl-interface"}

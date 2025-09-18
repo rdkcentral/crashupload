@@ -1,0 +1,18 @@
+[workspace]
+members = [
+    "crash-upload",
+    "crates/curl-interface",
+    "crates/json-parser-interface",
+    "crates/platform-interface",
+    "crates/utils",
+    "test/crash-upload-test",
+    "test/curl-interface-test",
+    "test/json-parser-interface-test",
+    "test/platform-interface-test",
+    "test/utils-test",
+]
+
+[profile.release]
+opt-level = "z"
+codegen-units = 1
+lto = true
