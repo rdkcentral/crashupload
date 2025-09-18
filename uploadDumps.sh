@@ -638,7 +638,7 @@ fi
 # Upon exit, remove locking
 trap finalize EXIT
 
-if [ "$DEVICE_TYPE" != "broadband" ];then
+if [ "$DEVICE_TYPE" = "mediaclient" ]; then
     #skip upload if opt out is set to true
     getOptOutStatus
     opt_out=$?
