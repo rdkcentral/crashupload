@@ -337,10 +337,9 @@ checkMAC()
             logMessage "Output of ifconfig:"
             ifconfig -a 2>&1 | logStdout
         fi
-    else
-        # forcibly take to UPPER case and remove colons if present
-        MAC=`echo "$MAC" | tr a-f A-F | sed -e 's/://g'`
     fi
+    # forcibly take to UPPER case and remove colons if present
+    MAC=`echo "$MAC" | tr a-f A-F | sed -e 's/://g'`
 }
 
 deleteAllButTheMostRecentFile()
