@@ -70,20 +70,50 @@ else
         CORE_PATH="/var/lib/systemd/coredump"
         MINIDUMPS_PATH="/opt/minidumps"
 fi
+
+if [ "$DEVICE_TYPE" = "broadband" ];then
+        CORE_PATH="/minidumps"
+        LOG_PATH="/rdklogs/logs"
+        if [ ! -d $LOG_PATH ];then mkdir -p $LOG_PATH; fi
+        if [ "$MULTI_CORE" = "yes" ] ;then
+             COMM_INTERFACE=`get_interface_value`
+        else
+             COMM_INTERFACE=$INTERFACE
+        fi
+fi
+
 # Log file setup
 CORE_LOG="$LOG_PATH/core_log.txt"
+
+if [ "$DEVICE_TYPE" = "extender" ];then
+    CORE_LOG="/var/log/messages"
+    CORE_PATH=/minidumps
+fi
+
 if [[ ! -f $CORE_LOG ]]; then
     touch $CORE_LOG
     chmod a+w $CORE_LOG
 fi
 
 #Check for coredump and minidump files
-if [ ! -e $MINIDUMPS_PATH/*.dmp* -a ! -e $CORE_PATH/*_core*.* ]; then exit 0; fi
+if [ "$DEVICE_TYPE" = "broadband" ];then
+    if [ ! -e $CORE_PATH/*.dmp ]; then exit 0; fi
+elif [ "$DEVICE_TYPE" = "extender" ];then
+    if [ ! -e $CORE_PATH/*.dmp ]; then exit 0; fi    
+else
+    if [ ! -e $MINIDUMPS_PATH/*.dmp* -a ! -e $CORE_PATH/*_core*.* ]; then exit 0; fi
+fi
 
 
 if [ -f /lib/rdk/getpartnerid.sh ]; then
     source /lib/rdk/getpartnerid.sh
     partnerId="$(getPartnerId)"
+fi
+
+if [ "$DEVICE_TYPE" = "extender" ];then
+    partnerId=$(cat $PERSISTENT_PATH/account | grep -o '"partnerId":"[^"]*' | sed 's/"partnerId":"//')
+    ARM_INTERFACE=$(getWanInterfaceName)
+    logMessage "ARM $ARM_INTERFACE"
 fi
 
 if [ -f $RDK_PATH/utils.sh ];then
@@ -99,14 +129,24 @@ if [ "$DEVICE_TYPE" != "mediaclient" ] && [ -f $RDK_PATH/commonUtils.sh ]; then
 fi
 
 # Override Options for testing non PROD builds
- 
-if [ -f /opt/coredump.properties -a $BUILD_TYPE != "prod" ];then
-     	. /opt/coredump.properties
+if [ "$DEVICE_TYPE" = "broadband" ];then
+	if [ -f /nvram/coredump.properties -a $BUILD_TYPE != "prod" ];then
+		. /nvram/coredump.properties
+	fi
+else
+	if [ -f /opt/coredump.properties -a $BUILD_TYPE != "prod" ];then
+     		. /opt/coredump.properties
+	fi
 fi
 
-CURL_LOG_OPTION="%{remote_ip} %{remote_port}"
+if [ "$DEVICE_TYPE" != "broadband" ];then
+    CURL_LOG_OPTION="%{remote_ip} %{remote_port}"
+fi
 
-
+if [ -f /etc/waninfo.sh ]; then
+    . /etc/waninfo.sh
+    ARM_INTERFACE=$(getWanInterfaceName)
+fi
 
 # export PATH and LD_LIBRARY_PATH for curl
 export PATH=$PATH:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin
@@ -126,12 +166,31 @@ OUT_FILES=""
 # Yocto conditionals
 TLS=""
 # force tls1.2 for yocto video devices and all braodband devices
-if [ -f /etc/os-release ]; then
+if [ -f /etc/os-release ] || [ "$DEVICE_TYPE" = "broadband" ];then
     TLS="--tlsv1.2"
 fi
 
 EnableOCSPStapling="/tmp/.EnableOCSPStapling"
 EnableOCSP="/tmp/.EnableOCSPCA"
+
+#get telemetry opt out status
+getOptOutStatus()
+{
+    optoutStatus=0
+    currentVal="false"
+    #check if feature is enabled through rfc
+    rfcStatus=$(tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryOptOut.Enable 2>&1 > /dev/null)
+    #check the current option
+    if [ -f /opt/tmtryoptout ]; then
+        currentVal=$(cat /opt/tmtryoptout)
+    fi
+    if [ "x$rfcStatus" == "xtrue" ]; then
+        if [ "x$currentVal" == "xtrue" ]; then
+            optoutStatus=1
+        fi
+    fi
+    return $optoutStatus
+}
 
 # Set the name of the log file using SHA1
 setLogFile()
@@ -201,7 +260,6 @@ remove_lock()
     fi
 }
 
-POTOMAC_USER=ccpstbscp
 # Assign the input arguments
 # CRASHTS was previously taken from first argument to the script, but we decided to just generate it here.
 CRASHTS=$(date +%Y-%m-%d-%H-%M-%S)
@@ -223,7 +281,12 @@ MODEL_NUM_DEFAULT_VALUE="UNKNOWN"
 logMessage()
 {
     message="$1"
-    echo "$(/bin/timestamp) [PID:$$]: $message" >> $CORE_LOG
+    if [ "$DEVICE_TYPE" = "extender" ];then
+	POD_TIMESTAMP=$(date +"%b %d %H:%M:%S")
+	echo "$POD_TIMESTAMP CRASH_UPLOAD[$$]: $message" >> $CORE_LOG
+    else
+    	echo "`/bin/timestamp` [CRASH_UPLOAD] [PID:$$]: $message" >> $CORE_LOG
+    fi
 }
 
 tlsLog()
@@ -240,7 +303,6 @@ sanitize()
    clean=$(echo "$toClean"|sed -e 's/[^/a-zA-Z0-9 :+._,=-]//g')
    echo "$clean"
 }
-
 
 checkParameter()
 {
@@ -262,6 +324,22 @@ checkParameter()
             ;;
         esac
     fi
+}
+
+checkMAC()
+{
+    if [ -z "$MAC" ] ; then
+        logMessage "MAC address is empty. Trying to get it again, including network interfaces currently down."
+        MAC=`getMacAddressOnly`
+        if [ -z "$MAC" ] ; then
+            logMessage "MAC address is still empty. Setting to default value."
+            MAC=$MAC_DEFAULT_VALUE
+            logMessage "Output of ifconfig:"
+            ifconfig -a 2>&1 | logStdout
+        fi
+    fi
+    # forcibly take to UPPER case and remove colons if present
+    MAC=`echo "$MAC" | tr a-f A-F | sed -e 's/://g'`
 }
 
 deleteAllButTheMostRecentFile()
@@ -326,6 +404,9 @@ finalize()
     [ -f "$crashLoopFlagFile" ] && rm -f "$crashLoopFlagFile"
     remove_lock $LOCK_DIR_PREFIX
     remove_lock "$TIMESTAMP_FILENAME"
+    if [ "$DEVICE_TYPE" = "broadband" ];then
+         touch /tmp/crash_reboot
+    fi    
 }
 
 sigkill_function()
@@ -357,7 +438,12 @@ if [ "$DUMP_FLAG" == "1" ] ; then
     CRASH_PORTAL_PATH="/opt/crashportal_uploads/coredumps/"
 else
     logMessage "starting minidump processing"
-    WORKING_DIR="$MINIDUMPS_PATH"
+    if [ "$DEVICE_TYPE" = "broadband" ] || [ "$DEVICE_TYPE" = "extender" ];then
+        WORKING_DIR="/minidumps"
+        MINIDUMPS_PATH="/minidumps"
+    else
+        WORKING_DIR="$MINIDUMPS_PATH"
+    fi    
     DUMPS_EXTN=*.dmp*
     TARBALLS=*.dmp.tgz
     CRASH_PORTAL_PATH="/opt/crashportal_uploads/minidumps/"
@@ -371,16 +457,8 @@ if [ -z "$WORKING_DIR" ] || [ -z "$(ls -A $WORKING_DIR 2> /dev/null)" ];then
 	exit 0
 fi
 
-PORTAL_URL=$(tr181 -g Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl 2>&1)
-REQUEST_TYPE=17
-
 DENY_UPLOADS_FILE="/tmp/.deny_dump_uploads_till"
 ON_STARTUP_DUMPS_CLEANED_UP_BASE="/tmp/.on_startup_dumps_cleaned_up"
-
-encryptionEnable=false
-if [ -f /etc/os-release ]; then
-    encryptionEnable=`tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable 2>&1 > /dev/null`
-fi
 
 # append timestamp in seconds to $TIMESTAMP_FILENAME
 # Uses globals: TIMESTAMP_FILENAME
@@ -510,55 +588,65 @@ if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
 fi
 
 
-# wait the internet connection once after boot
-NETWORK_TESTED="/tmp/route_available"
-NETWORK_TEST_ITERATIONS=18
-NETWORK_TEST_DELAY=10
-SYSTEM_TIME_TEST_ITERATIONS=10
-SYSTEM_TIME_TEST_DELAY=1
-SYSTEM_TIME_TESTED="/tmp/stt_received"
-counter=1
-NoNetwork=0
-while [ $counter -le $NETWORK_TEST_ITERATIONS ]; do
-    logMessage "Check Network status count $counter"
-    if [ -f $NETWORK_TESTED ]; then
-	logMessage "Route is Available break the loop"
-        break
-    else
-        logMessage "Route is not available sleep for $NETWORK_TEST_DELAY"
-        sleep $NETWORK_TEST_DELAY
-        counter=$(( counter + 1 ))
-    fi
-done
-if [ ! -f $NETWORK_TESTED ]; then
-    logMessage "Route is NOT Available, tar dump and save it as MAX WAIT has been reached"
-    NoNetwork=1
-fi
-logMessage "IP acquistion completed, Testing the system time is received"
-if [ ! -f "$SYSTEM_TIME_TESTED" ]; then
-    while [ $counter -le $SYSTEM_TIME_TEST_ITERATIONS ]; do
-	if [ ! -f "$SYSTEM_TIME_TESTED" ]; then
-            logMessage "Waiting for STT, iteration $counter"
-            sleep $SYSTEM_TIME_TEST_DELAY
-        else
-            logMessage "Received $SYSTEM_TIME_TESTED flag"
+if [ "$DEVICE_TYPE" = "broadband" ] || [ "$DEVICE_TYPE" = "extender" ];then
+    network_commn_status
+else    
+    # wait the internet connection once after boot
+    NETWORK_TESTED="/tmp/route_available"
+    NETWORK_TEST_ITERATIONS=18
+    NETWORK_TEST_DELAY=10
+    SYSTEM_TIME_TEST_ITERATIONS=10
+    SYSTEM_TIME_TEST_DELAY=1
+    SYSTEM_TIME_TESTED="/tmp/stt_received"
+    counter=1
+    NoNetwork=0
+    while [ $counter -le $NETWORK_TEST_ITERATIONS ]; do
+        logMessage "Check Network status count $counter"
+        if [ -f $NETWORK_TESTED ]; then
+            logMessage "Route is Available break the loop"
             break
+        else
+            logMessage "Route is not available sleep for $NETWORK_TEST_DELAY"
+            sleep $NETWORK_TEST_DELAY
+            counter=$(( counter + 1 ))
         fi
-
-        if [ $counter = $SYSTEM_TIME_TEST_ITERATIONS ]; then
-            logMessage "Continue without $SYSTEM_TIME_TESTED flag"
-        fi
-
-        counter=$(( counter + 1 ))
     done
-else
-    logMessage "Received $SYSTEM_TIME_TESTED flag"
+    if [ ! -f $NETWORK_TESTED ]; then
+        logMessage "Route is NOT Available, tar dump and save it as MAX WAIT has been reached"
+        NoNetwork=1
+    fi
+    logMessage "IP acquistion completed, Testing the system time is received"
+    if [ ! -f "$SYSTEM_TIME_TESTED" ]; then
+        while [ $counter -le $SYSTEM_TIME_TEST_ITERATIONS ]; do
+            if [ ! -f "$SYSTEM_TIME_TESTED" ]; then
+                logMessage "Waiting for STT, iteration $counter"
+                sleep $SYSTEM_TIME_TEST_DELAY
+            else
+                logMessage "Received $SYSTEM_TIME_TESTED flag"
+                break
+            fi
+            if [ $counter = $SYSTEM_TIME_TEST_ITERATIONS ]; then
+                logMessage "Continue without $SYSTEM_TIME_TESTED flag"
+            fi
+            counter=$(( counter + 1 ))
+        done
+    else
+        logMessage "Received $SYSTEM_TIME_TESTED flag"
+    fi
 fi
-
-
 # Upon exit, remove locking
 trap finalize EXIT
 
+if [ "$DEVICE_TYPE" = "mediaclient" ]; then
+    #skip upload if opt out is set to true
+    getOptOutStatus
+    opt_out=$?
+    if [ $opt_out -eq 1 ]; then
+        logMessage "Coreupload is disabled as TelemetryOptOut is set"
+        removePendingDumps
+        exit
+    fi
+fi    
 
 if [ ! -f /tmp/coredump_mutex_release ] && [ "$DUMP_FLAG" == "1" ]; then
      logMessage "Waiting for Coredump Completion"
@@ -580,6 +668,9 @@ is_box_rebooting()
 # Get the MAC address of the box
 read -r MAC < /tmp/.macAddress
 MAC="${MAC//:}"
+
+# Ensure MAC is not empty
+checkMAC
 logMessage "Mac address is $MAC"
 
 count=$(find "$WORKING_DIR" -name "$DUMPS_EXTN" | wc -l)
@@ -607,7 +698,17 @@ saveDump()
 
 VERSION_FILE="version.txt"
 boxType=$BOX_TYPE
-modNum=$(getModel)
+if [ "$DEVICE_TYPE" = "broadband" ];then
+    #we are swaping dmcli and device.properties since dmcli will not work once rbus service is down
+    modNum=$MODEL_NUM
+    if [ ! "$modNum" ];then
+        modNum=`dmcli eRT getv Device.DeviceInfo.ModelName | grep value | cut -d ":" -f 3 | tr -d ' ' `
+    fi
+elif [ "$DEVICE_TYPE" = "extender" ];then
+    modNum=$(getModelNum)    
+else
+    modNum=`sh $RDK_PATH/getDeviceDetails.sh read model_number`
+fi
 
 # Ensure modNum is not empty
 checkParameter modNum
@@ -710,18 +811,22 @@ processCrashTelemtryInfo()
         local Appname=${containerName#*_}
         local ProcessName=${containerName%%_*}
 
-
+        t2ValNotify "crashedContainerName_split" $containerName
+        t2ValNotify "crashedContainerStatus_split" $containerStatus
+        t2ValNotify "crashedContainerAppname_split" $Appname
+        t2ValNotify "crashedContainerProcessName_split" $ProcessName
         t2CountNotify "SYS_INFO_CrashedContainer"
         #as of now this is being logged in get_crashed_log_file but adding here as that is inconsistent
         logMessage "Container crash info Basic: $Appname, $ProcessName"
         logMessage "Container crash info Advance: $containerName, $containerStatus"
         logMessage "NEW Appname, Process_Crashed, Status = $Appname, $ProcessName, $containerStatus"
+        logMessage "NEW Processname, App Name, AppState = $ProcessName, $Appname, $containerStatus"
         t2ValNotify "APP_ERROR_Crashed_split" "$Appname, $ProcessName, $containerStatus"
         t2ValNotify "APP_ERROR_Crashed_accum" "$Appname, $ProcessName, $containerStatus"
-        logMessage "NEW Processname, App Name, AppState = $ProcessName, $Appname, $containerStatus"
-        logMessage "ContainerName, ContainerStatus = $containerName, $containerStatus"
-        t2ValNotify "APP_ERROR_CrashInfo_accum" "$containerName, $containerStatus"
-
+	logMessage "ContainerName = $containerName"
+        t2ValNotify "APP_ERROR_CrashInfo" "$containerName"
+        logMessage "ContainerStatus = $containerStatus"
+        t2ValNotify "APP_ERROR_CrashInfo_status" "$containerStatus"
         
     fi
     # This is a temporary call; we need to get marker confirmation from the Triage Team.
@@ -842,6 +947,22 @@ processDumps()
 		     dumpName="${dumpName#*_}"
 		fi
                 tgzFile=$dumpName".tgz"
+
+		# For long APP Name
+		if [ "${#dumpName}" -ge "135" ]; then
+                    #Remove the processname from the file name and if possible limit the name to 20 chars
+                    logMessage "The file name is still greater than 135 charecters try trimming the processname to 20 chars from the filename"
+                    logMessage "The Current File Name : ${dumpName}"
+                    appends_pname="${pname:0:20}"
+                    cpname="${pname}"
+                    logMessage "Change the process name $cpname to $appends_pname "
+                    dumpName="${dumpName//$cpname/$appends_pname}"
+                    logMessage "Changed File Name : ${dumpName}"
+                fi
+                if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ];then
+                    logFileCopy 0
+                fi
+                tgzFile=$dumpName".tgz"		
             fi
             
             #remove <#=#> characters from the dumpname to avoid processing issues.
@@ -867,11 +988,17 @@ processDumps()
                         nice -n 19 tar -zcvf $tgzFile $dumpName $logfiles 2>&1 | logStdout
                 fi
             else     
-                    #Assignee crashedUrlFile only if the file exist to avoid tar errors.
-                    [ -f "$LOG_PATH/crashed_url.txt" ] && crashedUrlFile="$LOG_PATH/crashed_url.txt"
-                    files="$VERSION_FILE $CORE_LOG $crashedUrlFile"
-                    add_crashed_log_file $files
-                    nice -n 19 tar -zcvf $tgzFile $dumpName $files 2>&1 | logStdout
+		    if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
+                         #Assignee crashedUrlFile only if the file exist to avoid tar errors.
+                        [ -f "$LOG_PATH/crashed_url.txt" ] && crashedUrlFile="$LOG_PATH/crashed_url.txt"
+                        files="$VERSION_FILE $CORE_LOG $crashedUrlFile"
+                        add_crashed_log_file $files		    
+                        nice -n 19 tar -zcvf $tgzFile $dumpName $files 2>&1 | logStdout
+                    elif [ "$DEVICE_TYPE" = "broadband" ] || [ "$DEVICE_TYPE" = "extender" ]; then
+                        files="$tgzFile $dumpName $VERSION_FILE $CORE_LOG"
+                        add_crashed_log_file $files
+                        nice -n 19 tar -zcvf $files 2>&1 | logStdout		    
+		    fi
              fi
 	       if [ $? -eq 0 ]; then
                     logMessage "Success Compressing the files, $tgzFile $dumpName $VERSION_FILE $CORE_LOG "
@@ -938,12 +1065,13 @@ processDumps()
             count=1
             
             # check the network
-            if [ "$DUMP_NAME" = "minidump" -a $NoNetwork -eq 1 ]; then
+            if [ "$DEVICE_TYPE" != "broadband" ] && [ "$DUMP_NAME" = "minidump" -a $NoNetwork -eq 1 ]; then
                 logMessage "Network is not available skipping upload"
                 saveDump
                 return
-            fi
-            #check for PrivacyModes Control
+            fi	    
+
+	    #check for PrivacyModes Control
             if [ "$DEVICE_TYPE" = "mediaclient" ]; then
                 privacyMode=$(getPrivacyControlMode logMessage)
                 if [ "$privacyMode" = "DO_NOT_SHARE" ]; then
@@ -979,6 +1107,10 @@ processDumps()
 	    fi
             while [ $count -le 3 ]
             do
+                if [ -f /etc/waninfo.sh ]; then
+                    ARM_INTERFACE=$(getWanInterfaceName)
+                fi
+
                 # S3 amazon fail over recovery
 		count=$(( count +1))
                 if [ $status -ne 0 ];then
