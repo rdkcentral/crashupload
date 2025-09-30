@@ -1001,7 +1001,7 @@ processDumps()
 		    fi
              fi
 	       if [ $? -eq 0 ]; then
-                    logMessage "Success Compressing the files, $tgzFile $dumpName $VERSION_FILE $CORE_LOG "
+                    logMessage "Success Compressing the files, $tgzFile $dumpName $files "
                 else
                     # If the tar creation failed then will create new tar after copying logs files to /tmp
                     [ "$IS_T2_ENABLED" == "true" ] && t2CountNotify "SYST_WARN_CompFail"
