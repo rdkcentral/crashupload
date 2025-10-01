@@ -1001,7 +1001,11 @@ processDumps()
 		    fi
              fi
 	       if [ $? -eq 0 ]; then
-                    logMessage "Success Compressing the files, $tgzFile $dumpName $files "
+		            if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
+                        logMessage "Success Compressing the files, $tgzFile $dumpName $files "
+					elif [ "$DEVICE_TYPE" = "broadband" ] || [ "$DEVICE_TYPE" = "extender" ]; then
+                        logMessage "Success Compressing the files, $files"
+					fi
                 else
                     # If the tar creation failed then will create new tar after copying logs files to /tmp
                     [ "$IS_T2_ENABLED" == "true" ] && t2CountNotify "SYST_WARN_CompFail"
