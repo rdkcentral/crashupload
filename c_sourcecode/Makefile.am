@@ -15,6 +15,7 @@ src/upload/upload.c \
 src/ratelimit/ratelimit.c
 
 crashupload_CPPFLAGS = -I$(top_srcdir)/include
-crashupload_LDADD = -lcrypto
+crashupload_CFLAGS = -Wall -Werror -fstack-protector-strong -D_FORTIFY_SOURCE=2
+crashupload_LDADD = -lcrypto -lcurl
 
 EXTRA_DIST = include
