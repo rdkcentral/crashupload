@@ -1,0 +1,89 @@
+/**
+ * @file types.h
+ * @brief Common type definitions for crashupload C implementation
+ * 
+ * Based on docs/migration/hld/updateduploadDumps-hld.md
+ * Following optimized architecture with consolidated modules
+ */
+
+#ifndef CRASHUPLOAD_TYPES_H
+#define CRASHUPLOAD_TYPES_H
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <time.h>
+
+/* Device types */
+typedef enum {
+    DEVICE_TYPE_BROADBAND,
+    DEVICE_TYPE_VIDEO,
+    DEVICE_TYPE_EXTENDER,
+    DEVICE_TYPE_MEDIACLIENT,
+    DEVICE_TYPE_UNKNOWN
+} device_type_t;
+
+/* Dump file types */
+typedef enum {
+    DUMP_TYPE_MINIDUMP,
+    DUMP_TYPE_COREDUMP,
+    DUMP_TYPE_UNKNOWN
+} dump_type_t;
+
+/* Upload result types */
+typedef enum {
+    UPLOAD_SUCCESS,
+    UPLOAD_FAILURE_RETRY,
+    UPLOAD_FAILURE_REMOVE,
+    UPLOAD_FAILURE_SAVE
+} upload_result_t;
+
+/* Rate limit decision */
+typedef enum {
+    RATELIMIT_ALLOW,
+    RATELIMIT_BLOCK_RECOVERY,
+    RATELIMIT_BLOCK_LIMIT
+} ratelimit_decision_t;
+
+/* Configuration structure (consolidated from HLD) */
+typedef struct {
+    device_type_t device_type;
+    char upload_url[512];
+    char dump_path[256];
+    char core_path[256];
+    char minidump_path[256];
+    char archive_path[256];
+    char log_file[256];
+    bool t2_enabled;
+    bool privacy_mode;
+    bool opt_out;
+    int max_dumps_per_run;
+    int upload_timeout;
+} config_t;
+
+/* Platform configuration structure */
+typedef struct {
+    char mac_address[18];
+    char ip_address[16];
+    char model[64];
+    char device_id[128];
+    char firmware_version[64];
+    char platform_sha1[41];
+} platform_config_t;
+
+/* Dump file metadata */
+typedef struct {
+    char filepath[512];
+    char basename[256];
+    dump_type_t type;
+    time_t mtime;
+    off_t size;
+} dump_file_t;
+
+/* Archive info structure */
+typedef struct {
+    char archive_path[512];
+    char archive_name[256];
+    bool created_in_tmp;
+} archive_info_t;
+
+#endif /* CRASHUPLOAD_TYPES_H */
