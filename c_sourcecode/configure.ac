@@ -1,25 +1,22 @@
-#                                               -*- Autoconf -*-
-# Process this file with autoconf to produce a configure script.
-
 AC_PREREQ([2.69])
 AC_INIT([crashupload], [1.0], [support@rdkcentral.com])
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_CONFIG_SRCDIR([src/main.c])
 AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
 AC_PROG_CC
-AC_PROG_CC_C11
+#AC_PROG_CC_C11
 AM_PROG_AR
 
 # Checks for libraries.
-PKG_CHECK_MODULES([LIBCURL], [libcurl >= 7.0])
-PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.0])
-PKG_CHECK_MODULES([ZLIB], [zlib >= 1.2])
+#PKG_CHECK_MODULES([LIBCURL], [libcurl >= 7.0])
+#PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.0])
+#PKG_CHECK_MODULES([ZLIB], [zlib >= 1.2])
 
 # Checks for header files.
-AC_CHECK_HEADERS([fcntl.h stdlib.h string.h sys/time.h unistd.h])
-AC_CHECK_HEADERS([curl/curl.h openssl/ssl.h zlib.h])
+#AC_CHECK_HEADERS([fcntl.h stdlib.h string.h sys/time.h unistd.h])
+#AC_CHECK_HEADERS([curl/curl.h openssl/ssl.h zlib.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_SIZE_T

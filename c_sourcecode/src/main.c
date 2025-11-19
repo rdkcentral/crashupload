@@ -48,11 +48,11 @@ int main(int argc, char *argv[]) {
     
     /* Step 1: Consolidated Initialization */
     /* TODO: Implement consolidated initialization */
-    if (system_initialize(argc, argv, &config, &platform) != ERR_SUCCESS) {
-        logger_error("System initialization failed");
+    if (system_initialize(argc, argv, &config, &platform) != SYSTEM_INIT_SUCCESS) {
+        logger_error("System initialization failed:%d\n", lock_fd);
         return EXIT_FAILURE;
     }
-    
+#if 0    
     /* Step 2: Combined Prerequisites Check */
     /* TODO: Implement combined network + time check */
     if (prerequisites_wait(PREREQUISITE_TIMEOUT_SEC) != ERR_SUCCESS) {
@@ -134,6 +134,6 @@ cleanup:
     if (lock_fd >= 0) {
         lock_release(lock_fd);
     }
-    
+#endif    
     return ret;
 }

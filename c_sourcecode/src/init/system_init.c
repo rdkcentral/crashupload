@@ -27,6 +27,6 @@ int system_initialize(int argc, char *argv[],
      * 7. Set up signal handlers (SIGTERM, SIGINT)
      * 8. Validate configuration
      */
-    
+    config_init_load(config); 
     return ERR_NOT_IMPLEMENTED;
 }

@@ -7,13 +7,15 @@
 #define CONFIG_MANAGER_H
 
 #include "../../common/types.h"
+#include "rdk_fwdl_utils.h"
+#include "system_utils.h"
 
 /**
  * @brief Load configuration from multiple sources
  * @param config Configuration structure to populate
  * @return ERR_SUCCESS on success
  */
-int config_load(config_t *config);
+int config_init_load(config_t *config);
 
 /**
  * @brief Get configuration value by key

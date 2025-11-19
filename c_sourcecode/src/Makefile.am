@@ -10,7 +10,8 @@ AM_CPPFLAGS = -I$(top_srcdir)/common \
 
 # External library flags
 AM_CFLAGS = $(LIBCURL_CFLAGS) $(OPENSSL_CFLAGS) $(ZLIB_CFLAGS)
-AM_LDFLAGS = $(LIBCURL_LIBS) $(OPENSSL_LIBS) $(ZLIB_LIBS)
+AM_LDFLAGS = $(LIBCURL_LIBS) $(OPENSSL_LIBS) $(ZLIB_LIBS) -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
+AM_LDFLAGS += -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread
 
 # Source files for crashupload
 crashupload_SOURCES = \
@@ -19,26 +20,11 @@ crashupload_SOURCES = \
     init/system_init.h \
     config/config_manager.c \
     config/config_manager.h \
-    platform/platform.c \
-    platform/platform.h \
-    core/scanner.c \
-    core/scanner.h \
-    core/archive_smart.c \
-    core/archive_smart.h \
-    core/upload_typeaware.c \
-    core/upload_typeaware.h \
-    core/ratelimit_unified.c \
-    core/ratelimit_unified.h \
-    utils/prerequisites.c \
-    utils/prerequisites.h \
-    utils/privacy.c \
-    utils/privacy.h \
-    utils/cleanup_batch.c \
-    utils/cleanup_batch.h \
-    utils/lock_manager.c \
-    utils/lock_manager.h \
     utils/logger.c \
     utils/logger.h
+
+crashupload_LDADD = -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread
+crashupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
 
 # Include common headers
 crashupload_SOURCES += \

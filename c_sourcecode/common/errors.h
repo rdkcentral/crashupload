@@ -10,7 +10,8 @@
 #define CRASHUPLOAD_ERRORS_H
 
 /* Success */
-#define ERR_SUCCESS 0
+#define CONFIG_SUCCESS 0
+#define SYSTEM_INIT_SUCCESS 0
 
 /* General errors (1-19) */
 #define ERR_GENERAL_FAILURE 1

@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
+#include <sys/types.h>
 
 /* Device types */
 typedef enum {
@@ -50,9 +51,11 @@ typedef struct {
     char upload_url[512];
     char dump_path[256];
     char core_path[256];
-    char minidump_path[256];
-    char archive_path[256];
-    char log_file[256];
+    char minidump_path[64];
+    char archive_path[64];
+    char core_log_file[64];
+    char log_file[64];
+    char log_mapper_file[64];
     bool t2_enabled;
     bool privacy_mode;
     bool opt_out;
