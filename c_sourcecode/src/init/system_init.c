@@ -27,6 +27,21 @@ int system_initialize(int argc, char *argv[],
      * 7. Set up signal handlers (SIGTERM, SIGINT)
      * 8. Validate configuration
      */
-    config_init_load(config); 
+    config_init_load(config, argc, argv);
+    printf("core_log file=%s\n", config->core_log_file);
+    if (0 != (filePresentCheck(config->core_log_file))) {
+        printf("%s File not present. Creating File\n", config->core_log_file);
+        int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fd < 0) {
+            printf("open failed\n");
+            return -1;
+        }
+
+        // Force mode regardless of umask
+        if (chmod(filename, 0666) != 0) {
+            printf("chmod failed\n");
+        }
+        close(fd);
+    }
     return ERR_NOT_IMPLEMENTED;
 }

@@ -14,6 +14,9 @@
 #include <time.h>
 #include <sys/types.h>
 
+#define DENY_UPLOADS_FILE "/tmp/.deny_dump_uploads_till"
+#define ON_STARTUP_DUMPS_CLEANED_UP_BASE "/tmp/.on_startup_dumps_cleaned_up"
+
 /* Device types */
 typedef enum {
     DEVICE_TYPE_BROADBAND,
@@ -48,6 +51,7 @@ typedef enum {
 /* Configuration structure (consolidated from HLD) */
 typedef struct {
     device_type_t device_type;
+    dump_type_t dump_type;
     char upload_url[512];
     char dump_path[256];
     char core_path[256];

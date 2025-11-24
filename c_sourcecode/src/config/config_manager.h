@@ -15,7 +15,7 @@
  * @param config Configuration structure to populate
  * @return ERR_SUCCESS on success
  */
-int config_init_load(config_t *config);
+int config_init_load(config_t *config, int argc, char *argv[]);
 
 /**
  * @brief Get configuration value by key

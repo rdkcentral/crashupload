@@ -13,6 +13,10 @@
 
 #include "../../common/types.h"
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 /**
  * @brief Consolidated initialization function
  * 

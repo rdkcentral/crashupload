@@ -24,6 +24,19 @@
 #include "utils/cleanup_batch.h"
 #include "utils/logger.h"
 
+static int lock_dir_prefix = 0;
+
+void handle_signal(int no, siginfo_t* info, void* uc)
+{
+    printf("Raise SIGTERM signal.\nSystemd Terminating, Removing the script locks\n");
+    if (lock_dir_prefix == 1) {
+        unlink("/tmp/.uploadCoredumps");
+	//dump file clean up is pending
+    } else {
+        unlink("/tmp/.uploadMinidumps");
+	//dump file clean up is pending
+    }
+}
 /**
  * @brief Main application entry point
  * 
@@ -44,8 +57,28 @@ int main(int argc, char *argv[]) {
     config_t config;
     platform_config_t platform;
     int lock_fd = -1;
+    int ret_sig = -1;
     int ret = EXIT_SUCCESS;
     
+    if (argc < 3) {
+        printf("Number of parameter is less\n");
+	exit(1);
+    }
+    if (1 == atoi[argv[2]]) {
+        lock_dir_prefix = 1;
+    } else {
+        lock_dir_prefix = 0;
+    }
+    struct sigaction rdkv_newaction;
+    memset(&rdkv_newaction, '\0', sizeof(struct sigaction));
+    rdkv_newaction.sa_sigaction = handle_signal;
+    rdkv_newaction.sa_flags = SA_ONSTACK | SA_SIGINFO;
+    ret_sig = sigaction(SIGTERM, &rdkv_newaction, NULL);
+    if (ret_sig == -1) {
+        printf( "SIGTERM handler install fail\n");
+    }else {
+        printf( "SIGTERM handler install success\n");
+    }
     /* Step 1: Consolidated Initialization */
     /* TODO: Implement consolidated initialization */
     if (system_initialize(argc, argv, &config, &platform) != SYSTEM_INIT_SUCCESS) {
