@@ -1,6 +1,6 @@
 /* FULL IMPLEMENTATION - System utilities with caching and fallbacks */
 
-#include "system_utils.h"
+#include "systemutils.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

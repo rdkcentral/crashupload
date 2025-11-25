@@ -6,6 +6,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/common \
               -I$(top_srcdir)/src/config \
               -I$(top_srcdir)/src/platform \
               -I$(top_srcdir)/src/core \
+              -I$(top_srcdir)/include \
               -I$(top_srcdir)/src/utils
 
 # External library flags
@@ -20,11 +21,16 @@ crashupload_SOURCES = \
     init/system_init.h \
     config/config_manager.c \
     config/config_manager.h \
+    platform/platform.c \
+    platform/platform.h \
+    utils/file_utils.c \
+    utils/prerequisites.c \
+    utils/prerequisites.h \
     utils/logger.c \
     utils/logger.h
 
-crashupload_LDADD = -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread
-crashupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
+crashupload_LDADD = -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread -lcrypto
+crashupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) -lcrypto
 
 # Include common headers
 crashupload_SOURCES += \

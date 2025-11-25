@@ -63,6 +63,24 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
 	strcpy(log_path, "/opt/logs");
         printf("Error to get log path. Set default path = %s\n", log_path);
     }
+    ret = getDevicePropertyData("BOX_TYPE", device_prop_data, sizeof(device_prop_data));
+    if (ret == UTILS_SUCCESS) {
+         printf("Box type = %s\n", device_prop_data);
+	 strncpy(config->box_type, device_prop_data, sizeof(config->box_type));
+    } else {
+	 strcpy(config->box_type, "UNKNOWN");
+    }
+    ret = getDevicePropertyData("BUILD_TYPE", device_prop_data, sizeof(device_prop_data));
+    if (ret == UTILS_SUCCESS) {
+         printf("Build type = %s\n", device_prop_data);
+	 if (0 == strncmp(device_prop_data, "prod", 4)) {
+	     config->build_type = BUILD_TYPE_PROD;
+	 } else {
+	     config->build_type = BUILD_TYPE_DEV;
+	 }
+    } else {
+	 config->build_type = BUILD_TYPE_UNKNOWN;
+    }
     ret = getDevicePropertyData("DEVICE_TYPE", device_prop_data, sizeof(device_prop_data));
     if (ret == UTILS_SUCCESS) {
          printf("device type = %s\n", device_prop_data);
@@ -97,21 +115,23 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
     if (argc == 3) {
         if(0 == atoi(argv[2])) {
 	    printf("Setting Minidump\n");
-	    config->dum_type = DUMP_TYPE_MINIDUMP;
+	    config->dump_type = DUMP_TYPE_MINIDUMP;
 	} else if (1 == atoi(argv[2])) {
 	    printf("Setting Coredump\n");
-	    config->dum_type = DUMP_TYPE_COREDUMP;
+	    config->dump_type = DUMP_TYPE_COREDUMP;
 	} else {
 	    printf("Setting Unknown\n");
-	    config->dum_type = DUMP_TYPE_UNKNOWN;
+	    config->dump_type = DUMP_TYPE_UNKNOWN;
 	}
     }
     if ((argc == 4) && (0 == (strncmp(argv[3], "secure", 6)))) {
 	printf("Secure is enable\n");
+	config->upload_mode = UPLOAD_MODE_SECURE;
         strcpy(config->core_path, "/opt/secure/corefiles");
 	strcpy(config->minidump_path, "/opt/secure/minidumps");
     } else {
 	printf("Secure is not enable\n");
+	config->upload_mode = UPLOAD_MODE_NORMAL;
         strcpy(config->core_path, "/var/lib/systemd/coredump");
 	strcpy(config->minidump_path, "/opt/minidumps");
     }
@@ -124,7 +144,7 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
 
     config->opt_out = false;
     config->opt_out = get_opt_out_status();
-
+    config->lock_mode = (0 == (strncmp(argv[4],"wait_for_lock", 13))) ? LOCK_MODE_WAIT : LOCK_MODE_EXIT;
     return CONFIG_SUCCESS;
 }
 

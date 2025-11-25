@@ -5,43 +5,83 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <openssl/opensslv.h>
 #include <openssl/sha.h>
+#include <openssl/evp.h>
 
-#define SHA1_CHUNK_SIZE 8192  /* 8KB streaming for low memory optimization */
+#define SHA1_CHUNK_SIZE 8192
 
 /**
- * FULL IMPLEMENTATION
- * Calculate SHA1 with 8KB streaming to minimize memory usage
+ * Calculate SHA1 checksum of a file.
+ * Works for BOTH OpenSSL < 3.0 and OpenSSL >= 3.0.
  */
-int file_get_sha1(const char *path, char *hash, size_t len) {
-    if (!path || !hash || len < 41) {
+int file_get_sha1(const char *path, char *hash, size_t len)
+{
+    if (!path || !hash || len < 41)
         return -1;
-    }
 
     FILE *fp = fopen(path, "rb");
-    if (!fp) {
+    if (!fp)
         return -1;
-    }
-
-    SHA_CTX ctx;
-    SHA1_Init(&ctx);
 
     unsigned char buffer[SHA1_CHUNK_SIZE];
     size_t bytes_read;
 
-    /* Stream file in 8KB chunks to minimize memory usage */
-    while ((bytes_read = fread(buffer, 1, SHA1_CHUNK_SIZE, fp)) > 0) {
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+    /* ================================================================
+       OPENSSL 1.1.x AND OLDER (uses SHA1_Init / SHA1_Update / SHA1_Final)
+       ================================================================ */
+    SHA_CTX ctx;
+    SHA1_Init(&ctx);
+
+    while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
         SHA1_Update(&ctx, buffer, bytes_read);
     }
 
+    unsigned char digest[SHA_DIGEST_LENGTH];
+    SHA1_Final(digest, &ctx);
+
+#else
+    /* ================================================================
+       OPENSSL 3.x (uses EVP API)
+       ================================================================ */
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    if (!ctx) {
+        fclose(fp);
+        return -1;
+    }
+
+    if (EVP_DigestInit_ex(ctx, EVP_sha1(), NULL) != 1) {
+        EVP_MD_CTX_free(ctx);
+        fclose(fp);
+        return -1;
+    }
+
+    while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+        if (EVP_DigestUpdate(ctx, buffer, bytes_read) != 1) {
+            EVP_MD_CTX_free(ctx);
+            fclose(fp);
+            return -1;
+        }
+    }
+
+    unsigned char digest[SHA_DIGEST_LENGTH];
+    unsigned int digest_len = 0;
+
+    if (EVP_DigestFinal_ex(ctx, digest, &digest_len) != 1) {
+        EVP_MD_CTX_free(ctx);
+        fclose(fp);
+        return -1;
+    }
+
+    EVP_MD_CTX_free(ctx);
+#endif
+
     fclose(fp);
 
-    unsigned char sha1_digest[SHA_DIGEST_LENGTH];
-    SHA1_Final(sha1_digest, &ctx);
-
-    /* Convert binary hash to hex string */
+    /* Convert binary digest to hex string */
     for (int i = 0; i < SHA_DIGEST_LENGTH; i++) {
-        snprintf(hash + (i * 2), len - (i * 2), "%02x", sha1_digest[i]);
+        snprintf(hash + (i * 2), len - (i * 2), "%02x", digest[i]);
     }
     hash[40] = '\0';
 
@@ -69,19 +109,6 @@ int file_get_mtime_formatted(const char *path, char *mtime, size_t len) {
 
     strftime(mtime, len, "%Y-%m-%d-%H-%M-%S", tm_info);
     return 0;
-}
-
-/**
- * FULL IMPLEMENTATION
- * Check if file exists
- */
-bool file_exists(const char *path) {
-    if (!path) {
-        return false;
-    }
-
-    struct stat st;
-    return (stat(path, &st) == 0 && S_ISREG(st.st_mode));
 }
 
 /**

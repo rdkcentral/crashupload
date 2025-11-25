@@ -64,9 +64,11 @@ size_t GetEstbMac( char *pEstbMac, size_t szBufSize )
     if( pEstbMac != NULL )
     {
         *pEstbMac = 0;
-        if( (fp = fopen( ESTB_MAC_FILE, "r" )) != NULL )
+        if( (fp = fopen( MAC_FILE, "r" )) != NULL )
         {
-            fgets( pEstbMac, szBufSize, fp );   // better be a valid string on first line
+            if (NULL != (fgets( pEstbMac, szBufSize, fp ))) {   // better be a valid string on first line
+                i = stripinvalidchar( pEstbMac, szBufSize );
+	    }
             fclose( fp );
             i = stripinvalidchar( pEstbMac, szBufSize );
             printf("GetEstbMac: After reading ESTB_MAC_FILE value=%s\n", pEstbMac);
@@ -121,10 +123,10 @@ int platform_initialize(const config_t *config, platform_config_t *platform) {
 
     memset(platform, 0, sizeof(platform_config_t));
 
-    /* TODO: Get IP, model, device ID, SHA1 */
-    ret = GetEstabMac(platform->mac_address, sizeof(platform->mac_address));
+    /* TODO: Get IP, device ID, SHA1 */
+    ret = GetEstbMac(platform->mac_address, sizeof(platform->mac_address));
     if (ret) {
-        NormalizaMac(platform->mac_address, sizeof(platform->mac_address);
+        NormalizeMac(platform->mac_address, sizeof(platform->mac_address));
 	printf("Mac address is %s\n", platform->mac_address);
     }else {
         printf("Get mac is failed. Setting dafult value\n");
@@ -137,6 +139,14 @@ int platform_initialize(const config_t *config, platform_config_t *platform) {
     }else {
         printf("GetModel is failed. Setting dafult value\n");
         strcpy(platform->model,"UNKNOWN");
+    }
+    ret = file_get_sha1("/version.txt", platform->platform_sha1, sizeof(platform->platform_sha1));
+    if (ret == 0) {
+        printf("file sha=%s\n", platform->platform_sha1);
+    } else {
+        printf("file_get_sha1 error. Assign default value\n");
+	strcpy(platform->platform_sha1,"000000000000000000000000000000000000000");
+        printf("file sha=%s\n", platform->platform_sha1);
     }
     return PLATFORM_INIT_SUCCESS;
 }

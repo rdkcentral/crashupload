@@ -8,8 +8,6 @@
  * SKELETON: Function bodies need implementation
  */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include "../common/types.h"
 #include "../common/constants.h"
 #include "../common/errors.h"
@@ -23,6 +21,7 @@
 #include "core/ratelimit_unified.h"
 #include "utils/cleanup_batch.h"
 #include "utils/logger.h"
+#include <signal.h>
 
 static int lock_dir_prefix = 0;
 
@@ -64,15 +63,16 @@ int main(int argc, char *argv[]) {
         printf("Number of parameter is less\n");
 	exit(1);
     }
-    if (1 == atoi[argv[2]]) {
+    if (1 == atoi(argv[2])) {
         lock_dir_prefix = 1;
     } else {
         lock_dir_prefix = 0;
     }
     struct sigaction rdkv_newaction;
-    memset(&rdkv_newaction, '\0', sizeof(struct sigaction));
+    memset(&rdkv_newaction, '\0', sizeof(rdkv_newaction));
     rdkv_newaction.sa_sigaction = handle_signal;
-    rdkv_newaction.sa_flags = SA_ONSTACK | SA_SIGINFO;
+    //rdkv_newaction.sa_flags = SA_ONSTACK | SA_SIGINFO; TODO: need to check why compile error
+    rdkv_newaction.sa_flags = SA_SIGINFO;
     ret_sig = sigaction(SIGTERM, &rdkv_newaction, NULL);
     if (ret_sig == -1) {
         printf( "SIGTERM handler install fail\n");
@@ -85,14 +85,13 @@ int main(int argc, char *argv[]) {
         logger_error("System initialization failed:%d\n", lock_fd);
         return EXIT_FAILURE;
     }
-#if 0    
     /* Step 2: Combined Prerequisites Check */
     /* TODO: Implement combined network + time check */
     if (prerequisites_wait(PREREQUISITE_TIMEOUT_SEC) != ERR_SUCCESS) {
         logger_error("Prerequisites check failed");
         return EXIT_FAILURE;
     }
-    
+#if 0    
     /* Step 3: Unified Privacy Check */
     /* TODO: Implement unified privacy check */
     if (privacy_uploads_blocked(&config)) {

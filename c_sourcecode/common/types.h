@@ -13,6 +13,9 @@
 #include <stdbool.h>
 #include <time.h>
 #include <sys/types.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 #define DENY_UPLOADS_FILE "/tmp/.deny_dump_uploads_till"
 #define ON_STARTUP_DUMPS_CLEANED_UP_BASE "/tmp/.on_startup_dumps_cleaned_up"
@@ -33,6 +36,16 @@ typedef enum {
     DUMP_TYPE_UNKNOWN
 } dump_type_t;
 
+typedef enum {
+    UPLOAD_MODE_NORMAL,
+    UPLOAD_MODE_SECURE
+} upload_mode_t;
+
+typedef enum {
+    LOCK_MODE_EXIT,
+    LOCK_MODE_WAIT
+} lock_mode_t;
+
 /* Upload result types */
 typedef enum {
     UPLOAD_SUCCESS,
@@ -40,6 +53,12 @@ typedef enum {
     UPLOAD_FAILURE_REMOVE,
     UPLOAD_FAILURE_SAVE
 } upload_result_t;
+
+typedef enum {
+    BUILD_TYPE_PROD,
+    BUILD_TYPE_DEV,
+    BUILD_TYPE_UNKNOWN
+} build_type_t;
 
 /* Rate limit decision */
 typedef enum {
@@ -52,6 +71,9 @@ typedef enum {
 typedef struct {
     device_type_t device_type;
     dump_type_t dump_type;
+    lock_mode_t lock_mode;
+    upload_mode_t upload_mode;
+    build_type_t build_type;
     char upload_url[512];
     char dump_path[256];
     char core_path[256];
@@ -60,6 +82,7 @@ typedef struct {
     char core_log_file[64];
     char log_file[64];
     char log_mapper_file[64];
+    char box_type[64];
     bool t2_enabled;
     bool privacy_mode;
     bool opt_out;

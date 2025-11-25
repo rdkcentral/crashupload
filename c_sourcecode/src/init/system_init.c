@@ -31,14 +31,14 @@ int system_initialize(int argc, char *argv[],
     printf("core_log file=%s\n", config->core_log_file);
     if (0 != (filePresentCheck(config->core_log_file))) {
         printf("%s File not present. Creating File\n", config->core_log_file);
-        int fd = open(config->core_log_fil, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        int fd = open(config->core_log_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
             printf("open failed\n");
             return -1;
         }
 
         // Force mode regardless of umask
-        if (chmod(filename, 0666) != 0) {
+        if (chmod(config->core_log_file, 0666) != 0) {
             printf("chmod failed\n");
         }
         close(fd);

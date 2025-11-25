@@ -7,8 +7,12 @@
 #define PLATFORM_H
 
 #include "../../common/types.h"
+#include "rdk_fwdl_utils.h"
+#include "system_utils.h"
+#include "file_utils.h"
+#include "common_device_api.h"
 
-#define ESTB_MAC_FILE           "/tmp/.macAddress"
+#define MAC_FILE           "/tmp/.macAddress"
 #define MAC_ADDRESS_LEN 17
 
 /**
