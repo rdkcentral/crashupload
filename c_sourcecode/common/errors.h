@@ -12,6 +12,7 @@
 /* Success */
 #define CONFIG_SUCCESS 0
 #define SYSTEM_INIT_SUCCESS 0
+#define PLATFOR_INIT_SUCCESS 0
 
 /* General errors (1-19) */
 #define ERR_GENERAL_FAILURE 1

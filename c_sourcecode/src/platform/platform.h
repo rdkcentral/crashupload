@@ -8,6 +8,9 @@
 
 #include "../../common/types.h"
 
+#define ESTB_MAC_FILE           "/tmp/.macAddress"
+#define MAC_ADDRESS_LEN 17
+
 /**
  * @brief Initialize platform configuration
  * @param config Application configuration

@@ -31,7 +31,7 @@ int system_initialize(int argc, char *argv[],
     printf("core_log file=%s\n", config->core_log_file);
     if (0 != (filePresentCheck(config->core_log_file))) {
         printf("%s File not present. Creating File\n", config->core_log_file);
-        int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        int fd = open(config->core_log_fil, O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
             printf("open failed\n");
             return -1;
@@ -43,5 +43,6 @@ int system_initialize(int argc, char *argv[],
         }
         close(fd);
     }
-    return ERR_NOT_IMPLEMENTED;
+    platform_initialize(config, platform);
+    return SYSTEM_INIT_SUCCESS;
 }
