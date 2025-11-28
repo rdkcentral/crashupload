@@ -75,10 +75,11 @@ typedef struct {
     upload_mode_t upload_mode;
     build_type_t build_type;
     char upload_url[512];
-    char dump_path[256];
-    char core_path[256];
+    char dump_path[64];
+    char core_path[64];
     char minidump_path[64];
     char archive_path[64];
+    char working_dir_path[64];
     char core_log_file[64];
     char log_file[64];
     char log_mapper_file[64];

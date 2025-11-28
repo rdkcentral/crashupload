@@ -13,6 +13,8 @@
 #define CONFIG_SUCCESS 0
 #define SYSTEM_INIT_SUCCESS 0
 #define PLATFORM_INIT_SUCCESS 0
+#define PREREQUISITES_SUCCESS 0
+#define NO_DUMPS_FOUND 5
 
 /* General errors (1-19) */
 #define ERR_GENERAL_FAILURE 1

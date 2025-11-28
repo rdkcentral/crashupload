@@ -112,18 +112,6 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
          printf("%s: getDevicePropertyData() for device type fail\n", __FUNCTION__);
          return ERR_CONFIG_MISSING_REQUIRED;
     }
-    if (argc == 3) {
-        if(0 == atoi(argv[2])) {
-	    printf("Setting Minidump\n");
-	    config->dump_type = DUMP_TYPE_MINIDUMP;
-	} else if (1 == atoi(argv[2])) {
-	    printf("Setting Coredump\n");
-	    config->dump_type = DUMP_TYPE_COREDUMP;
-	} else {
-	    printf("Setting Unknown\n");
-	    config->dump_type = DUMP_TYPE_UNKNOWN;
-	}
-    }
     if ((argc == 4) && (0 == (strncmp(argv[3], "secure", 6)))) {
 	printf("Secure is enable\n");
 	config->upload_mode = UPLOAD_MODE_SECURE;
@@ -135,6 +123,25 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
         strcpy(config->core_path, "/var/lib/systemd/coredump");
 	strcpy(config->minidump_path, "/opt/minidumps");
     }
+    if (argc == 3) {
+        if(0 == atoi(argv[2])) {
+	    printf("starting minidump processing\n");
+	    config->dump_type = DUMP_TYPE_MINIDUMP;
+	    if ((config->device_type == DEVICE_TYPE_BROADBAND) || (config->device_type == DEVICE_TYPE_EXTENDER)) {
+	        strcpy(config->working_dir_path, "/minidumps");
+	        strcpy(config->minidump_path, "/minidumps");
+	    } else {
+	        strncpy(config->working_dir_path, config->minidump_path, sizeof(config->working_dir_path));
+	    }
+	} else if (1 == atoi(argv[2])) {
+	    printf("starting coredump processing\n");
+	    config->dump_type = DUMP_TYPE_COREDUMP;
+	    strncpy(config->working_dir_path, config->core_path, sizeof(config->working_dir_path));
+	} else {
+	    printf("Setting Unknown\n");
+	    config->dump_type = DUMP_TYPE_UNKNOWN;
+	}
+    }
 
     if (0 == (filePresentCheck("/lib/rdk/t2Shared_api.sh"))) {
         config->t2_enabled = true;
@@ -144,7 +151,7 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
 
     config->opt_out = false;
     config->opt_out = get_opt_out_status();
-    config->lock_mode = (0 == (strncmp(argv[4],"wait_for_lock", 13))) ? LOCK_MODE_WAIT : LOCK_MODE_EXIT;
+    config->lock_mode = ((argc == 5) && (0 == (strncmp(argv[4],"wait_for_lock", 13)))) ? LOCK_MODE_WAIT : LOCK_MODE_EXIT;
     return CONFIG_SUCCESS;
 }
 

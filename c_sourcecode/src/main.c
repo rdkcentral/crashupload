@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
     }
     /* Step 2: Combined Prerequisites Check */
     /* TODO: Implement combined network + time check */
-    if (prerequisites_wait(PREREQUISITE_TIMEOUT_SEC) != ERR_SUCCESS) {
+    if (prerequisites_wait(&config, PREREQUISITE_TIMEOUT_SEC) != PREREQUISITES_SUCCESS) {
         logger_error("Prerequisites check failed");
         return EXIT_FAILURE;
     }

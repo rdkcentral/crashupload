@@ -44,5 +44,6 @@ int system_initialize(int argc, char *argv[],
         close(fd);
     }
     platform_initialize(config, platform);
+    printf("Working dir=%s\n", config->working_dir_path);
     return SYSTEM_INIT_SUCCESS;
 }
