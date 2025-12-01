@@ -58,6 +58,7 @@ int main(int argc, char *argv[]) {
     int lock_fd = -1;
     int ret_sig = -1;
     int ret = EXIT_SUCCESS;
+    char lock_file_path[32] = {0};
     
     if (argc < 3) {
         printf("Number of parameter is less\n");
@@ -65,8 +66,10 @@ int main(int argc, char *argv[]) {
     }
     if (1 == atoi(argv[2])) {
         lock_dir_prefix = 1;
+	strcpy(lock_file_path, "/tmp/.uploadCoredumps");
     } else {
         lock_dir_prefix = 0;
+	strcpy(lock_file_path, "/tmp/.uploadMinidumps");
     }
     struct sigaction rdkv_newaction;
     memset(&rdkv_newaction, '\0', sizeof(rdkv_newaction));
@@ -98,15 +101,15 @@ int main(int argc, char *argv[]) {
         logger_info("Uploads blocked by privacy settings");
         return EXIT_SUCCESS;  /* Not an error */
     }
-    
+#endif 
     /* Step 4: Lock Acquisition */
     /* TODO: Implement process lock */
-    lock_fd = lock_acquire(LOCK_FILE, LOCK_TIMEOUT_SEC);
-    if (lock_fd < 0) {
+    lock_fd = lock_acquire(lock_file_path, 5);
+    if (lock_fd < LOCK_ACQUIRE_SUCCESS) {
         logger_error("Failed to acquire lock");
         return EXIT_FAILURE;
     }
-    
+#if 0    
     /* Step 5: Process Dumps */
     /* TODO: Implement dump processing loop */
     dump_file_t *dumps = NULL;
@@ -163,9 +166,9 @@ cleanup:
         free(dumps);
     }
     
+#endif    
     if (lock_fd >= 0) {
         lock_release(lock_fd);
     }
-#endif    
     return ret;
 }

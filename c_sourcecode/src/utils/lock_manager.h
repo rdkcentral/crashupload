@@ -6,6 +6,12 @@
 #ifndef LOCK_MANAGER_H
 #define LOCK_MANAGER_H
 
+#include <sys/file.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 /**
  * @brief Acquire process lock
  * @param lock_file Path to lock file

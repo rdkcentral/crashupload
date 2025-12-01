@@ -19,6 +19,8 @@
 
 #define DENY_UPLOADS_FILE "/tmp/.deny_dump_uploads_till"
 #define ON_STARTUP_DUMPS_CLEANED_UP_BASE "/tmp/.on_startup_dumps_cleaned_up"
+#define EnableOCSPStapling "/tmp/.EnableOCSPStapling"
+#define EnableOCSP "/tmp/.EnableOCSPCA"
 
 /* Device types */
 typedef enum {

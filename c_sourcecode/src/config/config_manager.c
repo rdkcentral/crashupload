@@ -123,7 +123,7 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
         strcpy(config->core_path, "/var/lib/systemd/coredump");
 	strcpy(config->minidump_path, "/opt/minidumps");
     }
-    if (argc == 3) {
+    if (argc >= 3) {
         if(0 == atoi(argv[2])) {
 	    printf("starting minidump processing\n");
 	    config->dump_type = DUMP_TYPE_MINIDUMP;

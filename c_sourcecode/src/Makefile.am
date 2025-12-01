@@ -26,6 +26,8 @@ crashupload_SOURCES = \
     utils/file_utils.c \
     utils/prerequisites.c \
     utils/prerequisites.h \
+    utils/lock_manager.c \
+    utils/lock_manager.h \
     utils/logger.c \
     utils/logger.h
 
