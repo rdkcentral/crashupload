@@ -88,10 +88,17 @@ int main(int argc, char *argv[]) {
         logger_error("System initialization failed:%d\n", lock_fd);
         return EXIT_FAILURE;
     }
+    /* Step 2: Lock Acquisition */
+    lock_fd = lock_acquire(lock_file_path, 5);
+    if (lock_fd < LOCK_ACQUIRE_SUCCESS) {
+        logger_error("Failed to acquire lock");
+        return EXIT_FAILURE;
+    }
     /* Step 2: Combined Prerequisites Check */
     /* TODO: Implement combined network + time check */
     if (prerequisites_wait(&config, PREREQUISITE_TIMEOUT_SEC) != PREREQUISITES_SUCCESS) {
         logger_error("Prerequisites check failed");
+        lock_release(lock_fd);
         return EXIT_FAILURE;
     }
 #if 0    
@@ -102,13 +109,6 @@ int main(int argc, char *argv[]) {
         return EXIT_SUCCESS;  /* Not an error */
     }
 #endif 
-    /* Step 4: Lock Acquisition */
-    /* TODO: Implement process lock */
-    lock_fd = lock_acquire(lock_file_path, 5);
-    if (lock_fd < LOCK_ACQUIRE_SUCCESS) {
-        logger_error("Failed to acquire lock");
-        return EXIT_FAILURE;
-    }
 #if 0    
     /* Step 5: Process Dumps */
     /* TODO: Implement dump processing loop */

@@ -3,6 +3,7 @@
  * SKELETON: Implementation needed
  */
 #include "prerequisites.h"
+#include "cleanup_batch.h"
 #include "../../common/errors.h"
 
 #include <stdio.h>
@@ -63,6 +64,7 @@ int directory_has_pattern(const char *dir, const char *pattern)
 {
     DIR *dp = opendir(dir);
     if (!dp) {
+	printf("%s dir not open\n", dir);
         return -1;
     }
 
@@ -86,22 +88,35 @@ int directory_has_pattern(const char *dir, const char *pattern)
 
 int prerequisites_wait(config_t *config, int timeout_sec) {
     int dump_file_found = 0;
+    char dump_extn[16] = {0};
     printf("Inside prerequisites_wait(): device type=%u, core dump file=%s, minidumpfile=%s\n", config->device_type, config->core_path, config->minidump_path);
     /* TODO: Check network + time sync together */
     if (NULL == config) {
         printf("Invalid parameter or NULL parameter\n");
+	return -1;
     }
     if ((config->device_type == DEVICE_TYPE_BROADBAND) || (config->device_type == DEVICE_TYPE_EXTENDER)) {
         dump_file_found = directory_has_pattern(config->core_path,".dmp");
     } else {
-        dump_file_found = directory_has_pattern(config->minidump_path,".dmp");
-	if (dump_file_found != 1) {
+	if (config->dump_type == DUMP_TYPE_MINIDUMP) {
+            dump_file_found = directory_has_pattern(config->minidump_path,".dmp");
+	    strcpy(dump_extn, "*.dmp*");
+	} else if (config->dump_type == DUMP_TYPE_COREDUMP) {    
             dump_file_found = directory_has_pattern(config->core_path,"_core");
+	    strcpy(dump_extn, "*core.prog*.gz*");
+	} else {
+	    printf("Invalid Dump Type\n");
 	}
     }
     if (1 != dump_file_found) {
         printf("dump file or core file not found. So exit\n");
         return NO_DUMPS_FOUND;
+    }
+    if ((config->device_type == DEVICE_TYPE_MEDIACLIENT) && (config->opt_out == true)) {
+        printf("Coreupload is disabled as TelemetryOptOut is set\n");
+	printf("Cleaning dump with extension:%s:%s\n", config->working_dir_path,dump_extn);
+	remove_pending_dumps(config->working_dir_path,dump_extn);
+	return 1;
     }
     defer_upload_if_needed(config->device_type);
     //TODO: Below mutex_release file create by core dump generation script.So using same

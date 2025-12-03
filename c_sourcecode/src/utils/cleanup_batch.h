@@ -16,4 +16,6 @@
  */
 int cleanup_batch_old_files(const config_t *config, int age_days);
 
+void remove_pending_dumps(const char *working_dir,
+                          const char *dumps_extn_pattern);
 #endif
