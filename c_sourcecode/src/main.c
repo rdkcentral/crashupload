@@ -59,6 +59,7 @@ int main(int argc, char *argv[]) {
     int ret_sig = -1;
     int ret = EXIT_SUCCESS;
     char lock_file_path[32] = {0};
+    char dump_extn_pattern[16] = {0};
     
     if (argc < 3) {
         printf("Number of parameter is less\n");
@@ -108,8 +109,16 @@ int main(int argc, char *argv[]) {
         logger_info("Uploads blocked by privacy settings");
         return EXIT_SUCCESS;  /* Not an error */
     }
-#endif 
-#if 0    
+#endif
+    if (config.dump_type == DUMP_TYPE_MINIDUMP) {
+            strcpy(dump_extn_pattern, "*.dmp*");
+        } else if (config.dump_type == DUMP_TYPE_COREDUMP) {
+            strcpy(dump_extn_pattern, "*core.prog*.gz*");
+        } else {
+            printf("Invalid Dump Type\n");
+        }
+
+    cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES);
     /* Step 5: Process Dumps */
     /* TODO: Implement dump processing loop */
     dump_file_t *dumps = NULL;
@@ -121,6 +130,7 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
     
+#if 0    
     /* 5.2: Process each dump */
     for (int i = 0; i < dump_count; i++) {
         /* Check unified rate limit */

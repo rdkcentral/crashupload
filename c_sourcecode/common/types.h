@@ -21,6 +21,7 @@
 #define ON_STARTUP_DUMPS_CLEANED_UP_BASE "/tmp/.on_startup_dumps_cleaned_up"
 #define EnableOCSPStapling "/tmp/.EnableOCSPStapling"
 #define EnableOCSP "/tmp/.EnableOCSPCA"
+#define MAX_CORE_FILES 4
 
 /* Device types */
 typedef enum {
