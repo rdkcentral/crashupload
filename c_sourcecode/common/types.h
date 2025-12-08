@@ -105,12 +105,19 @@ typedef struct {
 } platform_config_t;
 
 /* Dump file metadata */
-typedef struct {
+/*typedef struct {
     char filepath[512];
     char basename[256];
     dump_type_t type;
     time_t mtime;
     off_t size;
+} dump_file_t;*/
+
+typedef struct {
+    char path[512];
+    time_t mtime;
+    off_t size;
+    int is_minidump;  /* 1 for .dmp, 0 for .core */
 } dump_file_t;
 
 /* Archive info structure */

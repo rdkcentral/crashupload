@@ -7,16 +7,17 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <time.h>
+#include "../../common/types.h"
 
 #define MAX_DUMPS 100
 #define PATH_MAX 4096
 
-typedef struct {
+/*typedef struct {
     char path[PATH_MAX];
     time_t mtime;
     off_t size;
-    int is_minidump;  /* 1 for .dmp, 0 for .core */
-} dump_file_t;
+    int is_minidump;  // 1 for .dmp, 0 for .core
+} dump_file_t;*/
 
 static dump_file_t found_dumps[MAX_DUMPS];
 static int dump_count = 0;
@@ -70,7 +71,7 @@ int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count) {
         }
         
         /* Build full path */
-        char fullpath[PATH_MAX];
+        char fullpath[256];
         snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name);
         
         /* Get file stats */
@@ -85,11 +86,12 @@ int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count) {
         }
         
         /* Add to array */
-        strncpy(found_dumps[dump_count].path, fullpath, PATH_MAX - 1);
-        found_dumps[dump_count].path[PATH_MAX - 1] = '\0';
+        strncpy(found_dumps[dump_count].path, fullpath, sizeof(found_dumps[dump_count].path));
+        found_dumps[dump_count].path[512 - 1] = '\0';
         found_dumps[dump_count].mtime = st.st_mtime;
         found_dumps[dump_count].size = st.st_size;
         found_dumps[dump_count].is_minidump = (dump_type == 1);
+	printf("Dump/Core file name=%s\n", found_dumps[dump_count].path);
         dump_count++;
     }
     

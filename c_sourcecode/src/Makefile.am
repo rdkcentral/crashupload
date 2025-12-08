@@ -30,6 +30,7 @@ crashupload_SOURCES = \
     utils/lock_manager.h \
     utils/cleanup_batch.c \
     utils/cleanup_batch.h \
+    scanner/scanner.c \
     utils/logger.c \
     utils/logger.h
 

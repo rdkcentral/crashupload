@@ -15,7 +15,7 @@
 #include "utils/prerequisites.h"
 #include "utils/privacy.h"
 #include "utils/lock_manager.h"
-#include "core/scanner.h"
+#include "scanner/scanner.h"
 #include "core/archive_smart.h"
 #include "core/upload_typeaware.h"
 #include "core/ratelimit_unified.h"
@@ -125,15 +125,17 @@ int main(int argc, char *argv[]) {
     int dump_count = 0;
     
     /* 5.1: Scan for dumps */
-    if (scanner_find_dumps(&config, &dumps, &dump_count) != ERR_SUCCESS) {
+    if (scanner_find_dumps(config.working_dir_path, &dumps, &dump_count) <= 0) {
         logger_info("No dumps found or scan failed");
         goto cleanup;
     }
-    
-#if 0    
+    printf("After scan dump found:%d\n", dump_count);
     /* 5.2: Process each dump */
     for (int i = 0; i < dump_count; i++) {
+        printf("List of dump file=%s\n", (dumps+i)->path);
+    }
         /* Check unified rate limit */
+#if 0    
         ratelimit_decision_t decision = ratelimit_check_unified(&dumps[i]);
         
         if (decision == RATELIMIT_BLOCK_RECOVERY) {
@@ -170,13 +172,13 @@ int main(int argc, char *argv[]) {
     /* TODO: Implement batch cleanup of old files */
     cleanup_batch_old_files(&config, FILE_AGE_CLEANUP_DAYS);
     
+#endif    
 cleanup:
     /* Step 7: Shutdown */
-    if (dumps) {
-        free(dumps);
-    }
+    //if (dumps) {
+    //    free(dumps);
+    //}
     
-#endif    
     if (lock_fd >= 0) {
         lock_release(lock_fd);
     }
