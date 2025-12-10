@@ -132,7 +132,8 @@ int main(int argc, char *argv[]) {
     printf("After scan dump found:%d\n", dump_count);
     /* 5.2: Process each dump */
     for (int i = 0; i < dump_count; i++) {
-        printf("List of dump file=%s\n", (dumps+i)->path);
+        printf("List of dump file=%s=======>\n", (dumps+i)->path);
+	process_file_entry((dumps+i)->path, dump_type);
     }
         /* Check unified rate limit */
 #if 0    
