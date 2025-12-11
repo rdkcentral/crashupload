@@ -561,7 +561,7 @@ call_get_crashed:
  *
  *   Returns 0 on success, non-zero on error.
  */
-int process_file_entry(const char *fullpath, char *dump_type)
+int process_file_entry(char *fullpath, char *dump_type)
 {
     int sanitize_ret = -1;
     char sanitized[256] = {0};
@@ -622,13 +622,19 @@ int process_file_entry(const char *fullpath, char *dump_type)
                 if (rename(fullpath, newfull) != 0) {
                     printf("Failed to rename %s -> %s : %s", fullpath, newfull, strerror(errno));
                     return -1;
-                }
+                }else {
+		    printf("Renamed After retry %s -> %s\n", fullpath, newfull);
+	            strcpy(fullpath, newfull);
+	            printf("After rename fullpath buffer updated=%s=\n",fullpath);
+		}
             } else {
                 printf("Failed to rename %s -> %s : %s\n", fullpath, newfull, strerror(errno));
                 return -1;
             }
         } else {
-            printf("Renamed %s -> %s", fullpath, newfull);
+            printf("Renamed %s -> %s\n", fullpath, newfull);
+	    strcpy(fullpath, newfull);
+	    printf("After rename fullpath buffer updated=%s=\n",fullpath);
         }
         /* set fullpath to newfull for subsequent processing */
         if (strlen(newfull) >= PATH_MAX) {
