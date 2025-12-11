@@ -4,17 +4,34 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include <time.h>
 #include "../../common/types.h"
+#include "file_utils.h"
+#include "scanner.h"
 
 #define MAX_DUMPS 100
-#define PATH_MAX 4096
+#define PATH_MAX 512
 
 
 static dump_file_t found_dumps[MAX_DUMPS];
 static int dump_count = 0;
+/* Container delimiter in filenames */
+static const char containerDelimiter[] = "<#=#>";
+
+/* Telemetry stubs - replace with real implementations */
+static void t2ValNotify(const char *key, const char *val)
+{
+    (void)key; (void)val;
+    /* integrate with real telemetry API */
+}
+static void t2CountNotify(const char *key, const char *val_or_null)
+{
+    (void)key; (void)val_or_null;
+    /* integrate with real telemetry API */
+}
 
 /* Returns 1 if path refers to a regular file, 0 otherwise */
 static int is_regular_file(const char *path)
@@ -23,11 +40,11 @@ static int is_regular_file(const char *path)
     if (stat(path, &st) != 0) return 0;
     return S_ISREG(st.st_mode);
 }
-
+#if 0
 /* Read a single line from file `path` into buffer (sz), trimming newline.
  * Returns 0 on success, -1 on error.
  */
-static int read_line_trim(const char *path, char *buf, size_t sz)
+int read_line_trim(const char *path, char *buf, size_t sz)
 {
     if (!path || !buf || sz == 0) return -1;
     FILE *f = fopen(path, "r");
@@ -41,7 +58,7 @@ static int read_line_trim(const char *path, char *buf, size_t sz)
     buf[strcspn(buf, "\r\n")] = '\0';
     return 0;
 }
-
+#endif
 /* Write a single line to LOG_FILES_PATH (append). Return 0 on success */
 static int append_logfile_entry(const char *entry)
 {
@@ -113,7 +130,7 @@ int sanitize_filename_preserve_container(const char *fname, char *out, size_t ou
 
     const char *p = fname;
     const char *match;
-    size_t fname_len = strlen(fname);
+    //size_t fname_len = strlen(fname);
 
     while ((match = strstr(p, DELIM)) != NULL) {
 
@@ -307,9 +324,7 @@ static int get_crashed_log_file(const char *file)
     /* Extract appname */
     char *appname = extract_appname(file);
 
-    char logbuf[1024];
-    snprintf(logbuf, sizeof(logbuf), "Process crashed = %s", pname);
-    logMessage(logbuf);
+    printf("Process crashed = %s\n", pname);
 
     /* Telemetry if enabled (replace IS_T2_ENABLED check as needed) */
     const char *IS_T2_ENABLED = getenv("IS_T2_ENABLED"); /* env var control; modify as needed */
@@ -319,12 +334,10 @@ static int get_crashed_log_file(const char *file)
         t2CountNotify("SYST_ERR_ProcessCrash", NULL);
     }
     printf("Going to call lookup_log_files_for_proc() ===========================\n");
-    printf("Going to call lookup_log_files_for_proc() ===========================\n");
     /* Lookup log files (comma-separated) */
     char *logrhs = lookup_log_files_for_proc(pname);
     if (logrhs) {
-        snprintf(logbuf, sizeof(logbuf), "Crashed process log file(s): %s", logrhs);
-        logMessage(logbuf);
+        printf("Crashed process log file(s): %s\n", logrhs);
 
         /* Split comma-separated list and append LOG_PATH/<name> to LOG_FILES_PATH */
         char *saveptr = NULL;
@@ -337,26 +350,23 @@ static int get_crashed_log_file(const char *file)
             char tmp = *end; *end = '\0';
 
             char logfull[PATH_MAX];
-            if (join_path(logfull, LOG_PATH, token) == 0) {
+            if (join_path(logfull, sizeof(logfull), LOG_FILES_PATH, token) == 0) {
                 if (append_logfile_entry(logfull) != 0) {
-                    snprintf(logbuf, sizeof(logbuf), "Failed to append log entry: %s", logfull);
-                    logMessage(logbuf);
+		    printf("Failed to append log entry: %s\n", logfull);
                 }
             } else {
-                snprintf(logbuf, sizeof(logbuf), "Path too long for log: %s/%s", LOG_PATH, token);
-                logMessage(logbuf);
+                printf("Path too long for log: %s/%s", LOG_FILES_PATH, token);
             }
             *end = tmp;
             token = strtok_r(NULL, ",", &saveptr);
         }
         free(logrhs);
     } else {
-        logMessage("No log mapper entry found for process");
+        printf("No log mapper entry found for process\n");
     }
 
     if (appname) {
-        snprintf(logbuf, sizeof(logbuf), "Appname, Process_Crashed = %s, %s", appname, pname);
-        logMessage(logbuf);
+        printf("Appname, Process_Crashed = %s, %s\n", appname, pname);
         free(appname);
     }
 
@@ -394,7 +404,7 @@ static int processCrashTelemetryInfo(const char *rawfile)
     char *ext = strrchr(file, '.');
     if (ext && strcmp(ext, ".tgz") == 0) {
         isTgz = 1;
-        logMessage("The File is already a tarball, this might be a retry or crash during shutdown");
+        printf("The File is already a tarball, this might be a retry or crash during shutdown:%d\n", isTgz);
 
         /* original shell: file_temp=${file#*_mod*_}
          * Remove everything up to and including the first occurrence of "_mod_" (if present).
@@ -409,10 +419,11 @@ static int processCrashTelemetryInfo(const char *rawfile)
             pmod = NULL;
             pmod = strchr(tmp, '_');
             if (pmod != NULL) {
-                strncpy(tmp, pmod+1, sizeof(tmp));
+                strncpy(tmp, pmod+1, sizeof(tmp)-1);
+		tmp[sizeof(tmp)-1] = '\0';
             }
             snprintf(file, PATH_MAX, "%s", tmp);
-            logMessage("Removed the meta information from tgz filename");
+            printf("Removed the meta information from tgz filename\n");
             printf("tgz file name after remove meta info=%s\n", file);
             t2CountNotify("SYS_INFO_TGZDUMP", "1");
         }
@@ -420,10 +431,10 @@ static int processCrashTelemetryInfo(const char *rawfile)
         /* Container detection: check if containerDelimiter appears in file */
     if (strstr(file, containerDelimiter) != NULL) {
         isContainer = 1;
-        logMessage("From the file name crashed process is a container");
+        printf("From the file name crashed process is a container=%d\n", isContainer);
 
         /* Split on last containerDelimiter for time part (file##*$containerDelimiter) */
-        char *lastDel = strrchr(file, containerDelimiter[0]); /* naive find - improved below */
+        //Satya:Commented====>char *lastDel = strrchr(file, containerDelimiter[0]); /* naive find - improved below
         /* Better approach: find last occurrence of containerDelimiter substring */
         char *pos = NULL;
         char *scan = file;
@@ -440,8 +451,8 @@ static int processCrashTelemetryInfo(const char *rawfile)
             }
         }
         /* firstBreak = substring before first delimiter occurrence (we used last pos above for time; find first) */
-        char firstBreak[PATH_MAX];
-        char containerTime[PATH_MAX];
+        char firstBreak[256];
+        char containerTime[64];
         /* find first occurrence for containerTime extraction logic similar to shell */
         char *firstPos = strstr(file, containerDelimiter);
         if (!firstPos) goto call_get_crashed;
@@ -461,7 +472,7 @@ static int processCrashTelemetryInfo(const char *rawfile)
         const char *timepart = lastPos + strlen(containerDelimiter);
         snprintf(containerTime, sizeof(containerTime), "%s", timepart);
 
-	char containerName[PATH_MAX];
+	char containerName[256];
         char containerStatus[256];
         /* check if firstBreak contains another delimiter -> then has status info */
         if (strstr(firstBreak, containerDelimiter) != NULL) {
@@ -512,28 +523,21 @@ static int processCrashTelemetryInfo(const char *rawfile)
         t2ValNotify("crashedContainerProcessName_split", ProcessName);
         t2CountNotify("SYS_INFO_CrashedContainer", NULL);
 
-        char logbuf[512] = {0};
         /* Logging similar to shell */
-        snprintf(logbuf, sizeof(logbuf), "Container crash info Basic: %s, %s", Appname, ProcessName);
-        logMessage(logbuf);
-        snprintf(logbuf, sizeof(logbuf), "Container crash info Advance: %s, %s", containerName, containerStatus);
-        logMessage(logbuf);
-        snprintf(logbuf, sizeof(logbuf), "NEW Appname, Process_Crashed, Status = %s, %s, %s", Appname, ProcessName, containerStatus);
-        logMessage(logbuf);
-        snprintf(logbuf, sizeof(logbuf), "NEW Processname, App Name, AppState = %s, %s, %s", ProcessName, Appname, containerStatus);
-        logMessage(logbuf);
+        printf("Container crash info Basic: %s, %s\n", Appname, ProcessName);
+        printf("Container crash info Advance: %s, %s\n", containerName, containerStatus);
+        printf("NEW Appname, Process_Crashed, Status = %s, %s, %s\n", Appname, ProcessName, containerStatus);
+        printf("NEW Processname, App Name, AppState = %s, %s, %s\n", ProcessName, Appname, containerStatus);
 
         /* Add APP_ERROR_Crashed telemetry */
-        char tmpbuf[PATH_MAX * 2];
+        char tmpbuf[PATH_MAX * 3];
         snprintf(tmpbuf, sizeof(tmpbuf), "%s,%s,%s", Appname, ProcessName, containerStatus);
         t2ValNotify("APP_ERROR_Crashed_split", tmpbuf);
         t2ValNotify("APP_ERROR_Crashed_accum", tmpbuf);
 
-        snprintf(logbuf, sizeof(logbuf), "ContainerName = %s", containerName);
-        logMessage(logbuf);
+        printf("ContainerName = %s\n", containerName);
         t2ValNotify("APP_ERROR_CrashInfo", containerName);
-        snprintf(logbuf, sizeof(logbuf), "ContainerStatus = %s", containerStatus);
-        logMessage(logbuf);
+        printf("ContainerStatus = %s\n", containerStatus);
         t2ValNotify("APP_ERROR_CrashInfo_status", containerStatus);
 
         /* switch normalized file into file variable */
@@ -557,9 +561,9 @@ call_get_crashed:
  *
  *   Returns 0 on success, non-zero on error.
  */
-static int process_file_entry(const char *fullpath, char *dump_type)
+int process_file_entry(const char *fullpath, char *dump_type)
 {
-    int sanitized_ret = -1;
+    int sanitize_ret = -1;
     char sanitized[256] = {0};
     if (!fullpath) return -1;
 
@@ -591,27 +595,23 @@ static int process_file_entry(const char *fullpath, char *dump_type)
         strncpy(basename, fullcopy, PATH_MAX);
         basename[PATH_MAX - 1] = '\0';
     }
-    printf("dir name=%s=>\nbasename=%s=>\n", dirname, basename);
-        /* Sanitize basename while preserving containerDelimiter token */
-    int sanitize_ret = sanitize_filename_preserve_container(basename, sanitized, sizeof(sanitized));
+    printf("process_file_entry dir name=%s=>\nbasename=%s=>\n", dirname, basename);
+    /* Sanitize basename while preserving containerDelimiter token */
+    sanitize_ret = sanitize_filename_preserve_container(basename, sanitized, sizeof(sanitized));
     if ((sanitize_ret == 0) && (sanitized[0] == '\0')) {
         /* sanitized became empty (or error) => delete original file */
         if (unlink(fullpath) != 0) {
-            char errbuf[256];
-            snprintf(errbuf, sizeof(errbuf), "Failed to unlink (sanitized empty): %s : %s", fullpath, strerror(errno));
-            logMessage(errbuf);
+            printf("Failed to unlink (sanitized empty): %s : %s\n", fullpath, strerror(errno));
             return -1;
         }
-        char msg[512];
-        snprintf(msg, sizeof(msg), "Removed file with empty sanitized name: %s", fullpath);
-        logMessage(msg);
+        printf("Removed file with empty sanitized name: %s\n", fullpath);
         return 0;
     }
         /* If sanitized differs from original basename, rename */
     if (strcmp(sanitized, basename) != 0) {
         char newfull[PATH_MAX];
-        if (join_path(newfull, dirname, sanitized) != 0) {
-            logMessage("Path too long after sanitization; skipping rename");
+        if (join_path(newfull, sizeof(newfull), dirname, sanitized) != 0) {
+            printf("Path too long after sanitization; skipping rename\n");
             return -1;
         }
         /* Use rename() for atomic move; if target exists, choose to overwrite */
@@ -620,21 +620,15 @@ static int process_file_entry(const char *fullpath, char *dump_type)
             if (errno == EEXIST || errno == EACCES) {
                 (void)unlink(newfull);
                 if (rename(fullpath, newfull) != 0) {
-                    char errbuf[256];
-                    snprintf(errbuf, sizeof(errbuf), "Failed to rename %s -> %s : %s", fullpath, newfull, strerror(errno));
-                    logMessage(errbuf);
+                    printf("Failed to rename %s -> %s : %s", fullpath, newfull, strerror(errno));
                     return -1;
                 }
             } else {
-                char errbuf[256];
-                snprintf(errbuf, sizeof(errbuf), "Failed to rename %s -> %s : %s", fullpath, newfull, strerror(errno));
-                logMessage(errbuf);
+                printf("Failed to rename %s -> %s : %s\n", fullpath, newfull, strerror(errno));
                 return -1;
             }
         } else {
-            char msg[512];
-            snprintf(msg, sizeof(msg), "Renamed %s -> %s", fullpath, newfull);
-            logMessage(msg);
+            printf("Renamed %s -> %s", fullpath, newfull);
         }
         /* set fullpath to newfull for subsequent processing */
         if (strlen(newfull) >= PATH_MAX) {

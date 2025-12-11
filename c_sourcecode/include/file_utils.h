@@ -5,6 +5,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/*
+ * Safely join dir + name into dest (size PATH_MAX).
+ * Returns 0 on success, -1 on error (overflow).
+ *
+ * Example:
+ *   dir="/tmp/dumps", name="app_core_123.dmp" -> "/tmp/dumps/app_core_123.dmp"
+ */
+int join_path(char *dest, size_t dest_size, const char *dir, const char *name);
 /**
  * Calculate SHA1 hash of a file using streaming (8KB chunks for low memory)
  * @param path File path

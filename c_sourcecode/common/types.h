@@ -22,6 +22,8 @@
 #define EnableOCSPStapling "/tmp/.EnableOCSPStapling"
 #define EnableOCSP "/tmp/.EnableOCSPCA"
 #define MAX_CORE_FILES 4
+#define LOGMAPPER_FILE_PATH "/etc/breakpad-logmapper.conf"
+#define LOG_FILES_PATH "/tmp/minidump_log_files.txt"
 
 /* Device types */
 typedef enum {

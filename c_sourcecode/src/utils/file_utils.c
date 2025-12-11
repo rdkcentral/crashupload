@@ -11,6 +11,30 @@
 
 #define SHA1_CHUNK_SIZE 8192
 
+/*
+ * Safely join dir + name into dest (size PATH_MAX).
+ * Returns 0 on success, -1 on error (overflow).
+ *
+ * Example:
+ *   dir="/tmp/dumps", name="app_core_123.dmp" -> "/tmp/dumps/app_core_123.dmp"
+ */
+int join_path(char *dest, size_t dest_size, const char *dir, const char *name)
+{
+    if (!dest || !dir || !name) return -1;
+    size_t dlen = strlen(dir);
+    if (dlen == 0) {
+        if (strlen(name) >= dest_size) return -1;
+        if (snprintf(dest, dest_size, "%s", name) >= dest_size) return -1;
+        return 0;
+    }
+    if (dir[dlen - 1] == '/') {
+        if (snprintf(dest, dest_size, "%s%s", dir, name) >= dest_size) return -1;
+    } else {
+        if (snprintf(dest, dest_size, "%s/%s", dir, name) >= dest_size) return -1;
+    }
+    return 0;
+}
+
 /**
  * Calculate SHA1 checksum of a file.
  * Works for BOTH OpenSSL < 3.0 and OpenSSL >= 3.0.

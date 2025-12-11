@@ -133,7 +133,8 @@ int main(int argc, char *argv[]) {
     /* 5.2: Process each dump */
     for (int i = 0; i < dump_count; i++) {
         printf("List of dump file=%s=======>\n", (dumps+i)->path);
-	process_file_entry((dumps+i)->path, dump_type);
+	process_file_entry((dumps+i)->path, argv[2]);
+        printf("List of dump file After process_file_entry=%s=======>\n", (dumps+i)->path);
     }
         /* Check unified rate limit */
 #if 0    
