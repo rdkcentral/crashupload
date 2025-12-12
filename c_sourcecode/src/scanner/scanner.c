@@ -729,7 +729,7 @@ int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count) {
         /* Add to array */
         strncpy(found_dumps[dump_count].path, fullpath, sizeof(found_dumps[dump_count].path));
         found_dumps[dump_count].path[512 - 1] = '\0';
-        found_dumps[dump_count].mtime = st.st_mtime;
+        //found_dumps[dump_count].mtime = st.st_mtime;
         found_dumps[dump_count].size = st.st_size;
         found_dumps[dump_count].is_minidump = (dump_type == 1);
 	printf("Dump/Core file name=%s\n", found_dumps[dump_count].path);

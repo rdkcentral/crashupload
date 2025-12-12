@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+int file_get_mtime_formatted(const char *path, char *mtime, size_t len);
+int get_crash_timestamp_utc(char *out, size_t outsz);
 /*
  * Safely join dir + name into dest (size PATH_MAX).
  * Returns 0 on success, -1 on error (overflow).

@@ -10,7 +10,7 @@
 #include <openssl/evp.h>
 
 #define SHA1_CHUNK_SIZE 8192
-
+#define TIMESTAMP_DEFAULT_VALUE "2000-01-01-00-00-00"
 /*
  * Safely join dir + name into dest (size PATH_MAX).
  * Returns 0 on success, -1 on error (overflow).
@@ -152,3 +152,40 @@ int file_get_size(const char *path, uint64_t *size) {
     *size = (uint64_t)st.st_size;
     return 0;
 }
+/*
+ * Generates a UTC timestamp equivalent to:
+ *     date -u +%Y-%m-%d-%H-%M-%S
+ *
+ * Output format length = 19 chars + null -> buffer must be >= 20 bytes.
+ */
+int get_crash_timestamp_utc(char *out, size_t outsz)
+{
+    if (!out || outsz < 20) {
+        return -1;  // Invalid buffer
+    }
+
+    struct timespec ts;
+    
+    // systemd-compatible: use CLOCK_REALTIME for wall time
+    if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
+	strcpy(out,TIMESTAMP_DEFAULT_VALUE);
+        return -1;
+    }
+
+    struct tm tm_utc;
+
+    // Convert to UTC (equivalent to "date -u")
+    if (gmtime_r(&ts.tv_sec, &tm_utc) == NULL) {
+	strcpy(out,TIMESTAMP_DEFAULT_VALUE);
+        return -1;
+    }
+
+    // Format: %Y-%m-%d-%H-%M-%S
+    if (strftime(out, outsz, "%Y-%m-%d-%H-%M-%S", &tm_utc) == 0) {
+	strcpy(out,TIMESTAMP_DEFAULT_VALUE);
+        return -1;
+    }
+
+    return 0;
+}
+

@@ -22,6 +22,7 @@
 #include "utils/cleanup_batch.h"
 #include "utils/logger.h"
 #include <signal.h>
+#include "file_utils.h"
 
 static int lock_dir_prefix = 0;
 
@@ -130,11 +131,58 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
     printf("After scan dump found:%d\n", dump_count);
+    char mtime_date[64] = {0};
+    int len = 0;
+    char crashts[64] = {0};
+    char new_dump_name[1024] = {0};
+    char dump_file_name[512] = {0};
+    char *tmp = NULL;
     /* 5.2: Process each dump */
     for (int i = 0; i < dump_count; i++) {
         printf("List of dump file=%s=======>\n", (dumps+i)->path);
 	process_file_entry((dumps+i)->path, argv[2]);
         printf("List of dump file After process_file_entry=%s=======>\n", (dumps+i)->path);
+	len = strlen((dumps+i)->path);
+	if (len > 4 && strcmp((dumps+i)->path + len - 4, ".tgz") == 0) {
+	    printf("Skip archiving $f as it is a tarball already.\n");
+	    continue;
+	}
+        if (0 == file_get_mtime_formatted((dumps+i)->path, mtime_date, sizeof(mtime_date))) {
+	    printf("mtime ============> %s\n", mtime_date);
+	    strncpy((dumps+i)->mtime_date, mtime_date, sizeof((dumps+i)->mtime_date));
+	    (dumps+i)->mtime_date[sizeof((dumps+i)->mtime_date)-1] = '\0';
+	    memset(mtime_date, '\0', sizeof(mtime_date));
+	    printf("mtime of file:%s:is:%s\n",(dumps+i)->path, (dumps+i)->mtime_date);
+	} else {
+	    printf("file_get_mtime_formatted() return fail\n");
+	}
+	get_crash_timestamp_utc(crashts, sizeof(crashts));
+	printf("crashts=%s\n", crashts);
+	tmp = strrchr((dumps+i)->path, '/');
+	if (tmp != NULL) {
+	    snprintf(dump_file_name, sizeof(dump_file_name), "%s", tmp+1);
+	} else {
+	    snprintf(dump_file_name, sizeof(dump_file_name), "%s", (dumps+i)->path);
+	}
+        if (config.dump_type == DUMP_TYPE_COREDUMP) {
+	    if (NULL != (strstr((dumps+i)->path,"mpeos-main"))) {
+	        snprintf(new_dump_name, sizeof(new_dump_name), "%s_mac%s_dat%s_box%s_mod%s_%s", platform.platform_sha1, platform.mac_address,(dumps+i)->mtime_date, config.box_type, platform.model,dump_file_name);
+		printf("new dump name crated for mpeos-main=%s\n", new_dump_name);
+	    } else {
+	        snprintf(new_dump_name, sizeof(new_dump_name), "%s_mac%s_dat%s_box%s_mod%s_%s", platform.platform_sha1, platform.mac_address,crashts, config.box_type, platform.model,dump_file_name);
+		printf("new dump name crated for core dump=%s\n", new_dump_name);
+	    }
+	} else {
+	        snprintf(new_dump_name, sizeof(new_dump_name), "%s_mac%s_dat%s_box%s_mod%s_%s", platform.platform_sha1, platform.mac_address,crashts, config.box_type, platform.model,dump_file_name);
+		printf("new dump name crated for mini dump=%s\n", new_dump_name);
+	}
+	if (strlen(new_dump_name) >= 135) {
+	    tmp = strchr(new_dump_name, '_');
+	    if (tmp != NULL) {
+	        snprintf(new_dump_name, sizeof(new_dump_name), "%s", tmp+1);
+		printf("After stripping dump file=%s\n", new_dump_name);
+	    }
+	}
     }
         /* Check unified rate limit */
 #if 0    

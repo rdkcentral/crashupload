@@ -117,6 +117,7 @@ typedef struct {
 
 typedef struct {
     char path[512];
+    char mtime_date[64];
     time_t mtime;
     off_t size;
     int is_minidump;  /* 1 for .dmp, 0 for .core */
