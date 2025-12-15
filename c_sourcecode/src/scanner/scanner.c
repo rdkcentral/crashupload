@@ -171,7 +171,7 @@ int sanitize_filename_preserve_container(const char *fname, char *out, size_t ou
     return 0;
 }
 
-static char *extract_pname(const char *filepath)
+char *extract_pname(const char *filepath)
 {
     if (!filepath) return NULL;
     /* Find last '/' to separate directory and basename */

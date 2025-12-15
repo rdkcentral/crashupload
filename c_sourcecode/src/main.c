@@ -135,8 +135,16 @@ int main(int argc, char *argv[]) {
     int len = 0;
     char crashts[64] = {0};
     char new_dump_name[1024] = {0};
+    char trim_dump_name[1024] = {0};
     char dump_file_name[512] = {0};
     char *tmp = NULL;
+    archive_info_t *archive = NULL;
+    archive = malloc(dump_count*sizeof(archive_info_t));
+    if (archive != NULL) {
+        printf("Error to allocate memory for archive\n");
+	return -1;
+    }
+    memset(archive, '\0',dump_count * sizeof(archive));
     /* 5.2: Process each dump */
     for (int i = 0; i < dump_count; i++) {
         printf("List of dump file=%s=======>\n", (dumps+i)->path);
@@ -144,7 +152,9 @@ int main(int argc, char *argv[]) {
         printf("List of dump file After process_file_entry=%s=======>\n", (dumps+i)->path);
 	len = strlen((dumps+i)->path);
 	if (len > 4 && strcmp((dumps+i)->path + len - 4, ".tgz") == 0) {
-	    printf("Skip archiving $f as it is a tarball already.\n");
+	    printf("Skip archiving %s as it is a tarball already.\n", (dumps+i)->path);
+	    snprintf((archive+i)->archive_name, sizeof((archive+i)->archive_name), "%s", (dumps+i)->path);
+	    printf("Skip archiving %s as it is a tarball already.\n", (archive+i)->archive_name);
 	    continue;
 	}
         if (0 == file_get_mtime_formatted((dumps+i)->path, mtime_date, sizeof(mtime_date))) {
@@ -183,6 +193,25 @@ int main(int argc, char *argv[]) {
 		printf("After stripping dump file=%s\n", new_dump_name);
 	    }
 	}
+	if (strlen(new_dump_name) >= 135) {
+	    printf("The file name is still greater than 135 charecters try trimming the processname to 20 chars from the filename\n");
+	    printf("The Current File Name :%s\n", new_dump_name);
+	    char *pname = extract_pname(new_dump_name);
+            if (!pname) {
+	        printf("process name not found to do trim\n");
+	    } else {
+	        printf("Change the process name process name length to 20 byte-%s\n", pname);
+	        trim_process_name_in_path(new_dump_name,pname,20,trim_dump_name, sizeof(trim_dump_name));
+	        printf("Changed File Name : %s\n", trim_dump_name);
+		strncpy(new_dump_name, trim_dump_name, sizeof(new_dump_name));
+	    }
+	}
+	prnintf("Processing for TAR:%s\n",new_dump_name);
+        /* Create archive with smart compression */
+        if (archive_create_smart(&dumps[i], &config, &platform, &archive[i], new_dump_name) != ERR_SUCCESS) {
+            logger_error("Archive creation failed for %s", dumps[i].filepath);
+            continue;
+        }
     }
         /* Check unified rate limit */
 #if 0    

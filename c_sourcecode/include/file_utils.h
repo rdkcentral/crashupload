@@ -5,7 +5,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+
 int file_get_mtime_formatted(const char *path, char *mtime, size_t len);
+int trim_process_name_in_path(const char *full_path,
+                              const char *process_name, int max_pname_trim
+                              char *out,
+                              size_t out_len);
 int get_crash_timestamp_utc(char *out, size_t outsz);
 /*
  * Safely join dir + name into dest (size PATH_MAX).

@@ -58,11 +58,15 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
     
     ret = getIncludePropertyData("LOG_PATH", device_prop_data, sizeof(device_prop_data));
     if (ret == UTILS_SUCCESS) {
-        printf("log path = %s\n", log_path);
+	strncpy(config->log_path, device_prop_data, sizeof(config->log_path));
+	config->log_path[sizeof(config->log_path)-1] = '\0';
+        printf("log path = %s\n", config->log_path);
     } else {
-	strcpy(log_path, "/opt/logs");
-        printf("Error to get log path. Set default path = %s\n", log_path);
+	strcpy(config->log_path, "/opt/logs");
+        printf("Error to get log path. Set default path = %s\n", config->log_path);
     }
+    strncpy(log_path, config->log_path, sizeof(log_path));
+        printf("log path = %s\n", log_path);
     ret = getDevicePropertyData("BOX_TYPE", device_prop_data, sizeof(device_prop_data));
     if (ret == UTILS_SUCCESS) {
          printf("Box type = %s\n", device_prop_data);
@@ -84,7 +88,7 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
     ret = getDevicePropertyData("DEVICE_TYPE", device_prop_data, sizeof(device_prop_data));
     if (ret == UTILS_SUCCESS) {
          printf("device type = %s\n", device_prop_data);
-	 if (0 == (strncmp(device_prop_data, "mediaclient", 11))) {
+	 if (0 == (strncmp(device_prop_data, "mediaclient", 11)) || (0 == (strncmp(device_prop_data, "hybrid", 11)))) {
 	     config->device_type = DEVICE_TYPE_MEDIACLIENT;
 	     printf("device type=%d\n",config->device_type);
 	     snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, "core_log.txt");

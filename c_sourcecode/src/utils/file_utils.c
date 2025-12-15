@@ -189,3 +189,129 @@ int get_crash_timestamp_utc(char *out, size_t outsz)
     return 0;
 }
 
+/* --------------------------------------------------------- */
+/* Extract last N lines from file (low-memory implementation)*/
+/* --------------------------------------------------------- */
+/*
+ * Example:
+ *   extract_tail("app.log", "app_tail.log", 500);
+ */
+static int extract_tail(const char *src,
+                        const char *dst,
+                        int max_lines)
+{
+    FILE *in = NULL;
+    FILE *out = NULL;
+    char **ring = NULL;
+    int count = 0;
+    int idx = 0;
+    int i;
+    int start;
+
+    if (!src || !dst || max_lines <= 0)
+        return -1;
+
+    in = fopen(src, "r");
+    if (!in)
+        return -1;
+
+    out = fopen(dst, "w");
+    if (!out)
+        goto cleanup;
+
+    ring = calloc((size_t)max_lines, sizeof(char *));
+    if (!ring)
+        goto cleanup;
+
+    char buf[IO_BUF_SIZE];
+    //printf("Read start===========>\n");
+    /* Read file line by line */
+    while (fgets(buf, sizeof(buf), in)) {
+        free(ring[idx]);
+        ring[idx] = strdup(buf);
+        if (!ring[idx])
+            goto cleanup;
+
+        //printf("idx=%d and %s\n", idx, ring[idx]);
+        idx = (idx + 1) % max_lines;
+        //printf("idx=%d and %s\n", idx, ring[idx]);
+        if (count < max_lines)
+            count++;
+    }
+
+
+    printf("Read End===========>\n");
+    start = (count < max_lines) ? 0 : idx;
+    /* Write lines in correct order */
+    for (i = 0; i < count; i++) {
+        int pos = (start + i) % max_lines;
+        if (ring[pos])
+            fputs(ring[pos], out);
+    }
+    //printf("Write to another file  End===========>\n");
+
+cleanup:
+    if (ring) {
+        for (i = 0; i < max_lines; i++)
+            free(ring[i]);
+        free(ring);
+    }
+    if (in) fclose(in);
+    if (out) fclose(out);
+    return 0;
+}
+
+
+int trim_process_name_in_path(const char *full_path,
+                              const char *process_name, int max_pname_trim
+                              char *out,
+                              size_t out_len)
+{
+    size_t path_len;
+    size_t pname_len;
+    char trimmed_pname[MAX_PNAME_TRIM + 1];
+    const char *src;
+    char *dst;
+
+    if (!full_path || !process_name || !out || out_len == 0)
+        return -1;
+
+    path_len = strlen(full_path);
+
+    pname_len = strlen(process_name);
+    if (pname_len == 0)
+        return -1;
+
+    /* Create trimmed process name (first max_pname_trim chars) */
+    if (pname_len > max_pname_trim)
+        pname_len = max_pname_trim;
+
+    memcpy(trimmed_pname, process_name, pname_len);
+    trimmed_pname[pname_len] = '\0';
+
+    src = full_path;
+    dst = out;
+
+    /* Replace all occurrences of process_name */
+    while (*src != '\0') {
+        if (strncmp(src, process_name, strlen(process_name)) == 0) {
+            /* Copy trimmed process name */
+            if ((size_t)(dst - out) + pname_len >= out_len)
+                return -1;
+
+            memcpy(dst, trimmed_pname, pname_len);
+            dst += pname_len;
+            src += strlen(process_name);
+        } else {
+            if ((size_t)(dst - out) + 1 >= out_len)
+                return -1;
+
+            *dst++ = *src++;
+        }
+    }
+
+    *dst = '\0';
+    return 0;
+}
+
+

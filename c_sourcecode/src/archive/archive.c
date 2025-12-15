@@ -8,8 +8,18 @@
 #include <sys/statvfs.h>
 #include <errno.h>
 #include <limits.h>
+#include "archive.h"
 
 #define MIN_FREE_SPACE_MB 50
+
+/* --------------------------------------------------------- */
+/* Utility: set very low CPU priority (like nice -19)        */
+/* --------------------------------------------------------- */
+static void set_low_priority(void)
+{
+    /* Best effort: failure is not fatal */
+    (void)setpriority(PRIO_PROCESS, 0, 19);
+}
 
 /* FULL IMPLEMENTATION - Check available disk space */
 static long get_free_space_mb(const char *path) {
@@ -37,44 +47,194 @@ static void get_dirname(const char *path, char *dir, size_t dir_size) {
     }
 }
 
-/* FULL IMPLEMENTATION - Execute tar command safely */
-static int execute_tar(const char *input, const char *output) {
-    /* Build tar command - using fork/exec instead of system() for security */
-    pid_t pid = fork();
-    
-    if (pid == -1) {
-        return -1;
+/* --------------------------------------------------------- */
+/* Add one file to archive                                   */
+/* --------------------------------------------------------- */
+static int archive_add_file(struct archive *a,
+                            const char *path)
+{
+    struct archive_entry *entry = NULL;
+    int fd = -1;
+    struct stat st;
+    char buf[IO_BUF_SIZE];
+    ssize_t r;
+    int ret_result = -1;
+
+    if (!a || !path)
+        return ret_result;
+
+    if (stat(path, &st) != 0)
+        return ret_result;
+
+    entry = archive_entry_new();
+    if (!entry)
+        return ret_result;
+
+    archive_entry_set_pathname(entry, path);
+    archive_entry_set_size(entry, st.st_size);
+    archive_entry_set_filetype(entry, AE_IFREG);
+    archive_entry_set_perm(entry, 0777);
+
+    if (archive_write_header(a, entry) != ARCHIVE_OK)
+        goto error;
+
+    fd = open(path, O_RDONLY);
+    if (fd < 0)
+        goto error;
+
+    while ((r = read(fd, buf, sizeof(buf))) > 0) {
+        if (archive_write_data(a, buf, (size_t)r) < 0)
+            goto error;
     }
-    
-    if (pid == 0) {
-        /* Child process */
-        char *args[] = {
-            "/bin/tar",
-            "-czf",
-            (char *)output,
-            "-C",
-            (char *)"/",  /* Change to root to use absolute path */
-            (char *)input,
-            NULL
-        };
-        
-        execvp(args[0], args);
-        _exit(1);  /* exec failed */
-    }
-    
-    /* Parent process - wait for completion */
-    int status;
-    if (waitpid(pid, &status, 0) == -1) {
-        return -1;
-    }
-    
-    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-        return 0;
-    }
-    
-    return -1;
+    ret_result = 0;
+
+error:
+    if (fd >= 0) close(fd);
+    archive_entry_free(entry);
+    return ret_result;
 }
 
+/* --------------------------------------------------------- */
+/* Create tar.gz archive                                     */
+/* --------------------------------------------------------- */
+/*
+ * Parameters:
+ *   tar_name: output tar.gz
+ *   files[] : list of input files
+ *   count   : number of files
+ */
+static int create_tarball(bool set_low_priority, const char *tar_name,
+                          const char **files,
+                          size_t count)
+{
+    struct archive *a = NULL;
+    size_t i;
+    int ret_result = -1;
+
+    if (!tar_name || !files || count == 0)
+        return ret_result;
+
+    if (set_low_priority == true) {
+	printf("Setting Low Priority\n");
+        set_low_priority();
+    }
+
+    a = archive_write_new();
+    if (!a)
+        return ret_result;
+
+    archive_write_add_filter_gzip(a);
+    archive_write_set_format_pax_restricted(a);
+
+    if (archive_write_open_filename(a, tar_name) != ARCHIVE_OK)
+        goto cleanup;
+
+    for (i = 0; i < count; i++) {
+        if (is_regular_file(files[i])) {
+            ret_result = archive_add_file(a, files[i]);
+        }
+    }
+    //ret_result = 0;
+
+cleanup:
+    archive_write_close(a);
+    archive_write_free(a);
+    return ret_result;
+}
+int archive_create_smart(const dump_file_t *dump, const config_t *config
+                         const platform_config_t *platform,
+                         archive_info_t *archive, char *new_dump_name) {
+    
+    char *tmp = NULL;
+    char *arch_files_list[5];
+    char target_file_name[256] = {0};
+
+    if (!dump || !config || !platform || !archive !new_dumo_name) {
+	printf("archive_create_smart Invalid Argument\n");
+        return -1;
+    }
+    tmp = strst(new_dump_name, "<#=#>");
+    if (tmp != NULL) {
+        printf("Remove <#=#> from the dump name:%s\n",new_dump_name);
+	strcpy(tmp, tmp+5);
+	strncpy(new_dump_name, tmp, sizeof(new_dump_name));
+	new_dump_name[sizeof(new_dump_name)-1] = '\0';
+    }
+    printf("archive_create_smart() After process dump name=%s\n", new_dump_name);
+    printf("Rename dump name fil->s%s->%s\n", dump->path, new_dump_name);
+    if (rename(dump->path, new_dump_name) != 0) {
+        if (errno == EEXIST || errno == EACCES) {
+            (void)unlink(new_dump_name);
+            if (rename(dump->path, new_dump_name) != 0) {
+                printf("Failed to rename %s -> %s : %s", dump->path, new_dump_path, strerror(errno));
+                return -1;
+            }else {
+                printf("Renamed After retry %s -> %s\n", dump->path, new_dump_path);
+            }
+        } else {
+            printf("Failed to rename %s -> %s : %s\n", dump->path, new_dump_path, strerror(errno));
+            return -1;
+        }
+    } else {
+        printf("Renamed %s -> %s\n", dump->path, new_dump_path);
+    }
+    size_t size_dump = 0;
+    if ( 0 == (file_get_size(new_dump_path, &size_dump))) {
+        printf("Size of the file:%u\n", size_dump);
+    }
+    //TODO: Add below telemetry
+    //if [ "$IS_T2_ENABLED" == "true" ] && [ ! -s "$dumpName" ]; then
+	//            t2CountNotify "SYST_ERR_MINIDPZEROSIZE"
+          //  fi
+    for (i = 0; i < 5; i++) {
+        arch_files_list[i] = malloc(256);
+    }
+    if (config.dump_type == DUMP_TYPE_COREDUMP) {
+        snprintf(target_file_name, sizeof(target_file_name), "%s.core.tgz", new_dump_path);
+        snprintf(arch_files_list[0], 256, "%s", new_dump_path);
+	snprintf(arch_files_list[1], 256, "%s", "/version.txt");
+	snprintf(arch_files_list[2], 256, "%s", config->core_log_file);
+	//snprintf(arch_files_list[3], 256, "%s", crash_url_file);
+	printf("Before core dump tar list of file name:%s\n", target_file_name);
+	printf("dump file=%s\n",arch_files_list[0]);
+	printf("version file=%s\n", arch_files_list[1]);
+	printf("core log file=%s\n", arch_files_list[2]);
+	//printf("crash url file=%s\n", arch_files_list[3]);
+       if(0 == (filePresentCheck("/tmp/set_crash_reboot_flag"))) {
+           printf("Compression without nice\n");
+           create_tarball(false, target_file_name, arch_files_list, 3);
+
+       } else {
+           printf("Compression with nice\n");
+           create_tarball(true, target_file_name, arch_files_list, 3);
+       }
+   } else {
+       snprintf(target_file_name, sizeof(target_file_name), "%s.tgz", new_dump_path);
+       if (config->device_type == DEVICE_TYPE_MEDIACLIENT) {
+	   snprintf(crash_url_file, sizeof(crash_url_file),"%s/%s", config->log_path, "crashed_url.txt");
+           if (0 == (filePresentCheck(crash_url_file))) { //TODO: Add logic if file has data
+	       //files="$VERSION_FILE $CORE_LOG $crashedUrlFile"
+               //add_crashed_log_file $files		    
+               //nice -n 19 tar -zcvf $tgzFile $dumpName $files 2>&1 | logStdout
+	       snprintf(arch_files_list[0], 256, "%s", new_dump_path);
+	       snprintf(arch_files_list[1], 256, "%s", "/version.txt");
+	       snprintf(arch_files_list[2], 256, "%s", config->core_log_file);
+	       snprintf(arch_files_list[3], 256, "%s", crash_url_file);
+	       printf("Before tar list of file name:%s\n", target_file_name);
+	       printf("dump file=%s\n",arch_files_list[0]);
+	       printf("version file=%s\n", arch_files_list[1]);
+	       printf("core log file=%s\n", arch_files_list[2]);
+	       printf("crash url file=%s\n", arch_files_list[3]);
+	       create_tarball(true, target_file_name, arch_files_list, 4);
+	   }
+       }
+   } 
+   for (i = 0; i < 5; i++) {
+       free(arch_files_list[i]);
+   }
+
+}
+#if 0
 /* FULL IMPLEMENTATION - Smart compression with optimization:
  * Try direct compression first, fallback to /tmp if space issues */
 int archive_create(const char *input, const char *output) {
@@ -188,3 +348,4 @@ int archive_generate_filename(const char *dump_path, const char *mac,
     
     return 0;
 }
+#endif
