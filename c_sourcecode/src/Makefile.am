@@ -12,7 +12,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/common \
 # External library flags
 AM_CFLAGS = $(LIBCURL_CFLAGS) $(OPENSSL_CFLAGS) $(ZLIB_CFLAGS)
 AM_LDFLAGS = $(LIBCURL_LIBS) $(OPENSSL_LIBS) $(ZLIB_LIBS) -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
-AM_LDFLAGS += -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread
+AM_LDFLAGS += -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread -larchive
 
 # Source files for crashupload
 crashupload_SOURCES = \
@@ -31,11 +31,13 @@ crashupload_SOURCES = \
     utils/cleanup_batch.c \
     utils/cleanup_batch.h \
     scanner/scanner.c \
+    archive/archive.c \
+    archive/archive.h \
     utils/logger.c \
     utils/logger.h
 
-crashupload_LDADD = -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread -lcrypto
-crashupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) -lcrypto
+crashupload_LDADD = -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread -lcrypto -larchive
+crashupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) -lcrypto -larchive
 
 # Include common headers
 crashupload_SOURCES += \

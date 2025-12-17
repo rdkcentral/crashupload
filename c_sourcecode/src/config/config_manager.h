@@ -7,8 +7,6 @@
 #define CONFIG_MANAGER_H
 
 #include "../../common/types.h"
-#include "rdk_fwdl_utils.h"
-#include "system_utils.h"
 
 /**
  * @brief Load configuration from multiple sources

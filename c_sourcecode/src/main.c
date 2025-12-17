@@ -16,7 +16,7 @@
 #include "utils/privacy.h"
 #include "utils/lock_manager.h"
 #include "scanner/scanner.h"
-#include "core/archive_smart.h"
+#include "archive/archive.h"
 #include "core/upload_typeaware.h"
 #include "core/ratelimit_unified.h"
 #include "utils/cleanup_batch.h"
@@ -138,9 +138,10 @@ int main(int argc, char *argv[]) {
     char trim_dump_name[1024] = {0};
     char dump_file_name[512] = {0};
     char *tmp = NULL;
+    bool is_process_dmp_file = false;
     archive_info_t *archive = NULL;
     archive = malloc(dump_count*sizeof(archive_info_t));
-    if (archive != NULL) {
+    if (archive == NULL) {
         printf("Error to allocate memory for archive\n");
 	return -1;
     }
@@ -174,17 +175,25 @@ int main(int argc, char *argv[]) {
 	} else {
 	    snprintf(dump_file_name, sizeof(dump_file_name), "%s", (dumps+i)->path);
 	}
-        if (config.dump_type == DUMP_TYPE_COREDUMP) {
-	    if (NULL != (strstr((dumps+i)->path,"mpeos-main"))) {
-	        snprintf(new_dump_name, sizeof(new_dump_name), "%s_mac%s_dat%s_box%s_mod%s_%s", platform.platform_sha1, platform.mac_address,(dumps+i)->mtime_date, config.box_type, platform.model,dump_file_name);
-		printf("new dump name crated for mpeos-main=%s\n", new_dump_name);
+	is_process_dmp_file = check_process_dmp_file(dump_file_name);
+	if (is_process_dmp_file == false) {
+            if (config.dump_type == DUMP_TYPE_COREDUMP) {
+	        if (NULL != (strstr((dumps+i)->path,"mpeos-main"))) {
+	            snprintf(new_dump_name, sizeof(new_dump_name), "%s_mac%s_dat%s_box%s_mod%s_%s", platform.platform_sha1, platform.mac_address,(dumps+i)->mtime_date, config.box_type, platform.model,dump_file_name);
+		    printf("new dump name crated for mpeos-main=%s\n", new_dump_name);
+	        } else {
+	            snprintf(new_dump_name, sizeof(new_dump_name), "%s_mac%s_dat%s_box%s_mod%s_%s", platform.platform_sha1, platform.mac_address,crashts, config.box_type, platform.model,dump_file_name);
+		    printf("new dump name crated for core dump=%s\n", new_dump_name);
+	        }
 	    } else {
 	        snprintf(new_dump_name, sizeof(new_dump_name), "%s_mac%s_dat%s_box%s_mod%s_%s", platform.platform_sha1, platform.mac_address,crashts, config.box_type, platform.model,dump_file_name);
-		printf("new dump name crated for core dump=%s\n", new_dump_name);
+		printf("new dump name crated for mini dump=%s\n", new_dump_name);
 	    }
 	} else {
-	        snprintf(new_dump_name, sizeof(new_dump_name), "%s_mac%s_dat%s_box%s_mod%s_%s", platform.platform_sha1, platform.mac_address,crashts, config.box_type, platform.model,dump_file_name);
-		printf("new dump name crated for mini dump=%s\n", new_dump_name);
+	    printf("Core name is already processed.%s\n", dump_file_name);
+	    strncpy(new_dump_name, dump_file_name, sizeof(new_dump_name));
+	    new_dump_name[sizeof(new_dump_name)-1] = '\0';
+	    printf("Core name is already processed.%s\n", new_dump_name);
 	}
 	if (strlen(new_dump_name) >= 135) {
 	    tmp = strchr(new_dump_name, '_');
@@ -203,13 +212,13 @@ int main(int argc, char *argv[]) {
 	        printf("Change the process name process name length to 20 byte-%s\n", pname);
 	        trim_process_name_in_path(new_dump_name,pname,20,trim_dump_name, sizeof(trim_dump_name));
 	        printf("Changed File Name : %s\n", trim_dump_name);
-		strncpy(new_dump_name, trim_dump_name, sizeof(new_dump_name));
+		    strncpy(new_dump_name, trim_dump_name, sizeof(new_dump_name));
 	    }
 	}
-	prnintf("Processing for TAR:%s\n",new_dump_name);
+	    printf("Processing for TAR:%s\n",new_dump_name);
         /* Create archive with smart compression */
-        if (archive_create_smart(&dumps[i], &config, &platform, &archive[i], new_dump_name) != ERR_SUCCESS) {
-            logger_error("Archive creation failed for %s", dumps[i].filepath);
+        if (archive_create_smart(&dumps[i], &config, &platform, &archive[i], new_dump_name) != ARCHIVE_SUCCESS) {
+            logger_error("Archive creation failed for %s", dumps[i].path);
             continue;
         }
     }

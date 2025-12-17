@@ -33,13 +33,6 @@ static void t2CountNotify(const char *key, const char *val_or_null)
     /* integrate with real telemetry API */
 }
 
-/* Returns 1 if path refers to a regular file, 0 otherwise */
-static int is_regular_file(const char *path)
-{
-    struct stat st;
-    if (stat(path, &st) != 0) return 0;
-    return S_ISREG(st.st_mode);
-}
 #if 0
 /* Read a single line from file `path` into buffer (sz), trimming newline.
  * Returns 0 on success, -1 on error.

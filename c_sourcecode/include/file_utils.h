@@ -5,10 +5,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-
+int is_regular_file(const char *path);
+bool check_process_dmp_file(const char *file);
+int extract_tail(const char *src,
+                        const char *dst,
+                        int max_lines);
 int file_get_mtime_formatted(const char *path, char *mtime, size_t len);
 int trim_process_name_in_path(const char *full_path,
-                              const char *process_name, int max_pname_trim
+                              const char *process_name, int max_pname_trim,
                               char *out,
                               size_t out_len);
 int get_crash_timestamp_utc(char *out, size_t outsz);

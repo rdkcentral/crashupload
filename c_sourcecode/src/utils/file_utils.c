@@ -196,7 +196,7 @@ int get_crash_timestamp_utc(char *out, size_t outsz)
  * Example:
  *   extract_tail("app.log", "app_tail.log", 500);
  */
-static int extract_tail(const char *src,
+int extract_tail(const char *src,
                         const char *dst,
                         int max_lines)
 {
@@ -207,6 +207,7 @@ static int extract_tail(const char *src,
     int idx = 0;
     int i;
     int start;
+    char buf[80] = {0};
 
     if (!src || !dst || max_lines <= 0)
         return -1;
@@ -223,7 +224,6 @@ static int extract_tail(const char *src,
     if (!ring)
         goto cleanup;
 
-    char buf[IO_BUF_SIZE];
     //printf("Read start===========>\n");
     /* Read file line by line */
     while (fgets(buf, sizeof(buf), in)) {
@@ -263,20 +263,20 @@ cleanup:
 
 
 int trim_process_name_in_path(const char *full_path,
-                              const char *process_name, int max_pname_trim
+                              const char *process_name, int max_pname_trim,
                               char *out,
                               size_t out_len)
 {
-    size_t path_len;
+    //size_t path_len;
     size_t pname_len;
-    char trimmed_pname[MAX_PNAME_TRIM + 1];
+    char trimmed_pname[64];
     const char *src;
     char *dst;
 
     if (!full_path || !process_name || !out || out_len == 0)
         return -1;
 
-    path_len = strlen(full_path);
+    //path_len = strlen(full_path);
 
     pname_len = strlen(process_name);
     if (pname_len == 0)
@@ -314,4 +314,25 @@ int trim_process_name_in_path(const char *full_path,
     return 0;
 }
 
+/* Returns 1 if path refers to a regular file, 0 otherwise */
+int is_regular_file(const char *path)
+{
+    struct stat st;
+    if (stat(path, &st) != 0) return 0;
+    return S_ISREG(st.st_mode);
+}
+bool check_process_dmp_file(const char *file)
+{
+    bool ret = false;
+    char *mac = "_mac";
+    char *dat = "_dat";
+    char *box = "_box";
+    char *mod = "_mod";
 
+    if (file != NULL) {
+        if (strstr(file, mac) || strstr(file, dat) || strstr(file, box) || strstr(file, mod)) {
+	    ret = true;
+	}
+    }
+    return ret;
+}

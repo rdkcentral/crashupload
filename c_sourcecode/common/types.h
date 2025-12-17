@@ -17,6 +17,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "rdk_fwdl_utils.h"
+#include "system_utils.h"
+
 #define DENY_UPLOADS_FILE "/tmp/.deny_dump_uploads_till"
 #define ON_STARTUP_DUMPS_CLEANED_UP_BASE "/tmp/.on_startup_dumps_cleaned_up"
 #define EnableOCSPStapling "/tmp/.EnableOCSPStapling"
@@ -127,7 +130,7 @@ typedef struct {
 /* Archive info structure */
 typedef struct {
     char archive_path[512];
-    char archive_name[256];
+    char archive_name[512];
     bool created_in_tmp;
 } archive_info_t;
 

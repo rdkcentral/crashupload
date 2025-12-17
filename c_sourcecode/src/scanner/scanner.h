@@ -18,4 +18,5 @@
 int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count);
 
 int process_file_entry(char *fullpath, char *dump_type);
+char *extract_pname(const char *filepath);
 #endif
