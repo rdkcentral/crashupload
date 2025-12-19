@@ -304,10 +304,10 @@ static char *lookup_log_files_for_proc(const char *pname)
  *
  *   This function mirrors the shell get_crashed_log_file() behavior.
  */
-static int get_crashed_log_file(const char *file)
+static int get_crashed_log_file(const char *file, const char *log_path)
 {
     if (!file) return -1;
-    printf("In get_crashed_log_file file=%s========================>\n", file);
+    printf("In get_crashed_log_file file=%s====log_path=%s=====>\n", file, log_path);
     /* Extract pname */
     char *pname = extract_pname(file);
     if (!pname) return -1;
@@ -343,7 +343,7 @@ static int get_crashed_log_file(const char *file)
             char tmp = *end; *end = '\0';
 
             char logfull[PATH_MAX];
-            if (join_path(logfull, sizeof(logfull), LOG_FILES_PATH, token) == 0) {
+            if (join_path(logfull, sizeof(logfull), log_path, token) == 0) {
                 if (append_logfile_entry(logfull) != 0) {
 		    printf("Failed to append log entry: %s\n", logfull);
                 }
@@ -377,9 +377,9 @@ static int get_crashed_log_file(const char *file)
  *
  *   Returns 0 on success.
  */
-static int processCrashTelemetryInfo(const char *rawfile)
+static int processCrashTelemetryInfo(const char *rawfile , const char *log_path)
 {
-    if (!rawfile) return -1;
+    if (!rawfile || !log_path) return -1;
 
     /* Work on a local mutable copy */
     char file[PATH_MAX];
@@ -539,7 +539,7 @@ static int processCrashTelemetryInfo(const char *rawfile)
 
 call_get_crashed:
     /* Finally call get_crashed_log_file() for the (possibly normalized) filename */
-    get_crashed_log_file(file);
+    get_crashed_log_file(file, log_path);
     return 0;
 }
 
@@ -554,11 +554,11 @@ call_get_crashed:
  *
  *   Returns 0 on success, non-zero on error.
  */
-int process_file_entry(char *fullpath, char *dump_type)
+int process_file_entry(char *fullpath, char *dump_type, const config_t *config)
 {
     int sanitize_ret = -1;
     char sanitized[256] = {0};
-    if (!fullpath) return -1;
+    if (!fullpath || !dump_type || !config) return -1;
 
     /* Only process regular files */
     if (!is_regular_file(fullpath)) return 0;
@@ -635,14 +635,14 @@ int process_file_entry(char *fullpath, char *dump_type)
         }
         if (0 == (strcmp(dump_type, "0"))) {
             /* call processCrashTelemetryInfo with sanitized filename relative path */
-            processCrashTelemetryInfo(newfull);
+            processCrashTelemetryInfo(newfull, config->log_path);
         } else {
             printf("processCrashTelemetryInfo is not allowed\n");
         }
     } else {
             if (0 == (strcmp(dump_type, "0"))) {
                 /* sanitized == basename: no rename */
-                processCrashTelemetryInfo(fullpath);
+                processCrashTelemetryInfo(fullpath, config->log_path);
             } else {
                 printf("processCrashTelemetryInfo is not allowed\n");
             }

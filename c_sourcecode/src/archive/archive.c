@@ -13,6 +13,7 @@
 #include "file_utils.h"
 
 #define MIN_FREE_SPACE_MB 50
+#define MAX_FILE_TO_TAR 7
 
 /* --------------------------------------------------------- */
 /* Utility: set very low CPU priority (like nice -19)        */
@@ -146,17 +147,57 @@ cleanup:
     archive_write_free(a);
     return ret_result;
 }
+
+int add_crashed_process_log_file(const config_t *config, const platform_config_t *platform,
+                         char *filename, char *process_log_file, size_t size) {
+    int ret = -1;
+    char *tmp = NULL;
+    char *log_file = NULL;
+    int no_of_line_cp = 500;
+    char mtime_date[64] = {0};
+
+    if (!config || !platform || !filename || !process_log_file || size <= 0) {
+        printf("add_crashed_process_log_file() Invalid argument\n");
+	return ret;
+    }
+    if (config->build_type != BUILD_TYPE_PROD) {
+        no_of_line_cp = 5000;
+    }
+    tmp = strchr(filename, '\n');
+    if (tmp) {
+        *tmp = '\0';
+    }
+    if (0 == file_get_mtime_formatted(filename, mtime_date, sizeof(mtime_date))) {
+        printf("mtime of file:%s is %s\n", filename, mtime_date);
+    } else {
+        printf("mtime of file:%s is error\n", filename);
+    }
+    log_file = strrchr(filename, '/');
+    if (log_file) {
+	snprintf(process_log_file, size, "%s/mac%s_dat%s_box%s_mod%s_%s", config->working_dir_path, platform->mac_address, mtime_date, config->box_type, platform->model,log_file+1);
+    } else {
+	snprintf(process_log_file, size, "%s/mac%s_dat%s_box%s_mod%s_%s", config->working_dir_path, platform->mac_address, mtime_date, config->box_type, platform->model,filename);
+    }
+    printf("File copy from:%s=>%s\n", filename, process_log_file);
+    ret = extract_tail(filename, process_log_file, no_of_line_cp);
+    return ret;
+}
+
 int archive_create_smart(const dump_file_t *dump, const config_t *config,
                          const platform_config_t *platform,
                          archive_info_t *archive, char *new_dump_name) {
     
     char *tmp = NULL;
-    char *arch_files_list[5];
+    char *arch_files_list[MAX_FILE_TO_TAR];
     char target_file_name[256] = {0};
     int i;
     char crash_url_file[32] = {0};
     int no_of_files = 3;
     int tar_status = -1;
+    char process_name_log[256] = {0};
+    int cnt_process_log_file = 1;
+    FILE *fp = NULL;
+    char buf[80] = {0};
 
     if (!dump || !config || !platform || !archive || !new_dump_name) {
 	printf("archive_create_smart Invalid Argument\n");
@@ -198,7 +239,7 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
     //if [ "$IS_T2_ENABLED" == "true" ] && [ ! -s "$dumpName" ]; then
 	//            t2CountNotify "SYST_ERR_MINIDPZEROSIZE"
           //  fi
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < MAX_FILE_TO_TAR; i++) {
         arch_files_list[i] = malloc(256);
     }
     if (config->dump_type == DUMP_TYPE_COREDUMP) {
@@ -232,10 +273,40 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
 	       //files="$VERSION_FILE $CORE_LOG $crashedUrlFile"
                //add_crashed_log_file $files		    
                //nice -n 19 tar -zcvf $tgzFile $dumpName $files 2>&1 | logStdout
-	       snprintf(arch_files_list[3], 256, "%s", crash_url_file);
-	       printf("crash url file=%s\n", arch_files_list[3]);
-	       no_of_files = 4;
+	       snprintf(arch_files_list[no_of_files], 256, "%s", crash_url_file);
+	       printf("crash url file=%s\n", arch_files_list[no_of_files]);
+	       no_of_files++;
 	   }
+	   fp = fopen(LOG_FILES_PATH, "r");
+	   if (fp != NULL) {
+		   while(fgets(buf, sizeof(buf), fp)) {
+		       if (cnt_process_log_file == 3) {
+			   printf("Reached Max number of process log file\n");//TODO: This is logic not present in script. Need review
+		           break;
+		       }
+		       //TODO: More optimization required. Insted copy last 5000 line copy we can do byte copy. 
+	               if (!add_crashed_process_log_file(config, platform, buf, process_name_log, sizeof(process_name_log))) {
+		           snprintf(arch_files_list[no_of_files], 256, "%s", process_name_log);
+                           printf("process log file=%s\n", arch_files_list[no_of_files]);
+	                   no_of_files++;
+			   cnt_process_log_file++;
+	               } else {
+			   printf("Error to add add_crashed_process_log_file():%s\n", buf);
+	               }
+		   }
+		   unlink(LOG_FILES_PATH);
+	   } else {
+	          printf("Error in opening file:%s\n",LOG_FILES_PATH);
+	   }
+	   /*if (!add_crashed_process_log_file(config, platform, process_log, sizeof(process_log))) {
+	   } else {
+	   }
+	   snprintf(process_log, sizeof(process_log), "mac%s_dat%s_box%s_mod%s_%s", platform->mac_address,dumps->mtime_date, config.box_type, platform.model,dump_file_name)
+	   if (config->build_type == BUILD_TYPE_PROD) {
+	       extract_tail(LOG_FILES_PATH,,500);
+	   } else {
+	       extract_tail(LOG_FILES_PATH,,5000);
+	   }*/
 	   printf("Before tar list of file name:%s\n", target_file_name);
 	   printf("dump file=%s\n",arch_files_list[0]);
 	   printf("version file=%s\n", arch_files_list[1]);
@@ -253,7 +324,7 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
        printf("TAR creation failed try by coping to /tmp\n");
 	//TODO:Copy all the file to /tmp and try tar again. This is fall back
    }
-   for (i = 0; i < 5; i++) {
+   for (i = 0; i < MAX_FILE_TO_TAR; i++) {
        free(arch_files_list[i]);
    }
    return tar_status;

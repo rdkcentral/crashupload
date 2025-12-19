@@ -208,13 +208,14 @@ int extract_tail(const char *src,
     int i;
     int start;
     char buf[80] = {0};
+    int ret = -1;
 
     if (!src || !dst || max_lines <= 0)
-        return -1;
+        return ret;
 
     in = fopen(src, "r");
     if (!in)
-        return -1;
+        return ret;
 
     out = fopen(dst, "w");
     if (!out)
@@ -248,17 +249,21 @@ int extract_tail(const char *src,
         if (ring[pos])
             fputs(ring[pos], out);
     }
+    ret = 0;
     //printf("Write to another file  End===========>\n");
 
 cleanup:
     if (ring) {
-        for (i = 0; i < max_lines; i++)
-            free(ring[i]);
+        for (i = 0; i < max_lines; i++) {
+	    if (ring[i] != NULL) {
+                free(ring[i]);
+	    }
+	}
         free(ring);
     }
     if (in) fclose(in);
     if (out) fclose(out);
-    return 0;
+    return ret;
 }
 
 
