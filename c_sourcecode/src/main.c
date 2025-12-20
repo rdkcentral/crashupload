@@ -17,8 +17,6 @@
 #include "utils/lock_manager.h"
 #include "scanner/scanner.h"
 #include "archive/archive.h"
-#include "core/upload_typeaware.h"
-#include "core/ratelimit_unified.h"
 #include "utils/cleanup_batch.h"
 #include "utils/logger.h"
 #include <signal.h>

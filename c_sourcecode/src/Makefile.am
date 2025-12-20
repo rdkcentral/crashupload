@@ -5,7 +5,6 @@ AM_CPPFLAGS = -I$(top_srcdir)/common \
               -I$(top_srcdir)/src/init \
               -I$(top_srcdir)/src/config \
               -I$(top_srcdir)/src/platform \
-              -I$(top_srcdir)/src/core \
               -I$(top_srcdir)/include \
               -I$(top_srcdir)/src/utils
 

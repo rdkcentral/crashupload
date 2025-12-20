@@ -195,7 +195,7 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
     int no_of_files = 3;
     int tar_status = -1;
     char process_name_log[256] = {0};
-    int cnt_process_log_file = 1;
+    int cnt_process_log_file = 0;
     FILE *fp = NULL;
     char buf[80] = {0};
 
@@ -323,6 +323,17 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
    } else {
        printf("TAR creation failed try by coping to /tmp\n");
 	//TODO:Copy all the file to /tmp and try tar again. This is fall back
+	//[ "$IS_T2_ENABLED" == "true" ] && t2CountNotify "SYST_WARN_CompFail"
+	
+   }
+   if (0 == (filePresentCheck(arch_files_list[0]))) {
+       unlink(arch_files_list[0]);
+   }
+   while (cnt_process_log_file != 0 && cnt_process_log_file <= no_of_files) {
+       if (0 == (filePresentCheck(arch_files_list[no_of_files - cnt_process_log_file]))) {
+	  unlink(arch_files_list[no_of_files - cnt_process_log_file]);
+       }
+       cnt_process_log_file--;
    }
    for (i = 0; i < MAX_FILE_TO_TAR; i++) {
        free(arch_files_list[i]);
