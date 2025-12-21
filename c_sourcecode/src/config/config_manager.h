@@ -8,6 +8,7 @@
 
 #include "../../common/types.h"
 
+bool get_opt_out_status(void);
 /**
  * @brief Load configuration from multiple sources
  * @param config Configuration structure to populate
@@ -24,4 +25,5 @@ int config_init_load(config_t *config, int argc, char *argv[]);
  */
 int config_get(const char *key, char *value, size_t len);
 
+void config_cleanup(config_t *config);
 #endif

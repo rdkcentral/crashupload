@@ -116,7 +116,7 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
          printf("%s: getDevicePropertyData() for device type fail\n", __FUNCTION__);
          return ERR_CONFIG_MISSING_REQUIRED;
     }
-    if ((argc == 4) && (0 == (strncmp(argv[3], "secure", 6)))) {
+    if ((argc >= 4) && (0 == (strncmp(argv[3], "secure", 6)))) {
 	printf("Secure is enable\n");
 	config->upload_mode = UPLOAD_MODE_SECURE;
         strcpy(config->core_path, "/opt/secure/corefiles");
