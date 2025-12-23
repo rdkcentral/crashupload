@@ -4,8 +4,8 @@
 AUTOMAKE_OPTIONS = foreign subdir-objects
 
 # Test programs
-TESTS = config_manager_gtest
-check_PROGRAMS = config_manager_gtest
+TESTS = config_manager_gtest platform_gtest
+check_PROGRAMS = config_manager_gtest platform_gtest
 
 # Common include directories
 AM_CPPFLAGS = \
@@ -52,6 +52,23 @@ config_manager_gtest_LDADD = \
 	-lgcov
 
 config_manager_gtest_LDFLAGS = \
+	-fprofile-arcs
+
+# platform_gtest configuration
+platform_gtest_SOURCES = \
+	platform_gtest.cpp \
+	platform_gmock.cpp \
+	../c_sourcecode/src/platform/platform.c
+
+platform_gtest_LDADD = \
+	-lgtest \
+	-lgtest_main \
+	-lgmock \
+	-lgmock_main \
+	-lpthread \
+	-lgcov
+
+platform_gtest_LDFLAGS = \
 	-fprofile-arcs
 
 # Coverage targets

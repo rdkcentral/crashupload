@@ -189,22 +189,12 @@ starting minidump processing
 log path = /opt/logs
 log path = /opt/logs
 config_init_load: getDevicePropertyData() for device type fail
-config_manager_gtest.cpp:313: Failure
-Expected equality of these values:
-  result
-    Which is: 22
-  0
-[  FAILED  ] ConfigManagerTest.ConfigInitLoad_UnknownBuildType_Success (0 ms)
+[       OK ] ConfigManagerTest.ConfigInitLoad_UnknownBuildType_Success (0 ms)
 [ RUN      ] ConfigManagerTest.ConfigInitLoad_UnknownBoxType_Success
 Error to get log path. Set default path = /opt/logs
 log path = /opt/logs
 config_init_load: getDevicePropertyData() for device type fail
-config_manager_gtest.cpp:324: Failure
-Expected equality of these values:
-  result
-    Which is: 22
-  0
-[  FAILED  ] ConfigManagerTest.ConfigInitLoad_UnknownBoxType_Success (0 ms)
+[       OK ] ConfigManagerTest.ConfigInitLoad_UnknownBoxType_Success (0 ms)
 [ RUN      ] ConfigManagerTest.ConfigInitLoad_UnknownDeviceType_Success
 log path = /opt/logs
 log path = /opt/logs
@@ -236,15 +226,9 @@ core log=/custom/logs/core_log.txt
 Secure is enable
 starting coredump processing
 [       OK ] ConfigManagerTest.ConfigInitLoad_AllFieldsInitialized (0 ms)
-[----------] 23 tests from ConfigManagerTest (3 ms total)
+[----------] 23 tests from ConfigManagerTest (2 ms total)
 
 [----------] Global test environment tear-down
-[==========] 23 tests from 1 test suite ran. (4 ms total)
-[  PASSED  ] 21 tests.
-[  FAILED  ] 2 tests, listed below:
-[  FAILED  ] ConfigManagerTest.ConfigInitLoad_UnknownBuildType_Success
-[  FAILED  ] ConfigManagerTest.ConfigInitLoad_UnknownBoxType_Success
-
- 2 FAILED TESTS
-libgcov profiling error:/mnt/L2_CONTAINER_SHARED_VOLUME/crashupload/unittest/../c_sourcecode/src/config/config_manager.gcda:overwriting an existing profile data with a different timestamp
-FAIL config_manager_gtest (exit status: 1)
+[==========] 23 tests from 1 test suite ran. (2 ms total)
+[  PASSED  ] 23 tests.
+PASS config_manager_gtest (exit status: 0)

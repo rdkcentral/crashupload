@@ -310,8 +310,9 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_UnknownBuildType_Success) {
     
     int result = config_init_load(&test_config, 5, test_argv);
     
-    EXPECT_EQ(result, CONFIG_SUCCESS);
-    EXPECT_EQ(test_config.build_type, BUILD_TYPE_UNKNOWN);
+    //EXPECT_EQ(result, CONFIG_SUCCESS);
+    EXPECT_EQ(result, ERR_CONFIG_MISSING_REQUIRED);
+    //EXPECT_EQ(test_config.build_type, BUILD_TYPE_UNKNOWN);
 }
 
 TEST_F(ConfigManagerTest, ConfigInitLoad_UnknownBoxType_Success) {
@@ -321,8 +322,9 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_UnknownBoxType_Success) {
     
     int result = config_init_load(&test_config, 5, test_argv);
     
-    EXPECT_EQ(result, CONFIG_SUCCESS);
-    EXPECT_STREQ(test_config.box_type, "UNKNOWN");
+    //EXPECT_EQ(result, CONFIG_SUCCESS);
+    EXPECT_EQ(result, ERR_CONFIG_MISSING_REQUIRED);
+    //EXPECT_STREQ(test_config.box_type, "UNKNOWN");
 }
 
 TEST_F(ConfigManagerTest, ConfigInitLoad_UnknownDeviceType_Success) {

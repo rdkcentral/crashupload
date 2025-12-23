@@ -6,24 +6,149 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <ctype.h>
+#include <unistd.h>
+#include <fcntl.h>
 
-#define RATE_LIMIT_FILE "/tmp/.crashupload_ratelimit"
-#define MAX_UPLOADS 10
-#define TIME_WINDOW_SECONDS (10 * 60)  /* 10 minutes */
-#define CRASHLOOP_THRESHOLD 5
-#define CRASHLOOP_WINDOW_SECONDS 60
+//#define RECOVERY_DELAY_SEC 600
+#define RECOVERY_DELAY_SEC 30
+#define DENY_UPLOADS_FILE "/tmp/.deny_dump_uploads_till"
+#define ALLOW_UPLOAD 1
+#define STOP_UPLOAD 0
+#define RECOVERY_TIME 1
+#define CURRENT_TIME 2
 
-typedef struct {
-    time_t timestamps[MAX_UPLOADS];
-    int count;
-    int crashloop_count;
-    time_t last_crashloop_check;
-    int recovery_mode;
-} ratelimit_state_t;
+int set_time(const char *deny_file, int type)
+{
+    FILE *fp;
+    time_t now;
+    long deny_until;
 
-static ratelimit_state_t state = {0};
-static int state_loaded = 0;
+    if (!deny_file)
+        return -1;
 
+    now = time(NULL);
+    if (now == (time_t)-1)
+        return -1;
+    if (type == RECOVERY_TIME) {
+	printf("Set Rcovery Time inside file:%s\n", deny_file);
+        deny_until = (long)now + RECOVERY_DELAY_SEC;
+    }
+
+    fp = fopen(deny_file, "w");
+    if (!fp)
+        return -1;
+
+    if (fprintf(fp, "%ld", deny_until) < 0) {
+        fclose(fp);
+        return -1;
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+int is_upload_limit_reached(const char *file)
+{
+    FILE *fp = NULL;
+    char buf[80] = {0};
+    char first_line_data[80] = {0};
+    int ret = ALLOW_UPLOAD;
+    char *endptr;
+    long first_crash_time;
+    time_t now;
+    int line_cnt = 0;
+
+    fp = fopen(file, "r");
+    if (fp != NULL) {
+        while(fgets(buf, sizeof(buf), fp)) {
+	    line_cnt++;
+	    if (line_cnt == 1) {
+	        strncpy(first_line_data, buf, sizeof(first_line_data)-1);
+		first_line_data[sizeof(first_line_data)-1] = '\0';
+	    }
+	}
+    } else {
+        printf("File for rate limit check not present:%s\n", file);
+	return ret;
+    }
+    /* Validate numeric content */
+    for (size_t i = 0; buf[i] != '\0' && buf[i] != '\n'; i++) {
+        if (!isdigit((unsigned char)buf[i]))
+            return ALLOW_UPLOAD;
+    }
+
+    first_crash_time = strtol(buf, &endptr, 10);
+    if (endptr == buf)
+        return ALLOW_UPLOAD;
+
+    now = time(NULL);
+    if (now == (time_t)-1)
+        return ALLOW_UPLOAD;
+    
+    if (line_cnt <= 10) {
+        printf("is_upload_limit_reached() not reached.%d\n", line_cnt);
+    } else {
+	if ((now - first_crash_time) < RECOVERY_DELAY_SEC) {
+            printf("Not uploading the dump. Too many dumps.\n");
+	    ret = STOP_UPLOAD;
+	} else {
+            printf("is_upload_limit_reached() not reached proceed for upload\n");
+	    unlink(file);
+	}
+    }
+    return ret;
+}
+
+int is_recovery_time_reached(const char *deny_file)
+{
+    struct stat st;
+    FILE *fp;
+    char buf[32];
+    char *endptr;
+    long deny_until;
+    time_t now;
+
+    if (!deny_file)
+        return ALLOW_UPLOAD; /* allow upload */
+
+    /* If deny file does not exist ?~F~R allow */
+    if (stat(deny_file, &st) != 0)
+        return ALLOW_UPLOAD;
+
+    fp = fopen(deny_file, "r");
+    if (!fp)
+        return ALLOW_UPLOAD;
+
+    if (!fgets(buf, sizeof(buf), fp)) {
+        fclose(fp);
+        return ALLOW_UPLOAD;
+    }
+    fclose(fp);
+
+    /* Validate numeric content */
+    for (size_t i = 0; buf[i] != '\0' && buf[i] != '\n'; i++) {
+        if (!isdigit((unsigned char)buf[i]))
+            return ALLOW_UPLOAD;
+    }
+
+    deny_until = strtol(buf, &endptr, 10);
+    if (endptr == buf)
+        return ALLOW_UPLOAD;
+
+    now = time(NULL);
+    if (now == (time_t)-1)
+        return ALLOW_UPLOAD;
+
+    /* Recovery time reached */
+    if (now > deny_until)
+        return ALLOW_UPLOAD;
+
+    /* Still in deny window */
+    return STOP_UPLOAD;
+}
+
+#if 0
 /* FULL IMPLEMENTATION - Load rate limit state from file */
 static int load_state(void) {
     FILE *fp = fopen(RATE_LIMIT_FILE, "rb");
@@ -181,3 +306,4 @@ int ratelimit_is_recovery_mode(void) {
     
     return state.recovery_mode;
 }
+#endif

@@ -220,7 +220,13 @@ int main(int argc, char *argv[]) {
             continue;
         }
     }
+    box_reboot_chk();
         /* Check unified rate limit */
+    if (RATELIMIT_BLOCK == ratelimit_check_unified(dump_type)) {
+        printf("Rate Limit is blocked. Exit\n");
+	remove_pending_dumps(config.working_dir, dmp_extn);
+	goto cleanup;
+    }
 #if 0    
         ratelimit_decision_t decision = ratelimit_check_unified(&dumps[i]);
         
@@ -234,12 +240,6 @@ int main(int argc, char *argv[]) {
             continue;
         }
         
-        /* Create archive with smart compression */
-        archive_info_t archive;
-        if (archive_create_smart(&dumps[i], &platform, &archive) != ERR_SUCCESS) {
-            logger_error("Archive creation failed for %s", dumps[i].filepath);
-            continue;
-        }
         
         /* Upload with type-aware handling */
         upload_result_t result = upload_file_type_aware(&archive, &dumps[i], &config);
