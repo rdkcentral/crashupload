@@ -21,6 +21,8 @@
 #include "utils/logger.h"
 #include <signal.h>
 #include "file_utils.h"
+#include "ratelimit.h"
+#include "systemutils.h"
 
 static int lock_dir_prefix = 0;
 
@@ -59,6 +61,15 @@ int main(int argc, char *argv[]) {
     int ret = EXIT_SUCCESS;
     char lock_file_path[32] = {0};
     char dump_extn_pattern[16] = {0};
+    char mtime_date[64] = {0};
+    int len = 0;
+    char crashts[64] = {0};
+    char new_dump_name[1024] = {0};
+    char trim_dump_name[1024] = {0};
+    char dump_file_name[512] = {0};
+    char *tmp = NULL;
+    bool is_process_dmp_file = false;
+    archive_info_t *archive = NULL;
     
     if (argc < 3) {
         printf("Number of parameter is less\n");
@@ -129,15 +140,6 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
     printf("After scan dump found:%d\n", dump_count);
-    char mtime_date[64] = {0};
-    int len = 0;
-    char crashts[64] = {0};
-    char new_dump_name[1024] = {0};
-    char trim_dump_name[1024] = {0};
-    char dump_file_name[512] = {0};
-    char *tmp = NULL;
-    bool is_process_dmp_file = false;
-    archive_info_t *archive = NULL;
     archive = malloc(dump_count*sizeof(archive_info_t));
     if (archive == NULL) {
         printf("Error to allocate memory for archive\n");
@@ -220,12 +222,18 @@ int main(int argc, char *argv[]) {
             continue;
         }
     }
-    box_reboot_chk();
+    if (true == is_box_rebooting()) {
+        goto cleanup;
+    }
         /* Check unified rate limit */
-    if (RATELIMIT_BLOCK == ratelimit_check_unified(dump_type)) {
+    if (RATELIMIT_BLOCK == ratelimit_check_unified(config.dump_type)) {
         printf("Rate Limit is blocked. Exit\n");
-	remove_pending_dumps(config.working_dir, dmp_extn);
+	remove_pending_dumps(config.working_dir_path, dump_extn_pattern);
 	goto cleanup;
+    }
+    for (int i = 0; i < dump_count; i++) {
+    if (strstr(archive[i].archive_name,"_core")) {
+        printf("Coredump File :%s\n",archive[i].archive_name);
     }
 #if 0    
         ratelimit_decision_t decision = ratelimit_check_unified(&dumps[i]);

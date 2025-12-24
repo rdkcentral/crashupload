@@ -8,10 +8,6 @@
 #include <dirent.h>
 #include <unistd.h>
 
-/* Model cache with indefinite TTL for optimization */
-static char cached_model[256] = {0};
-static bool model_cached = false;
-
 /**
  * FULL IMPLEMENTATION
  * Get system uptime with fallback from sysinfo() to /proc/uptime
@@ -45,6 +41,7 @@ int system_get_uptime(uint64_t *uptime_seconds) {
     return 0;
 }
 
+#if 0
 /**
  * FULL IMPLEMENTATION
  * Get device model with indefinite caching and multiple fallbacks
@@ -128,6 +125,7 @@ int system_get_model(char *model, size_t len) {
     model[len - 1] = '\0';
     return -1;
 }
+#endif
 
 /**
  * FULL IMPLEMENTATION
@@ -185,8 +183,15 @@ int system_check_process(const char *name, bool *is_running) {
  * SKELETON
  * Execute system reboot
  */
-int system_reboot(void) {
+bool is_box_rebooting(void) {
+    bool ret = false;
     /* SKELETON - Using system() call for now */
-    /* Did not get function implementation, added mock function */
-    return system("/sbin/reboot");
+    if (0 == filePresentCheck("/tmp/set_crash_reboot_flag")) {
+        printf("Skipping upload, Since Box is Rebooting now\n");
+	//TODO if [ "$IS_T2_ENABLED" == "true" ]; then
+            //t2CountNotify "SYST_INFO_CoreUpldSkipped"
+	printf("Upload will happen on next reboot\n");
+	ret = true;
+    }
+    return ret;
 }

@@ -1,11 +1,15 @@
 #ifndef RATELIMIT_H
 #define RATELIMIT_H
 
+#include "../common/types.h"
+#define RATELIMIT_BLOCK 0
 /**
  * Check if upload is allowed (unified: recovery mode + 10/10min limit)
  * @return 0 if allowed, -1 if rate limited
  */
 int ratelimit_check(void);
+
+int ratelimit_check_unified(dump_type_t dump);
 
 /**
  * Record successful upload

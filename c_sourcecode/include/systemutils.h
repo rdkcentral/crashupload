@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+bool is_box_rebooting(void);
 /**
  * Get system uptime in seconds
  * Uses sysinfo() with fallback to /proc/uptime

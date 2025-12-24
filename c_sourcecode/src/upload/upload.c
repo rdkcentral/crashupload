@@ -34,113 +34,11 @@ int upload_file(const char *filepath, const char *url, upload_type_t type) {
     if (!filepath || !url) {
         return -1;
     }
+   size_t GetPartnerId( char *pPartnerId, size_t szBufSize );
+   elif [ "$DEVICE_TYPE" = "mediaclient" ]; then
+    encryptionEnable=`tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable 2>&1 > /dev/null`
+fi
 
-#if 0    
-    CURL *curl;
-    CURLcode res = CURLE_FAILED_INIT;
-    int retry_count = 0;
-    int success = 0;
-    
-    /* Initialize libcurl */
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-    
-    /* Type-aware optimization: Adjust retry strategy based on dump type */
-    int max_retries = MAX_RETRIES;
-    int retry_delay = RETRY_DELAY_SECONDS;
-    
-    if (type == UPLOAD_TYPE_MINIDUMP) {
-        /* Minidumps are typically smaller, more aggressive retry */
-        max_retries = 5;
-        retry_delay = 3;
-    } else if (type == UPLOAD_TYPE_COREDUMP) {
-        /* Coredumps can be large, fewer but longer retries */
-        max_retries = 3;
-        retry_delay = 10;
-    }
-    
-    printf("\nUpload: Starting %s upload to %s\n", 
-           type == UPLOAD_TYPE_MINIDUMP ? "minidump" : 
-           type == UPLOAD_TYPE_COREDUMP ? "coredump" : "log",
-           url);
-    
-    while (retry_count < max_retries && !success) {
-        if (retry_count > 0) {
-            printf("Upload: Retry attempt %d/%d after %d seconds\n", 
-                   retry_count + 1, max_retries, retry_delay);
-            sleep(retry_delay);
-        }
-        
-        curl = curl_easy_init();
-        if (!curl) {
-            retry_count++;
-            continue;
-        }
-        
-        /* Open file for reading */
-        FILE *fp = fopen(filepath, "rb");
-        if (!fp) {
-            fprintf(stderr, "Failed to open file: %s\n", filepath);
-            curl_easy_cleanup(curl);
-            break;
-        }
-        
-        /* Get file size */
-        fseek(fp, 0, SEEK_END);
-        long filesize = ftell(fp);
-        fseek(fp, 0, SEEK_SET);
-        
-        /* Configure CURL options */
-        curl_easy_setopt(curl, CURLOPT_URL, url);
-        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
-        curl_easy_setopt(curl, CURLOPT_READDATA, fp);
-        curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t)filesize);
-        
-        /* TLS 1.2 configuration */
-        curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
-        
-        /* OCSP stapling for security */
-        curl_easy_setopt(curl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
-        
-        /* Timeout configuration */
-        curl_easy_setopt(curl, CURLOPT_TIMEOUT, (long)TIMEOUT_SECONDS);
-        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
-        
-        /* Progress callback */
-        curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, upload_progress_callback);
-        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-        
-        /* Verbose mode for debugging (can be disabled in production) */
-        curl_easy_setopt(curl, CURLOPT_VERBOSE, 0L);
-        
-        /* Perform the upload */
-        res = curl_easy_perform(curl);
-        
-        fprintf(stderr, "\n");  /* New line after progress */
-        
-        if (res == CURLE_OK) {
-            long response_code;
-            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
-            
-            if (response_code >= 200 && response_code < 300) {
-                printf("Upload: Success (HTTP %ld)\n", response_code);
-                success = 1;
-            } else {
-                fprintf(stderr, "Upload: HTTP error %ld\n", response_code);
-            }
-        } else {
-            fprintf(stderr, "Upload: Failed - %s\n", curl_easy_strerror(res));
-        }
-        
-        fclose(fp);
-        curl_easy_cleanup(curl);
-        retry_count++;
-    }
-    
-    curl_global_cleanup();
-#endif    
-    return success ? 0 : -1;
 }
 
 /* FULL IMPLEMENTATION - Wrapper for coredump upload */

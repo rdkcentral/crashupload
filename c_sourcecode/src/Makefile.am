@@ -33,6 +33,7 @@ crashupload_SOURCES = \
     archive/archive.c \
     archive/archive.h \
     ratelimit/ratelimit.c \
+    utils/system_utils.c \
     utils/logger.c \
     utils/logger.h
 

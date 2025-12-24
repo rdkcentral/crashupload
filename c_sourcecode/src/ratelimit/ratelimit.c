@@ -148,6 +148,30 @@ int is_recovery_time_reached(const char *deny_file)
     return STOP_UPLOAD;
 }
 
+int ratelimit_check_unified(dump_type_t dump_type)
+{
+    int status = -1;
+    status = is_recovery_time_reached(DENY_UPLOADS_FILE);
+    if (status != ALLOW_UPLOAD) {
+        printf("Shifting the recovery time forward.\n");
+	set_time(DENY_UPLOADS_FILE, CURRENT_TIME);
+	return RATELIMIT_BLOCK;
+    }
+    if (dump_type == DUMP_TYPE_MINIDUMP) {
+	status = is_upload_limit_reached();
+        if (status != ALLOW_UPLOAD) {
+	    printf("Upload rate limit has been reached.\n");
+	    //TODO: markAsCrashLoopedAndUpload $f
+	    printf("Setting recovery time\n");
+	    set_time(DENY_UPLOADS_FILE, CURRENT_TIME);
+	    status = RATELIMIT_BLOCK;
+	}
+    } else {
+        status = ALLOW_UPLOAD;
+    }
+    return status;
+}
+
 #if 0
 /* FULL IMPLEMENTATION - Load rate limit state from file */
 static int load_state(void) {
