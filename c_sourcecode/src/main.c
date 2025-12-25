@@ -235,6 +235,7 @@ int main(int argc, char *argv[]) {
     if (strstr(archive[i].archive_name,"_core")) {
         printf("Coredump File :%s\n",archive[i].archive_name);
     }
+    }
 #if 0    
         ratelimit_decision_t decision = ratelimit_check_unified(&dumps[i]);
         

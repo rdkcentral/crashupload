@@ -15,6 +15,9 @@
 #define MAX_DUMPS 100
 #define PATH_MAX 512
 
+//Below 2 function should put under GTEST compile flag
+char *strtok_r(char *str, const char *delim, char **saveptr);
+char *strdup(const char *s);
 
 static dump_file_t found_dumps[MAX_DUMPS];
 static int dump_count = 0;
@@ -22,12 +25,12 @@ static int dump_count = 0;
 static const char containerDelimiter[] = "<#=#>";
 
 /* Telemetry stubs - replace with real implementations */
-static void t2ValNotify(const char *key, const char *val)
+void t2ValNotify(const char *key, const char *val)
 {
     (void)key; (void)val;
     /* integrate with real telemetry API */
 }
-static void t2CountNotify(const char *key, const char *val_or_null)
+void t2CountNotify(const char *key, const char *val_or_null)
 {
     (void)key; (void)val_or_null;
     /* integrate with real telemetry API */
@@ -225,7 +228,7 @@ char *extract_pname(const char *filepath)
  *   Example:
  *     file = "prefix_appname-1_proc_123.dmp" -> appname = "appname"
  */
-static char *extract_appname(const char *filepath)
+char *extract_appname(const char *filepath)
 {
     if (!filepath) return NULL;
     /* Work on basename */
@@ -272,7 +275,10 @@ static char *lookup_log_files_for_proc(const char *pname)
     if (!f) return NULL;
 
     char *result = NULL;
-    char line[4096];
+    char line[512];
+    char *lhs = NULL;
+    char *rhs = NULL;
+    char *eq = NULL;
     printf("=============> pname=%s\n", pname);
     while (fgets(line, sizeof(line), f)) {
         /* trim newline */
@@ -280,15 +286,21 @@ static char *lookup_log_files_for_proc(const char *pname)
         /* skip empty lines */
         if (line[0] == '\0') continue;
         /* split on first '=' */
-        char *eq = strchr(line, '=');
+        eq = strchr(line, '=');
         if (!eq) continue;
         *eq = '\0';
-        char *lhs = line;
-        char *rhs = eq + 1;
+        lhs = line;
+        rhs = eq + 1;
         /* if lhs contains pname as substring -> match */
         if (strstr(pname, lhs) != NULL) {
             /* copy rhs */
             result = strdup(rhs);
+	    if (result != NULL) {
+	        printf("strdup success\n");
+	        printf("result = %s\n", result);
+	    } else {
+	        printf("strdup not success\n");
+	    }
             break;
         }
     }
@@ -307,6 +319,7 @@ static char *lookup_log_files_for_proc(const char *pname)
 static int get_crashed_log_file(const char *file, const char *log_path)
 {
     if (!file) return -1;
+    char *token = NULL;
     printf("In get_crashed_log_file file=%s====log_path=%s=====>\n", file, log_path);
     /* Extract pname */
     char *pname = extract_pname(file);
@@ -320,24 +333,29 @@ static int get_crashed_log_file(const char *file, const char *log_path)
     printf("Process crashed = %s\n", pname);
 
     /* Telemetry if enabled (replace IS_T2_ENABLED check as needed) */
-    const char *IS_T2_ENABLED = getenv("IS_T2_ENABLED"); /* env var control; modify as needed */
+    /*const char *IS_T2_ENABLED = getenv("IS_T2_ENABLED");
     if (IS_T2_ENABLED && strcmp(IS_T2_ENABLED, "true") == 0) {
         t2ValNotify("processCrash_split", pname);
         t2ValNotify("SYST_ERR_Process_Crash_accum", pname);
         t2CountNotify("SYST_ERR_ProcessCrash", NULL);
-    }
+    }*/
     printf("Going to call lookup_log_files_for_proc() ===========================\n");
     /* Lookup log files (comma-separated) */
     char *logrhs = lookup_log_files_for_proc(pname);
+    printf("Call End lookup_log_files_for_proc() ===========================\n");
     if (logrhs) {
+        printf("Crashed process log file(s)\n");
         printf("Crashed process log file(s): %s\n", logrhs);
 
         /* Split comma-separated list and append LOG_PATH/<name> to LOG_FILES_PATH */
         char *saveptr = NULL;
-        char *token = strtok_r(logrhs, ",", &saveptr);
-        while (token) {
+        token = strtok_r(logrhs, ",", &saveptr);
+        while (token != NULL) {
+            printf("Inside Toke(s)\n");
+	    printf("token=%s\n", token);
             /* Trim leading/trailing spaces */
             while (*token && isspace((unsigned char)*token)) token++;
+            printf("Inside Toke1(s)\n");
             char *end = token + strlen(token);
             while (end > token && isspace((unsigned char)*(end - 1))) { end--; }
             char tmp = *end; *end = '\0';
@@ -353,6 +371,7 @@ static int get_crashed_log_file(const char *file, const char *log_path)
             *end = tmp;
             token = strtok_r(NULL, ",", &saveptr);
         }
+	printf("Going to free logrhs\n");
         free(logrhs);
     } else {
         printf("No log mapper entry found for process\n");
@@ -377,7 +396,7 @@ static int get_crashed_log_file(const char *file, const char *log_path)
  *
  *   Returns 0 on success.
  */
-static int processCrashTelemetryInfo(const char *rawfile , const char *log_path)
+int processCrashTelemetryInfo(const char *rawfile , const char *log_path)
 {
     if (!rawfile || !log_path) return -1;
 
