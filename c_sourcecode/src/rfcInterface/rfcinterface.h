@@ -68,14 +68,10 @@ typedef enum
   RFC_UINT
 }RFCVALDATATYPE;
 
-typedef struct rfcdetails {
-    char rfc_throttle[RFC_VALUE_BUF_SIZE];
-    char rfc_topspeed[RFC_VALUE_BUF_SIZE];
-    char rfc_incr_cdl[RFC_VALUE_BUF_SIZE];
-    char rfc_mtls[RFC_VALUE_BUF_SIZE];
-}Rfc_t;
-
 #define RFC_TELEMETRY_OPTOUT "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryOptOut.Enable"
+#define RFC_DMP_ENCRYPT_UPLOAD "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable"
+#define RFC_CRASH_PORTAL_URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl"
+#define RFC_CRASHUPLOAD_S3URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.S3SigningUrl" 
 
 int read_RFCProperty(char* type, const char* key, char *data, size_t datasize);
 int write_RFCProperty(char* type, const char* key, const char *data, RFCVALDATATYPE datatype);

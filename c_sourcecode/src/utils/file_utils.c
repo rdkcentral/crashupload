@@ -8,6 +8,8 @@
 #include <openssl/opensslv.h>
 #include <openssl/sha.h>
 #include <openssl/evp.h>
+#include <openssl/bio.h>
+#include <openssl/buffer.h>
 
 #define SHA1_CHUNK_SIZE 8192
 #define TIMESTAMP_DEFAULT_VALUE "2000-01-01-00-00-00"
@@ -33,6 +35,85 @@ int join_path(char *dest, size_t dest_size, const char *dir, const char *name)
         if (snprintf(dest, dest_size, "%s/%s", dir, name) >= dest_size) return -1;
     }
     return 0;
+}
+
+
+int compute_s3_md5_base64(const char *filepath,
+                          char *out_b64_md5,
+                          size_t out_len)
+{
+    FILE *fp = NULL;
+    EVP_MD_CTX *mdctx = NULL;
+    BIO *b64 = NULL;
+    BIO *mem = NULL;
+    BUF_MEM *bptr = NULL;
+
+    unsigned char md5_bin[EVP_MAX_MD_SIZE];
+    unsigned int md5_len = 0;
+    unsigned char io_buf[4096];
+    size_t nread;
+    int rc = -1;
+
+    if (!filepath || !out_b64_md5 || out_len < 32)
+        return -1;
+
+    fp = fopen(filepath, "rb");
+    if (!fp)
+        goto cleanup;
+
+    mdctx = EVP_MD_CTX_new();
+    if (!mdctx)
+        goto cleanup;
+
+    if (EVP_DigestInit_ex(mdctx, EVP_md5(), NULL) != 1)
+        goto cleanup;
+
+    while ((nread = fread(io_buf, 1, sizeof(io_buf), fp)) > 0) {
+        if (EVP_DigestUpdate(mdctx, io_buf, nread) != 1)
+            goto cleanup;
+    }
+
+    if (ferror(fp))
+        goto cleanup;
+
+    if (EVP_DigestFinal_ex(mdctx, md5_bin, &md5_len) != 1)
+        goto cleanup;
+
+    b64 = BIO_new(BIO_f_base64());
+    mem = BIO_new(BIO_s_mem());
+    if (!b64 || !mem)
+        goto cleanup;
+
+    BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+    BIO_push(b64, mem);
+
+    if (BIO_write(b64, md5_bin, md5_len) <= 0)
+        goto cleanup;
+
+    if (BIO_flush(b64) != 1)
+        goto cleanup;
+
+    BIO_get_mem_ptr(mem, &bptr);
+    if (!bptr || bptr->length == 0)
+        goto cleanup;
+
+    if (bptr->length + 1 > out_len)
+        goto cleanup;
+
+    memcpy(out_b64_md5, bptr->data, bptr->length);
+    out_b64_md5[bptr->length] = '\0';
+
+    rc = 0;
+
+cleanup:
+    if (fp)
+        fclose(fp);
+    if (mdctx)
+        EVP_MD_CTX_free(mdctx);
+    if (b64)
+        BIO_free_all(b64);
+
+    return rc;
 }
 
 /**

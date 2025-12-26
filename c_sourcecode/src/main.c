@@ -232,9 +232,10 @@ int main(int argc, char *argv[]) {
 	goto cleanup;
     }
     for (int i = 0; i < dump_count; i++) {
-    if (strstr(archive[i].archive_name,"_core")) {
-        printf("Coredump File :%s\n",archive[i].archive_name);
-    }
+        if (strstr(archive[i].archive_name,"_core")) {
+            printf("Coredump File :%s\n",archive[i].archive_name);
+        }
+	upload_process(&archive[i], &config, &platform);
     }
 #if 0    
         ratelimit_decision_t decision = ratelimit_check_unified(&dumps[i]);
