@@ -16,6 +16,9 @@ int trim_process_name_in_path(const char *full_path,
                               char *out,
                               size_t out_len);
 int get_crash_timestamp_utc(char *out, size_t outsz);
+int compute_s3_md5_base64(const char *filepath,
+                          char *out_b64_md5,
+                          size_t out_len);
 /*
  * Safely join dir + name into dest (size PATH_MAX).
  * Returns 0 on success, -1 on error (overflow).

@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include "ratelimit.h"
 
 //#define RECOVERY_DELAY_SEC 600
 #define RECOVERY_DELAY_SEC 30
@@ -158,7 +159,7 @@ int ratelimit_check_unified(dump_type_t dump_type)
 	return RATELIMIT_BLOCK;
     }
     if (dump_type == DUMP_TYPE_MINIDUMP) {
-	status = is_upload_limit_reached();
+	status = is_upload_limit_reached("/tmp/.minidump_upload_timestamps");
         if (status != ALLOW_UPLOAD) {
 	    printf("Upload rate limit has been reached.\n");
 	    //TODO: markAsCrashLoopedAndUpload $f

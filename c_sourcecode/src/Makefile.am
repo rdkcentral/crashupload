@@ -35,6 +35,8 @@ crashupload_SOURCES = \
     ratelimit/ratelimit.c \
     utils/system_utils.c \
     upload/upload.c \
+    rfcInterface/rfcinterface.c \
+    rfcInterface/rfcinterface.h \
     utils/logger.c \
     utils/logger.h
 

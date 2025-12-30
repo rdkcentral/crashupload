@@ -13,7 +13,7 @@
 #include "scanner.h"
 
 #define MAX_DUMPS 100
-#define PATH_MAX 512
+#define PATH_MAX_LEN 512
 
 //Below 2 function should put under GTEST compile flag
 char *strtok_r(char *str, const char *delim, char **saveptr);
@@ -360,7 +360,7 @@ static int get_crashed_log_file(const char *file, const char *log_path)
             while (end > token && isspace((unsigned char)*(end - 1))) { end--; }
             char tmp = *end; *end = '\0';
 
-            char logfull[PATH_MAX];
+            char logfull[PATH_MAX_LEN];
             if (join_path(logfull, sizeof(logfull), log_path, token) == 0) {
                 if (append_logfile_entry(logfull) != 0) {
 		    printf("Failed to append log entry: %s\n", logfull);
@@ -401,10 +401,10 @@ int processCrashTelemetryInfo(const char *rawfile , const char *log_path)
     if (!rawfile || !log_path) return -1;
 
     /* Work on a local mutable copy */
-    char file[PATH_MAX];
-    if (strlen(rawfile) >= PATH_MAX) return -1;
-    strncpy(file, rawfile, PATH_MAX);
-    file[PATH_MAX - 1] = '\0';
+    char file[PATH_MAX_LEN];
+    if (strlen(rawfile) >= PATH_MAX_LEN) return -1;
+    strncpy(file, rawfile, PATH_MAX_LEN);
+    file[PATH_MAX_LEN - 1] = '\0';
 
     /* Remove leading "./" */
     if (strncmp(file, "./", 2) == 0) memmove(file, file + 2, strlen(file + 2) + 1);
@@ -424,9 +424,9 @@ int processCrashTelemetryInfo(const char *rawfile , const char *log_path)
          */
         char *pmod = strstr(file, "_mod");
         if (pmod) {
-            char tmp[PATH_MAX];
+            char tmp[PATH_MAX_LEN];
             size_t remain_len = strlen(pmod + strlen("_mod"));
-            if (remain_len >= PATH_MAX) return -1;
+            if (remain_len >= PATH_MAX_LEN) return -1;
             memcpy(tmp, pmod + strlen("_mod"), remain_len + 1);
             pmod = NULL;
             pmod = strchr(tmp, '_');
@@ -434,7 +434,7 @@ int processCrashTelemetryInfo(const char *rawfile , const char *log_path)
                 strncpy(tmp, pmod+1, sizeof(tmp)-1);
 		tmp[sizeof(tmp)-1] = '\0';
             }
-            snprintf(file, PATH_MAX, "%s", tmp);
+            snprintf(file, PATH_MAX_LEN, "%s", tmp);
             printf("Removed the meta information from tgz filename\n");
             printf("tgz file name after remove meta info=%s\n", file);
             t2CountNotify("SYS_INFO_TGZDUMP", "1");
@@ -470,7 +470,7 @@ int processCrashTelemetryInfo(const char *rawfile , const char *log_path)
         if (!firstPos) goto call_get_crashed;
         /* Extract firstBreak (everything before firstPos) */
         size_t fb_len = (size_t)(firstPos - file);
-        if (fb_len >= PATH_MAX) fb_len = PATH_MAX - 1;
+        if (fb_len >= PATH_MAX_LEN) fb_len = PATH_MAX_LEN - 1;
         memcpy(firstBreak, file, fb_len);
         firstBreak[fb_len] = '\0';
         /* containerTime is everything after last delimiter */
@@ -511,13 +511,13 @@ int processCrashTelemetryInfo(const char *rawfile , const char *log_path)
         }
 
         /* Construct file = containerName-backwardDelimiter-containerTime */
-        char normalized[PATH_MAX];
+        char normalized[PATH_MAX_LEN];
         snprintf(normalized, sizeof(normalized), "%s-%s", containerName, containerTime);
         /* Now extract Appname and ProcessName from containerName */
         /* Appname = substring after first '_' */
         char *us = strchr(containerName, '_');
-        char Appname[PATH_MAX];
-        char ProcessName[PATH_MAX];
+        char Appname[PATH_MAX_LEN];
+        char ProcessName[PATH_MAX_LEN];
         if (us) {
             snprintf(Appname, sizeof(Appname), "%s", us + 1);
             size_t pnamelen = (size_t)(us - containerName);
@@ -542,7 +542,7 @@ int processCrashTelemetryInfo(const char *rawfile , const char *log_path)
         printf("NEW Processname, App Name, AppState = %s, %s, %s\n", ProcessName, Appname, containerStatus);
 
         /* Add APP_ERROR_Crashed telemetry */
-        char tmpbuf[PATH_MAX * 3];
+        char tmpbuf[PATH_MAX_LEN * 3];
         snprintf(tmpbuf, sizeof(tmpbuf), "%s,%s,%s", Appname, ProcessName, containerStatus);
         t2ValNotify("APP_ERROR_Crashed_split", tmpbuf);
         t2ValNotify("APP_ERROR_Crashed_accum", tmpbuf);
@@ -583,29 +583,29 @@ int process_file_entry(char *fullpath, char *dump_type, const config_t *config)
     if (!is_regular_file(fullpath)) return 0;
 
     /* Determine filename relative / basename (we preserve path) */
-    char dirname[PATH_MAX];
-    char basename[PATH_MAX];
-    char fullcopy[PATH_MAX];
+    char dirname[PATH_MAX_LEN];
+    char basename[PATH_MAX_LEN];
+    char fullcopy[PATH_MAX_LEN];
 
-    if (strlen(fullpath) >= PATH_MAX) return -1;
-    strncpy(fullcopy, fullpath, PATH_MAX);
-    fullcopy[PATH_MAX - 1] = '\0';
+    if (strlen(fullpath) >= PATH_MAX_LEN) return -1;
+    strncpy(fullcopy, fullpath, PATH_MAX_LEN);
+    fullcopy[PATH_MAX_LEN - 1] = '\0';
 
     printf("full path of the file=%s=>\n", fullpath);
 
     char *slash = strrchr(fullcopy, '/');
     if (slash) {
         size_t dlen = (size_t)(slash - fullcopy);
-        if (dlen >= PATH_MAX) return -1;
+        if (dlen >= PATH_MAX_LEN) return -1;
         memcpy(dirname, fullcopy, dlen);
         dirname[dlen] = '\0';
-        strncpy(basename, slash + 1, PATH_MAX);
-        basename[PATH_MAX - 1] = '\0';
+        strncpy(basename, slash + 1, PATH_MAX_LEN);
+        basename[PATH_MAX_LEN - 1] = '\0';
     } else {
         dirname[0] = '.';
         dirname[1] = '\0';
-        strncpy(basename, fullcopy, PATH_MAX);
-        basename[PATH_MAX - 1] = '\0';
+        strncpy(basename, fullcopy, PATH_MAX_LEN);
+        basename[PATH_MAX_LEN - 1] = '\0';
     }
     printf("process_file_entry dir name=%s=>\nbasename=%s=>\n", dirname, basename);
     /* Sanitize basename while preserving containerDelimiter token */
@@ -621,7 +621,7 @@ int process_file_entry(char *fullpath, char *dump_type, const config_t *config)
     }
         /* If sanitized differs from original basename, rename */
     if (strcmp(sanitized, basename) != 0) {
-        char newfull[PATH_MAX];
+        char newfull[PATH_MAX_LEN];
         if (join_path(newfull, sizeof(newfull), dirname, sanitized) != 0) {
             printf("Path too long after sanitization; skipping rename\n");
             return -1;
@@ -649,7 +649,7 @@ int process_file_entry(char *fullpath, char *dump_type, const config_t *config)
 	    printf("After rename fullpath buffer updated=%s=\n",fullpath);
         }
         /* set fullpath to newfull for subsequent processing */
-        if (strlen(newfull) >= PATH_MAX) {
+        if (strlen(newfull) >= PATH_MAX_LEN) {
             return -1;
         }
         if (0 == (strcmp(dump_type, "0"))) {

@@ -13,6 +13,56 @@
 
 #define SHA1_CHUNK_SIZE 8192
 #define TIMESTAMP_DEFAULT_VALUE "2000-01-01-00-00-00"
+
+/* function GetFirmwareVersion - gets the firmware version of the device.
+
+        Usage: size_t GetFirmwareVersion <char *pFWVersion> <size_t szBufSize>
+
+            pFWVersion - pointer to a char buffer to store the output string.
+
+            szBufSize - the size of the character buffer in argument 1.
+
+            RETURN - number of characters copied to the output buffer.
+*/
+size_t GetCrashFirmwareVersion( const char *versionFile, char *pFWVersion, size_t szBufSize )
+{
+    FILE *fp;
+    size_t i = 0;
+    char *pTmp;
+    char buf[150];
+
+    if( pFWVersion != NULL && versionFile != NULL)
+    {
+        *pFWVersion = 0;
+        if( (fp = fopen( versionFile, "r" )) != NULL )
+        {
+            pTmp = NULL;
+            while( fgets( buf, sizeof(buf), fp ) != NULL )
+            {
+                if( (pTmp = strstr( buf, "imagename:" )) != NULL )
+                {
+                    while( *pTmp++ != ':' )
+                    {
+                        ;
+                    }
+                    break;
+                }
+            }
+            fclose( fp );
+            if( pTmp )
+            {
+                i = snprintf( pFWVersion, szBufSize, "%s", pTmp );
+                i = stripinvalidchar( pFWVersion, i );
+            }
+        }
+    }
+    else
+    {
+        printf( "GetFirmwareVersion: Error, input argument NULL\n" );
+    }
+    return i;
+}
+
 /*
  * Safely join dir + name into dest (size PATH_MAX).
  * Returns 0 on success, -1 on error (overflow).

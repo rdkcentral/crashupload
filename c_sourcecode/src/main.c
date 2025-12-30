@@ -23,6 +23,7 @@
 #include "file_utils.h"
 #include "ratelimit.h"
 #include "systemutils.h"
+#include "upload.h"
 
 static int lock_dir_prefix = 0;
 
@@ -70,6 +71,7 @@ int main(int argc, char *argv[]) {
     char *tmp = NULL;
     bool is_process_dmp_file = false;
     archive_info_t *archive = NULL;
+    char time_stamp_file_name[64] = {0};
     
     if (argc < 3) {
         printf("Number of parameter is less\n");
@@ -122,9 +124,12 @@ int main(int argc, char *argv[]) {
 #endif
     if (config.dump_type == DUMP_TYPE_MINIDUMP) {
             strcpy(dump_extn_pattern, "*.dmp*");
+	    strcpy(time_stamp_file_name, "/tmp/.minidump_upload_timestamps");
         } else if (config.dump_type == DUMP_TYPE_COREDUMP) {
             strcpy(dump_extn_pattern, "*core.prog*.gz*");
+	    strcpy(time_stamp_file_name, "/tmp/.coredump_upload_timestamps");
         } else {
+	    strcpy(time_stamp_file_name, "/tmp/.minidump_upload_timestamps");
             printf("Invalid Dump Type\n");
         }
 

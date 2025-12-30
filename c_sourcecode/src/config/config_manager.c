@@ -77,6 +77,8 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
     ret = getDevicePropertyData("BUILD_TYPE", device_prop_data, sizeof(device_prop_data));
     if (ret == UTILS_SUCCESS) {
          printf("Build type = %s\n", device_prop_data);
+	 strncpy(config->build_type_val, device_prop_data, sizeof(config->build_type_val));
+	 config->build_type_val[sizeof(config->build_type_val)-1] = '\0';
 	 if (0 == strncmp(device_prop_data, "prod", 4)) {
 	     config->build_type = BUILD_TYPE_PROD;
 	 } else {

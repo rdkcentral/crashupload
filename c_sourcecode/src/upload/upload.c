@@ -5,16 +5,16 @@
 #include <string.h>
 #include <curl/curl.h>
 #include <time.h>
+#include "../rfcInterface/rfcinterface.h"
+#include "../../common/types.h"
+#include "upload.h"
+#include "common_device_api.h"
+#include "mtls_upload.h"
 
 #define MAX_RETRIES 3
 #define TIMEOUT_SECONDS 45
 #define RETRY_DELAY_SECONDS 5
-
-typedef enum {
-    UPLOAD_TYPE_COREDUMP,
-    UPLOAD_TYPE_MINIDUMP,
-    UPLOAD_TYPE_LOG
-} upload_type_t;
+#define SIZE_POSTFIELD_BUF 2048
 
 #if 0
 /* FULL IMPLEMENTATION - Progress callback for upload monitoring */
@@ -43,28 +43,110 @@ int get_crashupload_s3signed_url(char *url, size_t size_buf)
 	if (ret == UTILS_SUCCESS) {
 	    printf("S3 Amazon Signing URL:%s\n", url);
 	} else {
-	    printf("Error to Get S3 Signing URL:%s\n");
+	    printf("Error to Get S3 Signing URL\n");
 	}
     }
     return ret;
 }
 
 /* FULL IMPLEMENTATION - Type-aware upload with optimized retry logic */
-int upload_file(const char *filepath, const char *url, upload_type_t type) {
-    if (!filepath || !url) {
+int upload_file(const char *filepath, const char *url, const char *dump_name, const char *crash_fw_version, const char *build_type, const char *model, const char *md5sum) {
+    if (!filepath || !url || !dump_name || !crash_fw_version || !build_type || !model || !md5sum) {
         return -1;
     }
+    char post_filed[SIZE_POSTFIELD_BUF] = {0};
+    long http_code = 0;
+    int curl_ret = 0;
+    char url_encode_data = NULL;
+    size_t len, totlen = 0, remainlen szPostFieldOut;
+    MtlsAuth_t sec_out;
 
-}
+    memset(&sec_out, '\0', sizeof(sec_out));
+    szPostFieldOut = sizeof(post_filed);
 
-/* FULL IMPLEMENTATION - Wrapper for coredump upload */
-int upload_coredump(const char *filepath, const char *url) {
-    return upload_file(filepath, url, UPLOAD_TYPE_COREDUMP);
-}
+    printf("Before upload\n");
+    printf("filepath=%s\n", filepath);
+    printf("url=%s\n", url);
+    printf("dump name=%s=>carsh firmware=%s\n", dump_name, crash_fw_version);
+    printf("build type=%s=>model=%s\n", build_type, model);
+    printf("md5sum=%s\n", md5sum);
 
-/* FULL IMPLEMENTATION - Wrapper for minidump upload */
-int upload_minidump(const char *filepath, const char *url) {
-    return upload_file(filepath, url, UPLOAD_TYPE_MINIDUMP);
+    remainlen = szPostFieldOut - totlen;
+    url_encode_data = urlEncodeString(filepath);
+    if (url_encode_data != NULL) {
+        totlen+ = snprintf(post_filed+totlen, remainlen, "filename=%s&", url_encode_data);
+	free(url_encode_data);
+	url_encode_data = NULL;
+    }else {
+        totlen += snprintf(post_filed+totlen, remainlen, "filename=%s&", filepath);
+    }
+
+    remainlen = szPostFieldOut - totlen;
+    url_encode_data = urlEncodeString(crash_fw_version);
+    if (url_encode_data != NULL) {
+        totlen += snprintf(post_filed+totlen, remainlen, "firmwareVersion=%s&", url_encode_data);
+	free(url_encode_data);
+	url_encode_data = NULL;
+    }else {
+        totlen += snprintf(post_filed+totlen, remainlen, "filename=%s&", crash_fw_version);
+    }
+
+    remainlen = szPostFieldOut - totlen;
+    url_encode_data = urlEncodeString(build_type);
+    if (url_encode_data != NULL) {
+        totlen += snprintf(post_filed+totlen, remainlen, "env=%s&", url_encode_data);
+	free(url_encode_data);
+	url_encode_data = NULL;
+    }else {
+        totlen += snprintf(post_filed+totlen, remainlen, "env=%s&", build_type);
+    }
+
+    remainlen = szPostFieldOut - totlen;
+    url_encode_data = urlEncodeString(model);
+    if (url_encode_data != NULL) {
+        totlen += snprintf(post_filed+totlen, remainlen, "model=%s&", url_encode_data);
+	free(url_encode_data);
+	url_encode_data = NULL;
+    }else {
+        totlen += snprintf(post_filed+totlen, remainlen, "model=%s&", model);
+    }
+
+    remainlen = szPostFieldOut - totlen;
+    url_encode_data = urlEncodeString(dump_name);
+    if (url_encode_data != NULL) {
+        totlen += snprintf(post_filed+totlen, remainlen, "type=%s&", url_encode_data);
+	free(url_encode_data);
+	url_encode_data = NULL;
+    }else {
+        totlen += snprintf(post_filed+totlen, remainlen, "type=%s&", dump_name);
+    }
+
+    remainlen = szPostFieldOut - totlen;
+    url_encode_data = urlEncodeString(md5sum);
+    if (url_encode_data != NULL) {
+        totlen += snprintf(post_filed+totlen, remainlen, "md5=%s", url_encode_data);
+	free(url_encode_data);
+	url_encode_data = NULL;
+    }else {
+        totlen += snprintf(post_filed+totlen, remainlen, "type=%s", md5sum);
+    }
+    if (totlen < szPostFieldOut) {
+        printf("postfiled data=%s\n", post_filed);
+	ret = performMetadataPostWithCertRotationEx(url, filepath, post_filed, &sec_out, &http_code);
+	printf("After performMetadataPostWithCertRotationEx ret=%d=>http code=%lu\n", ret, http_code);
+	__uploadutil_get_status(&http_code, &curl_ret);
+	printf("Curl Connected to $FQDN:%s\n", url);
+	printf("Curl return code :%d, HTTP SIGN URL Response:%lu\n", curl_ret, http_code);
+	//TODO:if $IS_T2_ENABLED" == "true then
+            //t2ValNotify "coreUpld_split" "$ec, $http_code"
+	//int extractS3PresignedUrl(const char *result_file, char *out_url, size_t out_url_sz);
+	//int performS3PutUpload(const char *s3url, const char *localfile, MtlsAuth_t *auth);
+    } else {
+        printf("psodt_filed buffer corropted.Total write bytes=%u and total buf size=%u\n",totlen, szPostFieldOut);
+        printf("postfiled data=%s\n", post_filed);//TODO: Need to remove
+    }
+    return curl_ret;
+
 }
 
 /* FULL IMPLEMENTATION - Batch upload multiple files */
@@ -82,6 +164,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
     bool ocsp_stapling_enable = false;
     int request_type = 0;
     char md5sum[128] = {0};
+    char dump_name[16] = {0};
     //size_t GetPartnerId( char *pPartnerId, size_t szBufSize );
     ret = GetPartnerId(pPartnerId, sizeof(pPartnerId));
     if (ret == 0) {
@@ -107,6 +190,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
             printf("Read rfc Success EncryptCloudUpload:%s\n",portal_url);
 	}
         request_type = 17;
+	printf("request_type=%d\n",request_type);
 	ret = read_RFCProperty("CrashPortalEndURL", RFC_CRASH_PORTAL_ENDPOINT_URL, crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
 	if ((ret == READ_RFC_FAILURE) || (crashportalEndpointUrl[0] == '\0')) {
             printf("Read rfc failed crashportalEndpointUrl\n");
@@ -119,13 +203,29 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
 	} else {
             printf("Read rfc Success crashportalEndpointUrl:\n Overriding the S3 Amazon SIgning URL:%s\n",crashportalEndpointUrl);
 	}
+    } else if (config->device_type == DEVICE_TYPE_BRODBAND) {
+	printf("TODO: SUPPORT NOT AVAILABLE\n");
+	printf("Unknown device\n");
+	printf("[ERROR] Unknown DEVICE_TYPE:\n");
+	return ret;
+    } else {
+	printf("Unknown device\n");
+	printf("[ERROR] Unknown DEVICE_TYPE:\n");
+	return ret;
     }
     if ((0 == (filePresentCheck(EnableOCSPStapling))) || (0 == (filePresentCheck(EnableOCSP)))) {
-        printf("ocsp_stapling_enable is enabled\n");
+        printf("ocsp_stapling_enable is enabled:%d\n",ocsp_stapling_enable);
 	ocsp_stapling_enable = true;
     }
     if (0 == (strcmp(encryptionEnable, "true"))) {
-        compute_s3_md5_base64(archive->name, md5sum, sizeof(md5sum));
+        compute_s3_md5_base64(archive->archive_name, md5sum, sizeof(md5sum));
     }
+    if (config->dump_type == DUMP_TYPE_MINIDUMP) {
+        strcpy(dump_name, "minidump");
+    } else {
+        strcpy(dump_name, "coredump");
+    }
+    GetCrashFirmwareVersion("/version.txt", crash_fw_version, sizeof(crash_fw_version));
+    status = upload_file(archive->archive_name, crashportalEndpointUrl, dump_name, crash_fw_version, config->build_type_val, platform->model, md5sum);
     return status;
 }

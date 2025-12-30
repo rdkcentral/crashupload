@@ -93,6 +93,7 @@ typedef struct {
     char log_mapper_file[64];
     char box_type[64];
     char log_path[16];
+    char build_type_val[8];
     bool t2_enabled;
     bool privacy_mode;
     bool opt_out;

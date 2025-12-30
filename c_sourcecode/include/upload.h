@@ -1,12 +1,18 @@
 #ifndef UPLOAD_H
 #define UPLOAD_H
 
+#include "../common/types.h"
+#include "../common/constants.h"
+#include "../common/errors.h"
+#include "file_utils.h"
+
 typedef enum {
     UPLOAD_TYPE_COREDUMP,
     UPLOAD_TYPE_MINIDUMP,
     UPLOAD_TYPE_LOG
 } upload_type_t;
 
+int upload_process(archive_info_t *archive, const config_t *config, const platform_config_t *platform);
 /**
  * Upload file with TLS 1.2 and type-aware retry logic
  * @param filepath Path to file to upload

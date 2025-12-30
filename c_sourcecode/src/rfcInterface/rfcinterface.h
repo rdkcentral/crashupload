@@ -72,6 +72,7 @@ typedef enum
 #define RFC_DMP_ENCRYPT_UPLOAD "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable"
 #define RFC_CRASH_PORTAL_URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl"
 #define RFC_CRASHUPLOAD_S3URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.S3SigningUrl" 
+#define RFC_CRASH_PORTAL_ENDPOINT_URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CrashportalEndpoint.URL"
 
 int read_RFCProperty(char* type, const char* key, char *data, size_t datasize);
 int write_RFCProperty(char* type, const char* key, const char *data, RFCVALDATATYPE datatype);

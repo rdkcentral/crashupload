@@ -12,22 +12,23 @@
 #include "cleanup_batch.h"
 #include "../../common/errors.h"
 
+#define PATH_MAX_LEN 512
 
-/* Safe join: dest must be PATH_MAX bytes. Returns 0 on success, -1 on error. */
-static int join_path(char dest[PATH_MAX], const char *dir, const char *name)
+/* Safe join: dest must be PATH_MAX_LEN bytes. Returns 0 on success, -1 on error. */
+static int join_path(char dest[PATH_MAX_LEN], const char *dir, const char *name)
 {
     if (!dir || !name) return -1;
     size_t dlen = strlen(dir);
     if (dlen == 0) {
-        if (strlen(name) >= PATH_MAX) return -1;
-        snprintf(dest, PATH_MAX, "%s", name);
+        if (strlen(name) >= PATH_MAX_LEN) return -1;
+        snprintf(dest, PATH_MAX_LEN, "%s", name);
         return 0;
     }
     /* Ensure there's exactly one slash between */
     if (dir[dlen - 1] == '/') {
-        if (snprintf(dest, PATH_MAX, "%s%s", dir, name) >= PATH_MAX) return -1;
+        if (snprintf(dest, PATH_MAX_LEN, "%s%s", dir, name) >= PATH_MAX_LEN) return -1;
     } else {
-        if (snprintf(dest, PATH_MAX, "%s/%s", dir, name) >= PATH_MAX) return -1;
+        if (snprintf(dest, PATH_MAX_LEN, "%s/%s", dir, name) >= PATH_MAX_LEN) return -1;
     }
     return 0;
 }
@@ -122,7 +123,7 @@ static int walk_dir_recursive(const char *dirpath, file_cb_t cb, void *user)
     }
 
     struct dirent *ent;
-    char full[PATH_MAX];
+    char full[PATH_MAX_LEN];
     int rc = 0;
     while ((ent = readdir(d)) != NULL) {
         if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
@@ -346,7 +347,7 @@ int cleanup_batch(const char *working_dir,
     if (!file_exists_regular("/opt/.upload_on_startup")) {
         printf("Inside start up cleanup delete version.txt\n");
         /* delete version.txt in working_dir (best-effort) */
-        char version_path[PATH_MAX];
+        char version_path[PATH_MAX_LEN];
         if (join_path(version_path, working_dir, "version.txt") == 0) {
             if (unlink(version_path) == 0) {
                 printf("Deleted %s\n", version_path);
@@ -355,7 +356,7 @@ int cleanup_batch(const char *working_dir,
             }
         }
             /* Compose ON_STARTUP_DUMPS_CLEANED_UP path */
-        char on_startup_flag[PATH_MAX];
+        char on_startup_flag[PATH_MAX_LEN];
         if (on_startup_flag_base && dump_flag) {
             snprintf(on_startup_flag, sizeof(on_startup_flag), "%s_%s", on_startup_flag_base, dump_flag);
         } else {

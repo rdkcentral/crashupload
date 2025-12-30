@@ -1,12 +1,16 @@
 /* FULL IMPLEMENTATION - System utilities with caching and fallbacks */
 
-#include "systemutils.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/sysinfo.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include "rdk_fwdl_utils.h"
+#include "system_utils.h"
+#include "systemutils.h"
 
 /**
  * FULL IMPLEMENTATION
