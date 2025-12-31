@@ -228,6 +228,7 @@ int main(int argc, char *argv[]) {
         }
     }
     if (true == is_box_rebooting()) {
+	ret = 0;
         goto cleanup;
     }
         /* Check unified rate limit */
@@ -240,7 +241,11 @@ int main(int argc, char *argv[]) {
         if (strstr(archive[i].archive_name,"_core")) {
             printf("Coredump File :%s\n",archive[i].archive_name);
         }
-	upload_process(&archive[i], &config, &platform);
+	ret = upload_process(&archive[i], &config, &platform);
+	printf("upload_process return ret=%d\n", ret);
+	if (ret != 0) {
+	    break;
+	}
     }
 #if 0    
         ratelimit_decision_t decision = ratelimit_check_unified(&dumps[i]);
@@ -279,9 +284,9 @@ cleanup:
     //if (dumps) {
     //    free(dumps);
     //}
-    
+    cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES);
     if (lock_fd >= 0) {
         lock_release(lock_fd);
     }
-    return ret;
+    exit(ret);
 }
