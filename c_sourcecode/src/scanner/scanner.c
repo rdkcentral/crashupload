@@ -12,7 +12,7 @@
 #include "file_utils.h"
 #include "scanner.h"
 
-#define MAX_DUMPS 100
+#define MAX_DUMPS 5
 #define PATH_MAX_LEN 512
 
 //Below 2 function should put under GTEST compile flag

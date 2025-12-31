@@ -50,7 +50,7 @@ int get_crashupload_s3signed_url(char *url, size_t size_buf)
 }
 
 /* FULL IMPLEMENTATION - Type-aware upload with optimized retry logic */
-int upload_file(const char *filepath, const char *url, const char *dump_name, const char *crash_fw_version, const char *build_type, const char *model, const char *md5sum) {
+int upload_file(const char *filepath, const char *url, const char *dump_name, const char *crash_fw_version, const char *build_type, const char *model, const char *md5sum, device_type) {
     if (!filepath || !url || !dump_name || !crash_fw_version || !build_type || !model || !md5sum) {
         return -1;
     }
@@ -130,6 +130,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
     }else {
         totlen += snprintf(post_filed+totlen, remainlen, "type=%s", md5sum);
     }
+    for (int i = 1; i <= 3; i++) {
     if (totlen < szPostFieldOut) {
         printf("postfiled data=%s\n", post_filed);
 	ret = performMetadataPostWithCertRotationEx(url, filepath, post_filed, &sec_out, &http_code);
@@ -139,11 +140,51 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
 	printf("Curl return code :%d, HTTP SIGN URL Response:%lu\n", curl_ret, http_code);
 	//TODO:if $IS_T2_ENABLED" == "true then
             //t2ValNotify "coreUpld_split" "$ec, $http_code"
+	if (curl_ret == 0) {
+	    printf("Attempting TLS1.2 connection to Amazon S3\n");
+            ret = extractS3PresignedUrl(S3_SIGNEDURL_FILE, out_url, sizeof(out_url));
+	    if (ret == 0 && out_url[0] != '\0') {
+	        ret = performS3PutUpload(out_url, filepath, &sec_out);
+		printf("performS3PutUpload return ret=%d\n", ret);
+		http_code = 0;
+		curl_ret = -1;
+	        __uploadutil_get_status(&http_code, &curl_ret);
+		printf("Curl return code: %d HTTP Response code: %d\n", curl_ret, http_code);
+	    }
+	    unlink(S3_SIGNEDURL_FILE);
+	}
+	if (curl_ret != 0) {
+	    printf("Curl finished unsuccessfully! Error code: %d\n", curl_ret);
+	    tls_log(curel_ret, device_type);
+#if 0 //TODO
+	    if (t2_enable) {
+                t2CountNotify "SYS_ERROR_S3CoreUpload_Failed"
+		if (curl_ret == 6) {
+		    t2CountNotify "SYST_INFO_CURL6"
+		}
+		t2CountNotify "SYS_ERR_CoreUpload_Curl${ec}"
+		t2ValNotify "CoredumpFail_split" ${ec}
+	    }
+#endif
+	printf("Execution Status: %d, S3 Amazon Upload of %s Failed\n", curl_ret, filepath);
+	printf("%d: (Retry), minidump S3 Upload\n", i);
+	sleep(2);
+	} else {
+	    printf("S3 ${DUMP_NAME} Upload is successful $tlsMessage\n");
+	    /* //TODO if (t2_enable) {
+	        t2CountNotify "SYS_INFO_S3CoreUploaded"
+	    }*/
+	    printf("Removing uploaded $DUMP_NAME file %s\n", filepath);
+	    unlink(filepath);
+	    break;
+	}
 	//int extractS3PresignedUrl(const char *result_file, char *out_url, size_t out_url_sz);
 	//int performS3PutUpload(const char *s3url, const char *localfile, MtlsAuth_t *auth);
     } else {
         printf("psodt_filed buffer corropted.Total write bytes=%u and total buf size=%u\n",totlen, szPostFieldOut);
         printf("postfiled data=%s\n", post_filed);//TODO: Need to remove
+	break;
+    }
     }
     return curl_ret;
 
@@ -227,5 +268,26 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
     }
     GetCrashFirmwareVersion("/version.txt", crash_fw_version, sizeof(crash_fw_version));
     status = upload_file(archive->archive_name, crashportalEndpointUrl, dump_name, crash_fw_version, config->build_type_val, platform->model, md5sum);
+    if (0 == status) {
+        printf("Minidump uploadToS3 SUCESS: status: %d\n", status);
+#if 0 //TODO:
+      if [ "$DUMP_NAME" == "minidump" ] && [ "$IS_T2_ENABLED" == "true" ]; then
+			     t2CountNotify "SYST_INFO_minidumpUpld"
+		     fi
+#endif
+        printf("Execution Status: %d, S3 Amazon Upload of $DUMP_NAME Success\n",status);
+	printf("Removing file %s\n", archive->archive_name);
+	unlink(archive->archive_name);
+    } else {
+        printf("S3 Amazon Upload of minidump Failed..!\n");
+	if (dump_type == minidump) {
+	    printf("Check and save the dump %s\n", archive->archive_name);
+	    //TODO: save_dump();
+	} else {
+	    printf("Removing file %s\n", archive->archive_name);
+	    unlink(archive->archive_name);
+	    set_time("/tmp/.minidump_upload_timestamps", CURRENT_TIME);
+	}
+    }
     return status;
 }
