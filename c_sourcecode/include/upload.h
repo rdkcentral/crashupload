@@ -6,6 +6,8 @@
 #include "../common/errors.h"
 #include "file_utils.h"
 
+#define S3_SIGNEDURL_FILE "/tmp/signed_url_"
+
 typedef enum {
     UPLOAD_TYPE_COREDUMP,
     UPLOAD_TYPE_MINIDUMP,
@@ -20,8 +22,8 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
  * @param type Type of upload (affects retry strategy)
  * @return 0 on success, -1 on error
  */
-int upload_file(const char *filepath, const char *url, upload_type_t type);
-
+//int upload_file(const char *filepath, const char *url, upload_type_t type);
+int upload_file(const char *filepath, const char *url, const char *dump_name, const char *crash_fw_version, const char *build_type, const char *model, const char *md5sum, device_type_t device_type);
 /**
  * Upload coredump file
  * @param filepath Path to coredump file

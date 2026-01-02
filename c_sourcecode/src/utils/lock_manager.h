@@ -24,6 +24,6 @@ int lock_acquire(const char *lock_file, int timeout_sec);
  * @brief Release process lock
  * @param fd File descriptor from lock_acquire
  */
-void lock_release(int fd);
+void lock_release(int fd, const char *file);
 
 #endif

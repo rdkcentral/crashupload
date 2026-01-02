@@ -54,13 +54,15 @@ typedef enum {
     LOCK_MODE_WAIT
 } lock_mode_t;
 
-/* Upload result types */
+// Upload result types
+/*
 typedef enum {
     UPLOAD_SUCCESS,
     UPLOAD_FAILURE_RETRY,
     UPLOAD_FAILURE_REMOVE,
     UPLOAD_FAILURE_SAVE
 } upload_result_t;
+*/
 
 typedef enum {
     BUILD_TYPE_PROD,

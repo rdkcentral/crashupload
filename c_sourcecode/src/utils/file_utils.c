@@ -1,6 +1,5 @@
 /* FULL IMPLEMENTATION - File utilities with SHA1 streaming optimization */
 
-#include "file_utils.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -10,9 +9,29 @@
 #include <openssl/evp.h>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
+#include "rdk_fwdl_utils.h"
+#include "system_utils.h"
+#include "file_utils.h"
+#include "common_device_api.h"
+#include "rdkv_cdl_log_wrapper.h"
 
 #define SHA1_CHUNK_SIZE 8192
 #define TIMESTAMP_DEFAULT_VALUE "2000-01-01-00-00-00"
+
+bool tls_log(int curl_code, const char *device_type, const char *fqdn)
+{
+    if (!device_type || !fqdn) {
+        return false;
+    }
+    if (0 != (strcmp(device_type, "broadband")	)) {
+    if((curl_code == 35) || (curl_code == 51) || (curl_code == 53) || (curl_code == 54) || (curl_code == 58) || (curl_code == 59) || (curl_code == 60)
+            || (curl_code == 64) || (curl_code == 66) || (curl_code == 77) || (curl_code == 80) || (curl_code == 82) || (curl_code == 83)
+            || (curl_code == 90) || (curl_code == 91)) {
+        TLSLOG(TLS_LOG_ERR, "CERTERR, DumpUL, %d, %s", curl_code, fqdn);
+    }
+    }
+    return true;
+}
 
 /* function GetFirmwareVersion - gets the firmware version of the device.
 

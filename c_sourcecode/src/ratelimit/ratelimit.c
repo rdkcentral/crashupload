@@ -11,13 +11,6 @@
 #include <fcntl.h>
 #include "ratelimit.h"
 
-//#define RECOVERY_DELAY_SEC 600
-#define RECOVERY_DELAY_SEC 30
-#define DENY_UPLOADS_FILE "/tmp/.deny_dump_uploads_till"
-#define ALLOW_UPLOAD 1
-#define STOP_UPLOAD 0
-#define RECOVERY_TIME 1
-#define CURRENT_TIME 2
 
 int set_time(const char *deny_file, int type)
 {

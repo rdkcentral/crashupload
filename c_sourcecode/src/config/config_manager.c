@@ -4,6 +4,7 @@
  */
 #include "config_manager.h"
 #include "../../common/errors.h"
+#include "../rfcInterface/rfcinterface.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -16,13 +17,22 @@ bool get_opt_out_status(void)
 {
     bool optoutStatus = false;
     char currentVal[16] = "false";
+    int ret = -1;
 
     //Read RFC Value
     //const char* rfcStatus = readRfcValue(RFC_TELEMETRY_OPTOUT);TODO: Bring rfcinterface code here
-    const char* rfcStatus = "true";
-    if (!rfcStatus) {
-        rfcStatus = "false";
+    char rfcStatus[32] = {0};
+    ret = read_RFCProperty("rfcTelemetryOptout", RFC_TELEMETRY_OPTOUT, rfcStatus, sizeof(rfcStatus));
+    if ((ret == READ_RFC_FAILURE) || (rfcStatus[0] == '\0')) {
+        strcpy(rfcStatus, "false");
+        printf("Read rfc failed rfcTelemetryOptout:%s and default value set:%s\n",RFC_TELEMETRY_OPTOUT, rfcStatus);
+    } else {
+        printf("Read rfc Success rfcTelemetryOptout:%s and value=:%s\n",RFC_TELEMETRY_OPTOUT,rfcStatus);
     }
+    //const char* rfcStatus = "true";
+    //if (!rfcStatus) {
+    //    rfcStatus = "false";
+    //}
 
     //Read Current Value from File
     FILE *fp = fopen(OPTOUT_FILE, "r");

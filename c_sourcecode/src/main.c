@@ -111,7 +111,7 @@ int main(int argc, char *argv[]) {
     /* TODO: Implement combined network + time check */
     if (prerequisites_wait(&config, PREREQUISITE_TIMEOUT_SEC) != PREREQUISITES_SUCCESS) {
         logger_error("Prerequisites check failed");
-        lock_release(lock_fd);
+        lock_release(lock_fd, lock_file_path);
         return EXIT_FAILURE;
     }
 #if 0    
@@ -286,7 +286,7 @@ cleanup:
     //}
     cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES);
     if (lock_fd >= 0) {
-        lock_release(lock_fd);
+        lock_release(lock_fd, lock_file_path);
     }
     exit(ret);
 }

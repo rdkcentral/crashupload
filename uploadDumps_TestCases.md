@@ -243,7 +243,7 @@ This document contains functional test cases covering all features of the upload
 2. Check for lock directory creation
 
 **Expected Result**:
-- Lock directory "${LOCK_DIR_PREFIX}. lock. d" is created
+- Lock directory "${LOCK_DIR_PREFIX}. lock. d" is created or file created
 - Script continues execution
 - No error messages logged
 
@@ -337,7 +337,7 @@ This document contains functional test cases covering all features of the upload
 
 ---
 
-### TC-016: Lock Removal - SIGKILL Signal (Positive)
+### TC-016: Lock Removal - SIGKILL/SIGTERM Signal (Positive)
 **Test Case Name**:  Verify lock is removed when script receives SIGKILL  
 **Pre-condition**:
 - Script is running with lock created
@@ -1268,7 +1268,7 @@ This document contains functional test cases covering all features of the upload
 3. Verify delimiter is preserved
 
 **Expected Result**: 
-- Delimiter is temporarily replaced with "PLACEHOLDER"
+- Delimiter is temporarily replaced with "PLACEHOLDER" Not Applicable in C code
 - Sanitization is performed
 - "PLACEHOLDER" is replaced back to "<#=#>"
 - Container information is retained
@@ -1854,5 +1854,29 @@ This document contains functional test cases covering all features of the upload
 
 ---
 
-### TC-084: S3 Upload - No Network for Minidump (Negative)
-**Test Case Name**: Verify
+### TC-084: Verify Fall back path
+**Test Case Name**: Verify when c app fail script should trigger
+**Pre-condition**:
+- Make C app fail.
+
+**Operation**:
+TBD
+
+**Expected Result**:
+- script should run and success.
+
+
+---
+
+
+### TC-085: Verify Only single instance should run
+**Test Case Name**: Verify only one instance run at a time between script and c app
+**Pre-condition**:
+- Trigger multiple instance
+
+**Operation**:
+TBD
+
+**Expected Result**:
+- Only one instance should run
+
