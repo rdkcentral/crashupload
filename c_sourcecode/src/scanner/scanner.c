@@ -577,17 +577,26 @@ int process_file_entry(char *fullpath, char *dump_type, const config_t *config)
 {
     int sanitize_ret = -1;
     char sanitized[256] = {0};
-    if (!fullpath || !dump_type || !config) return -1;
-
+    if (!fullpath || !dump_type || !config) {
+	printf("process_file_entry():Invalid Parameter\n");
+        return -1;
+    }
+    printf("process_file_entry(): Full path:%s\n", fullpath);
     /* Only process regular files */
-    if (!is_regular_file(fullpath)) return 0;
+    if (!is_regular_file(fullpath)) {
+	    printf("process_file_entry(): Not a regular file. return 0\n");
+	    return 0;
+    }
 
     /* Determine filename relative / basename (we preserve path) */
     char dirname[PATH_MAX_LEN];
     char basename[PATH_MAX_LEN];
     char fullcopy[PATH_MAX_LEN];
 
-    if (strlen(fullpath) >= PATH_MAX_LEN) return -1;
+    if (strlen(fullpath) >= PATH_MAX_LEN) {
+	    printf("process_file_entry(): File name is cross max length:%d\n", PATH_MAX_LEN);
+	    return -1;
+    }
     strncpy(fullcopy, fullpath, PATH_MAX_LEN);
     fullcopy[PATH_MAX_LEN - 1] = '\0';
 
