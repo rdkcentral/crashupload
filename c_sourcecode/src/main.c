@@ -16,7 +16,7 @@
 #include "utils/privacy.h"
 #include "utils/lock_manager.h"
 #include "scanner/scanner.h"
-#include "archive/archive.h"
+#include "archive/archive_crash.h"
 #include "utils/cleanup_batch.h"
 #include "utils/logger.h"
 #include <signal.h>

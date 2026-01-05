@@ -8,7 +8,7 @@
 #include <sys/statvfs.h>
 #include <errno.h>
 #include <limits.h>
-#include "archive.h"
+#include "archive_crash.h"
 #include <fcntl.h>
 #include "file_utils.h"
 
@@ -206,7 +206,9 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
     tmp = strstr(new_dump_name, "<#=#>");
     if (tmp != NULL) {
         printf("Remove <#=#> from the dump name:%s\n",new_dump_name);
-	strcpy(tmp, tmp+5);
+	*tmp = '_';
+	tmp++;
+	strcpy(tmp, tmp+4);
 	strcpy(new_dump_name, tmp);
 	new_dump_name[strlen(tmp)] = '\0';
     }

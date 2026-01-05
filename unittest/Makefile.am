@@ -4,8 +4,8 @@
 AUTOMAKE_OPTIONS = foreign subdir-objects
 
 # Test programs
-TESTS = config_manager_gtest platform_gtest scanner_gtest
-check_PROGRAMS = config_manager_gtest platform_gtest scanner_gtest
+TESTS = config_manager_gtest platform_gtest scanner_gtest archive_gtest
+check_PROGRAMS = config_manager_gtest platform_gtest scanner_gtest archive_gtest
 
 # Common include directories
 AM_CPPFLAGS = \
@@ -15,6 +15,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/../c_sourcecode/src/utils \
 	-I$(top_srcdir)/../c_sourcecode/src/platform \
 	-I$(top_srcdir)/../c_sourcecode/src/scanner \
+	-I$(top_srcdir)/../c_sourcecode/src/archive \
 	-I/usr/include \
 	-I/usr/local/include
 
@@ -88,6 +89,25 @@ scanner_gtest_LDADD = \
 	-lgcov
 
 scanner_gtest_LDFLAGS = \
+	-fprofile-arcs
+
+# archive_gtest configuration
+archive_gtest_SOURCES = \
+	archive_gtest.cpp \
+	archive_gmock.cpp \
+	../c_sourcecode/src/archive/archive.c
+
+archive_gtest_LDADD = \
+	-lgtest \
+	-lgtest_main \
+	-lgmock \
+	-lgmock_main \
+	-lpthread \
+	-larchive \
+	-lgcov
+
+archive_gtest_LDFLAGS = \
+	-larchive \
 	-fprofile-arcs
 
 # Coverage targets

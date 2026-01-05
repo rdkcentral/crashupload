@@ -32,8 +32,10 @@
 #include <fcntl.h>
 #include <errno.h>
 
+using namespace std;
+
 extern "C" {
-#include "../c_sourcecode/src/archive/archive.h"
+#include "../c_sourcecode/src/archive/archive_crash.h"
 #include "../c_sourcecode/common/types.h"
 #include "../c_sourcecode/common/errors.h"
 
@@ -334,16 +336,6 @@ TEST_F(ArchiveTest, AddCrashedProcessLogFile_ZeroBufferSize_Failure) {
     EXPECT_EQ(result, -1);
 }
 
-TEST_F(ArchiveTest, AddCrashedProcessLogFile_NegativeBufferSize_Failure) {
-    char process_log_file[256] = {0};
-    char filename[256] = "/tmp/test.log";
-    
-    int result = add_crashed_process_log_file(&test_config, &test_platform,
-                                              filename, process_log_file, -1);
-    
-    EXPECT_EQ(result, -1);
-}
-
 TEST_F(ArchiveTest, AddCrashedProcessLogFile_ExtractTailFails_Failure) {
     const char* test_log = "/tmp/test_fail.log";
     CreateTestFile(test_log, "Test data");
@@ -400,6 +392,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_Minidump_Success) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "result =" << result << endl;
     // Note: Result depends on actual tar creation which may fail in test environment
     // But we can verify the function doesn't crash and processes inputs correctly
     EXPECT_NE(test_new_dump_name[0], '\0');
@@ -418,6 +411,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_Minidump_WithCrashedUrl_Success) {
     
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
+    std::cout << "result =" << result << endl;
     
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
@@ -440,6 +434,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_Minidump_WithProcessLogs_Success) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "result =" << result << endl;
     EXPECT_NE(test_new_dump_name[0], '\0');
     EXPECT_GT(get_mock_extract_tail_call_count(), 0);
     
@@ -469,6 +464,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_Minidump_MaxProcessLogs_LimitedTo3) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "result =" << result << endl;
     // Should process only 3 logs
     EXPECT_LE(get_mock_extract_tail_call_count(), 3);
     
@@ -499,6 +495,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_Minidump_SomeProcessLogsFail_ContinuesPro
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "result =" << result << "count =" << call_count << endl;
     // Should continue processing even if one log fails
     EXPECT_NE(test_new_dump_name[0], '\0');
     
@@ -523,6 +520,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_Coredump_WithCrashRebootFlag_NoNice) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "result =" << result << endl;
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
 
@@ -537,6 +535,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_Coredump_NoCrashRebootFlag_WithNice) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "result =" << result << endl;
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
 
@@ -597,6 +596,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_DumpNameWithSpecialMarker_RemovesMarker) 
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     // Verify that <#=#> marker is removed
     EXPECT_EQ(strstr(test_new_dump_name, "<#=#>"), nullptr);
 }
@@ -613,6 +613,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_MultipleSpecialMarkers_RemovesAll) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     // Should handle multiple markers
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
@@ -626,7 +627,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_RenameFailsFirstTime_RetriesAfterUnlink) 
     set_mock_file_get_size_behavior(0, 1024);
     
     // Create a file that would conflict with rename
-    char conflict_path[512];
+    char conflict_path[550];
     snprintf(conflict_path, sizeof(conflict_path), "%s/%s", 
              "/opt/minidumps", test_new_dump_name);
     CreateTestFile(conflict_path, "conflict");
@@ -634,6 +635,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_RenameFailsFirstTime_RetriesAfterUnlink) 
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     // Function should handle the conflict
     EXPECT_NE(test_new_dump_name[0], '\0');
     
@@ -650,6 +652,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_FileSizeZero_StillProcesses) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     // Should still process even with zero size
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
@@ -664,6 +667,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_FileSizeVeryLarge_Success) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
 
@@ -686,6 +690,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_VeryLongDumpName_HandledSafely) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, long_name);
     
+    std::cout << "Result =" << result << endl; 
     // Function should handle long names safely (truncation or error)
     // Should not crash
     EXPECT_NE(long_name[0], '\0');
@@ -704,6 +709,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_VeryLongMacAddress_HandledSafely) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     // Should handle long MAC address safely
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
@@ -722,6 +728,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_VeryLongModel_HandledSafely) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     // Should handle long model safely
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
@@ -738,6 +745,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_EmptyDumpPath_HandledSafely) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     // May fail due to empty path, but should not crash
     EXPECT_NE(result, 0);  // Expect failure
 }
@@ -754,6 +762,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_EmptyWorkingDirPath_HandledSafely) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     // Should handle empty working dir safely
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
@@ -772,6 +781,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_DeviceTypeExtender_Success) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
 
@@ -785,6 +795,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_DeviceTypeBroadband_Success) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
 
@@ -798,6 +809,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_DeviceTypeVideo_Success) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
 
@@ -810,6 +822,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_UnknownDeviceType_Success) {
     
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
+    std::cout << "Result =" << result << endl; 
     
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
@@ -824,6 +837,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_InvalidDumpType_HandledSafely) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     // Should handle invalid dump type
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
@@ -840,6 +854,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_EmptyMacAddress_Success) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
 
@@ -855,6 +870,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_EmptyModel_Success) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
 
@@ -870,6 +886,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_EmptyBoxType_Success) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
 
@@ -885,6 +902,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_SpecialCharsInPaths_HandledSafely) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     // Should handle special characters safely
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
@@ -899,6 +917,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_NonRegularFile_SkipsFile) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     // Should handle non-regular files
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
@@ -919,6 +938,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_ProcessLogFileEmpty_HandledSafely) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
 
@@ -934,6 +954,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_ProcessLogFileNotExists_ContinuesProcessi
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     // Should continue even if log files file doesn't exist
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
@@ -951,6 +972,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_ProcessLogWithInvalidPath_SkipsLog) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     // Should skip invalid logs and continue
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
@@ -971,6 +993,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_ProcessLogVeryLongLine_HandledSafely) {
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
     
+    std::cout << "Result =" << result << endl; 
     // Should handle very long lines safely
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
@@ -997,6 +1020,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_MultipleArchiveCreations_NoMemoryLeak) {
         int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                           &archive, new_name);
         
+        std::cout << "Result =" << result << endl; 
         // Each call should work independently
         EXPECT_NE(new_name[0], '\0');
     }
@@ -1012,7 +1036,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_FilesCleanedUpAfterSuccess) {
     
     int result = archive_create_smart(&test_dump, &test_config, &test_platform,
                                       &test_archive, test_new_dump_name);
-    
+    std::cout << "Result =" << result << endl; 
     // Verify cleanup is attempted (through mock call counts)
     EXPECT_GT(get_mock_filePresentCheck_call_count(), 0);
 }

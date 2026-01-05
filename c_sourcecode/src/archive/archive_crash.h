@@ -22,5 +22,7 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
                          archive_info_t *archive, char *new_dump_name);
 
 void set_low_priority(void);
+int add_crashed_process_log_file(const config_t *config, const platform_config_t *platform,
+                         char *filename, char *process_log_file, size_t size);
 
 #endif
