@@ -54,7 +54,11 @@ void handle_signal(int no, siginfo_t* info, void* uc)
  * @param argv Argument vector
  * @return EXIT_SUCCESS or EXIT_FAILURE
  */
+#ifndef GTEST_ENABLE
 int main(int argc, char *argv[]) {
+#else
+int main_test(int argc, char *argv[])
+#endif
     config_t config;
     platform_config_t platform;
     int lock_fd = -1;

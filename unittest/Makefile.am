@@ -30,6 +30,7 @@ AM_CXXFLAGS = \
 	-Wextra \
 	-Werror \
 	-std=c++11 \
+	-DGTEST_ENABLE \
 	-fno-inline
 
 AM_CFLAGS = \
@@ -38,6 +39,7 @@ AM_CFLAGS = \
 	-ftest-coverage \
 	-Wall \
 	-Wextra \
+	-DGTEST_ENABLE \
 	-fno-inline
 
 # config_manager_gtest configuration
