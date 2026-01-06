@@ -96,7 +96,7 @@ int write_RFCProperty(char* type, const char* key, const char *value, RFCVALDATA
  * @return int 1 READ_RFC_SUCCESS on success and READ_RFC_FAILURE -1 on failure
  *             0 READ_RFC_NOTAPPLICABLE 
  * */
-int read_RFCProperty(char* type, const char* key, char *out_value, size_t datasize) {
+int read_RFCProperty(const char* type, const char* key, char *out_value, size_t datasize) {
     //TODO: Need to implement for RDK-M
     printf("%s: Not Applicabe For RDK-M. Need to implement\n", __FUNCTION__);
     return READ_RFC_NOTAPPLICABLE;
@@ -109,7 +109,7 @@ int read_RFCProperty(char* type, const char* key, char *out_value, size_t datasi
  * @return int 1 WRITE_RFC_SUCCESS on success and WRITE_RFC_FAILURE -1 on failure
  *             0 READ_RFC_NOTAPPLICABLE 
  * */
-int write_RFCProperty(char* type, const char* key, const char *value, RFCVALDATATYPE datatype) {
+int write_RFCProperty(const char* type, const char* key, const char *value, RFCVALDATATYPE datatype) {
     //TODO: Need to implement for RDK-M
     printf("%s: Not Applicabe For RDK-M. Need to implement\n", __FUNCTION__);
     return WRITE_RFC_NOTAPPLICABLE;

@@ -7,7 +7,9 @@
 #include <time.h>
 #include "../rfcInterface/rfcinterface.h"
 #include "upload.h"
+#ifndef GTEST_ENABLE
 #include "common_device_api.h"
+#endif
 #include "mtls_upload.h"
 #include "upload_status.h"
 #include "ratelimit.h"
@@ -34,7 +36,7 @@ static int upload_progress_callback(void *clientp, curl_off_t dltotal, curl_off_
 int get_crashupload_s3signed_url(char *url, size_t size_buf)
 {
     int ret = -1;
-    if (!url || size_buf <= 0) {
+    if (!url || size_buf <= 0 || size_buf >= 4096) {
         printf("Error invalid parameter getting url\n");
 	return ret;
     }
@@ -86,7 +88,10 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
     }else {
         totlen += snprintf(post_filed+totlen, remainlen, "filename=%s&", filepath);
     }
-
+    if (totlen >= szPostFieldOut) {
+        printf("No space available for postfield data\n");
+	return -1;
+    }
     remainlen = szPostFieldOut - totlen;
     url_encode_data = urlEncodeString(crash_fw_version);
     if (url_encode_data != NULL) {
@@ -97,6 +102,10 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
         totlen += snprintf(post_filed+totlen, remainlen, "filename=%s&", crash_fw_version);
     }
 
+    if (totlen >= szPostFieldOut) {
+        printf("No space available for postfield data\n");
+	return -1;
+    }
     remainlen = szPostFieldOut - totlen;
     url_encode_data = urlEncodeString(build_type);
     if (url_encode_data != NULL) {
@@ -107,6 +116,10 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
         totlen += snprintf(post_filed+totlen, remainlen, "env=%s&", build_type);
     }
 
+    if (totlen >= szPostFieldOut) {
+        printf("No space available for postfield data\n");
+	return -1;
+    }
     remainlen = szPostFieldOut - totlen;
     url_encode_data = urlEncodeString(model);
     if (url_encode_data != NULL) {
@@ -117,6 +130,10 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
         totlen += snprintf(post_filed+totlen, remainlen, "model=%s&", model);
     }
 
+    if (totlen >= szPostFieldOut) {
+        printf("No space available for postfield data\n");
+	return -1;
+    }
     remainlen = szPostFieldOut - totlen;
     url_encode_data = urlEncodeString(dump_name);
     if (url_encode_data != NULL) {
@@ -127,6 +144,10 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
         totlen += snprintf(post_filed+totlen, remainlen, "type=%s&", dump_name);
     }
 
+    if (totlen >= szPostFieldOut) {
+        printf("No space available for postfield data\n");
+	return -1;
+    }
     remainlen = szPostFieldOut - totlen;
     url_encode_data = urlEncodeString(md5sum);
     if (url_encode_data != NULL) {
@@ -135,6 +156,10 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
 	url_encode_data = NULL;
     }else {
         totlen += snprintf(post_filed+totlen, remainlen, "type=%s", md5sum);
+    }
+    if (totlen > szPostFieldOut) {
+        printf("No space available for postfield data\n");
+	return -1;
     }
     for (int i = 1; i <= 3; i++) {
     if (totlen < szPostFieldOut) {
@@ -160,6 +185,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
 		printf("Curl return code: %d HTTP Response code: %ld\n", curl_ret, http_code);
 	    } else {
 	        snprintf(fqdn, sizeof(fqdn), "%s", out_url);
+		curl_ret = -1;
 	    }
 	    unlink(s3_url_file);
 	} else {
@@ -195,8 +221,6 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
 	    unlink(filepath);
 	    break;
 	}
-	//int extractS3PresignedUrl(const char *result_file, char *out_url, size_t out_url_sz);
-	//int performS3PutUpload(const char *s3url, const char *localfile, MtlsAuth_t *auth);
     } else {
         printf("psodt_filed buffer corropted.Total write bytes=%lu and total buf size=%lu\n",totlen, szPostFieldOut);
         printf("postfiled data=%s\n", post_filed);//TODO: Need to remove
@@ -263,11 +287,13 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
             printf("Read rfc Success crashportalEndpointUrl:\n Overriding the S3 Amazon SIgning URL:%s\n",crashportalEndpointUrl);
 	}
     } else if (config->device_type == DEVICE_TYPE_BROADBAND) {
+	ret = -1;
 	printf("TODO: SUPPORT NOT AVAILABLE\n");
 	printf("Unknown device\n");
 	printf("[ERROR] Unknown DEVICE_TYPE:\n");
 	return ret;
     } else {
+	ret = -1;
 	printf("Unknown device\n");
 	printf("[ERROR] Unknown DEVICE_TYPE:\n");
 	return ret;

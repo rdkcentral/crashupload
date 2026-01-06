@@ -75,7 +75,12 @@ typedef enum
 #define RFC_CRASH_PORTAL_ENDPOINT_URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CrashportalEndpoint.URL"
 #define RFC_TELEMETRY_OPTOUT "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryOptOut.Enable"
 
+#if defined(RFC_API_ENABLED)
 int read_RFCProperty(char* type, const char* key, char *data, size_t datasize);
 int write_RFCProperty(char* type, const char* key, const char *data, RFCVALDATATYPE datatype);
+#else
+int read_RFCProperty(const char* type, const char* key, char *data, size_t datasize);
+int write_RFCProperty(const char* type, const char* key, const char *data, RFCVALDATATYPE datatype);
+#endif
 
 #endif /* VIDEO_RFCINTERFACE_RFCINTERFACE_H_ */

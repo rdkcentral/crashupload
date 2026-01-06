@@ -4,8 +4,8 @@
 AUTOMAKE_OPTIONS = foreign subdir-objects
 
 # Test programs
-TESTS = config_manager_gtest platform_gtest scanner_gtest archive_gtest
-check_PROGRAMS = config_manager_gtest platform_gtest scanner_gtest archive_gtest
+TESTS = config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest
+check_PROGRAMS = config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest
 
 # Common include directories
 AM_CPPFLAGS = \
@@ -16,6 +16,8 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/../c_sourcecode/src/platform \
 	-I$(top_srcdir)/../c_sourcecode/src/scanner \
 	-I$(top_srcdir)/../c_sourcecode/src/archive \
+	-I$(top_srcdir)/../c_sourcecode/src/utils \
+	-I$(top_srcdir)/../c_sourcecode/src/upload \
 	-I/usr/include \
 	-I/usr/local/include
 
@@ -36,7 +38,6 @@ AM_CFLAGS = \
 	-ftest-coverage \
 	-Wall \
 	-Wextra \
-	-std=c99 \
 	-fno-inline
 
 # config_manager_gtest configuration
@@ -108,6 +109,43 @@ archive_gtest_LDADD = \
 
 archive_gtest_LDFLAGS = \
 	-larchive \
+	-fprofile-arcs
+
+# utils_gtest configuration
+utils_gtest_SOURCES = \
+	utils_gtest.cpp \
+	utils_gmock.cpp \
+	../c_sourcecode/src/utils/file_utils.c \
+	../c_sourcecode/src/utils/cleanup_batch.c
+
+utils_gtest_LDADD = \
+	-lgtest \
+	-lgtest_main \
+	-lgmock \
+	-lgmock_main \
+	-lpthread \
+	-lcrypto \
+	-lgcov
+
+utils_gtest_LDFLAGS = \
+	-lcrypto \
+	-fprofile-arcs
+
+# upload_gtest configuration
+upload_gtest_SOURCES = \
+	upload_gtest.cpp \
+	upload_gmock.cpp \
+	../c_sourcecode/src/upload/upload.c
+
+upload_gtest_LDADD = \
+	-lgtest \
+	-lgtest_main \
+	-lgmock \
+	-lgmock_main \
+	-lpthread \
+	-lgcov
+
+upload_gtest_LDFLAGS = \
 	-fprofile-arcs
 
 # Coverage targets

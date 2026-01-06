@@ -114,7 +114,7 @@ static int cmp_mtime_desc(const void *a, const void *b)
  * If cb returns non-zero, walk stops and value is returned.
  */
 typedef int (*file_cb_t)(const char *, const struct stat *, void *);
-static int walk_dir_recursive(const char *dirpath, file_cb_t cb, void *user)
+int walk_dir_recursive(const char *dirpath, file_cb_t cb, void *user)
 {
     DIR *d = opendir(dirpath);
     if (!d) {
@@ -171,7 +171,7 @@ static int walk_dir_recursive(const char *dirpath, file_cb_t cb, void *user)
  * Matches all regular files (no pattern). Returns 0 on success, -1 on error.
  */
 
-static int delete_all_but_most_recent(const char *path, size_t max_keep)
+int delete_all_but_most_recent(const char *path, size_t max_keep)
 {
     if (!path) return -1;
 
