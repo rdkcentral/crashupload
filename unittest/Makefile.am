@@ -4,11 +4,14 @@
 AUTOMAKE_OPTIONS = foreign subdir-objects
 
 # Test programs
-TESTS = config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest
-check_PROGRAMS = config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest
+TESTS = config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest mainapp_gtest
+#TESTS = config_manager_gtest platform_gtest  mainapp_gtest
+#check_PROGRAMS = config_manager_gtest platform_gtest mainapp_gtest
+check_PROGRAMS = config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest mainapp_gtest
 
 # Common include directories
 AM_CPPFLAGS = \
+	-I$(top_srcdir)/../c_sourcecode/src \
 	-I$(top_srcdir)/../c_sourcecode/src/config \
 	-I$(top_srcdir)/../c_sourcecode/common \
 	-I$(top_srcdir)/../c_sourcecode/include \
@@ -31,6 +34,7 @@ AM_CXXFLAGS = \
 	-Werror \
 	-std=c++11 \
 	-DGTEST_ENABLE \
+	-Wno-error=unused-parameter \
 	-fno-inline
 
 AM_CFLAGS = \
@@ -40,6 +44,7 @@ AM_CFLAGS = \
 	-Wall \
 	-Wextra \
 	-DGTEST_ENABLE \
+	-Wno-error=unused-parameter \
 	-fno-inline
 
 # config_manager_gtest configuration
@@ -148,6 +153,24 @@ upload_gtest_LDADD = \
 	-lgcov
 
 upload_gtest_LDFLAGS = \
+	-fprofile-arcs
+
+# mainapp_gtest configuration
+mainapp_gtest_SOURCES = \
+	mainapp_gtest.cpp \
+	mainapp_gmock.cpp \
+	../c_sourcecode/src/main.c \
+	../c_sourcecode/src/init/system_init.c
+
+mainapp_gtest_LDADD = \
+	-lgtest \
+	-lgtest_main \
+	-lgmock \
+	-lgmock_main \
+	-lpthread \
+	-lgcov
+
+mainapp_gtest_LDFLAGS = \
 	-fprofile-arcs
 
 # Coverage targets

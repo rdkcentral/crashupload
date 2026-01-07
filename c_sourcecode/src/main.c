@@ -25,7 +25,7 @@
 #include "systemutils.h"
 #include "upload.h"
 
-static int lock_dir_prefix = 0;
+int lock_dir_prefix = 0;
 
 void handle_signal(int no, siginfo_t* info, void* uc)
 {
@@ -57,13 +57,13 @@ void handle_signal(int no, siginfo_t* info, void* uc)
 #ifndef GTEST_ENABLE
 int main(int argc, char *argv[]) {
 #else
-int main_test(int argc, char *argv[])
+int main_test(int argc, char *argv[]) {
 #endif
     config_t config;
     platform_config_t platform;
     int lock_fd = -1;
     int ret_sig = -1;
-    int ret = EXIT_SUCCESS;
+    int ret = 0;
     char lock_file_path[32] = {0};
     char dump_extn_pattern[16] = {0};
     char mtime_date[64] = {0};
@@ -79,7 +79,11 @@ int main_test(int argc, char *argv[])
     
     if (argc < 3) {
         printf("Number of parameter is less\n");
+#ifndef GTEST_ENABLE
 	exit(1);
+#else
+	return 1;
+#endif
     }
     if (1 == atoi(argv[2])) {
         lock_dir_prefix = 1;
@@ -103,20 +107,32 @@ int main_test(int argc, char *argv[])
     /* TODO: Implement consolidated initialization */
     if (system_initialize(argc, argv, &config, &platform) != SYSTEM_INIT_SUCCESS) {
         logger_error("System initialization failed:%d\n", lock_fd);
-        return EXIT_FAILURE;
+        printf("Failed system_initialize\n");
+#ifndef GTEST_ENABLE
+        exit(1);
+#else
+	return 1;
+#endif
     }
     /* Step 2: Lock Acquisition */
     lock_fd = lock_acquire(lock_file_path, 5);
     if (lock_fd < LOCK_ACQUIRE_SUCCESS) {
         logger_error("Failed to acquire lock");
-        return EXIT_FAILURE;
+        printf("Failed to acquire lock\n");
+#ifndef GTEST_ENABLE
+        exit(0);
+#else
+	return 0;
+#endif
     }
     /* Step 2: Combined Prerequisites Check */
     /* TODO: Implement combined network + time check */
     if (prerequisites_wait(&config, PREREQUISITE_TIMEOUT_SEC) != PREREQUISITES_SUCCESS) {
         logger_error("Prerequisites check failed");
-        lock_release(lock_fd, lock_file_path);
-        return EXIT_FAILURE;
+        printf("Prerequisites check failed\n");
+        //lock_release(lock_fd, lock_file_path);
+        goto cleanup;
+        //return EXIT_FAILURE;
     }
 #if 0    
     /* Step 3: Unified Privacy Check */
@@ -152,7 +168,8 @@ int main_test(int argc, char *argv[])
     archive = malloc(dump_count*sizeof(archive_info_t));
     if (archive == NULL) {
         printf("Error to allocate memory for archive\n");
-	return -1;
+	ret = 1;
+	goto cleanup;
     }
     memset(archive, '\0',dump_count * sizeof(archive));
     /* 5.2: Process each dump */
@@ -292,5 +309,9 @@ cleanup:
     if (lock_fd >= 0) {
         lock_release(lock_fd, lock_file_path);
     }
+#ifndef GTEST_ENABLE
     exit(ret);
+#else
+    return ret;
+#endif
 }

@@ -445,9 +445,6 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
         return -1;
     }
     
-    if (g_mainapp_mock_state.config_init_load_custom_behavior) {
-        return g_mainapp_mock_state.config_init_load_return_value;
-    }
     
     // Default behavior: initialize config with test values
     memset(config, 0, sizeof(config_t));
@@ -456,6 +453,9 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
     strncpy(config->working_dir_path, "/tmp/test_dumps", sizeof(config->working_dir_path) - 1);
     strncpy(config->core_log_file, "/tmp/test_core.log", sizeof(config->core_log_file) - 1);
     strncpy(config->box_type, "TEST_BOX", sizeof(config->box_type) - 1);
+    if (g_mainapp_mock_state.config_init_load_custom_behavior) {
+        return g_mainapp_mock_state.config_init_load_return_value;
+    }
     
     return 0;
 }
@@ -468,15 +468,15 @@ int platform_initialize(const config_t *config, platform_config_t *platform) {
         return -1;
     }
     
-    if (g_mainapp_mock_state.platform_initialize_custom_behavior) {
-        return g_mainapp_mock_state.platform_initialize_return_value;
-    }
     
     // Default behavior: initialize platform with test values
     memset(platform, 0, sizeof(platform_config_t));
     strncpy(platform->model, "TEST_MODEL", sizeof(platform->model) - 1);
-    strncpy(platform->mac_address, "00:11:22:33:44:55", sizeof(platform->mac_address) - 1);
+    strncpy(platform->mac_address, "00:11:22:33:44:55", sizeof(platform->mac_address));
     strncpy(platform->platform_sha1, "abc123def456", sizeof(platform->platform_sha1) - 1);
+    if (g_mainapp_mock_state.platform_initialize_custom_behavior) {
+        return g_mainapp_mock_state.platform_initialize_return_value;
+    }
     
     return 0;
 }

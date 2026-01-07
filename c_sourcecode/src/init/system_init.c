@@ -27,6 +27,9 @@ int system_initialize(int argc, char *argv[],
      * 7. Set up signal handlers (SIGTERM, SIGINT)
      * 8. Validate configuration
      */
+    if (argc < 0 || !argv || !config || !platform) {
+        return -1;
+    }
     config_init_load(config, argc, argv);
     printf("core_log file=%s\n", config->core_log_file);
     if (0 != (filePresentCheck(config->core_log_file))) {
