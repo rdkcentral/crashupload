@@ -61,7 +61,11 @@ run_crashupload() {
 
 case "$DEVICE_TYPE" in
     mediaclient)
-        run_crashupload "$@"
+        if [ -f /tmp/.c_crashupload ]; then
+            run_legacy "$@"
+        else
+            run_crashupload "$@"
+        fi
         ;;
     broadband|extender)
         run_legacy "$@"
