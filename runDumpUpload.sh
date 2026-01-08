@@ -1027,7 +1027,7 @@ processDumps()
 	       rm -rf /tmp/$TMP_DIR_NAME
 	       logMessage "Temporary Directory Deleted:/tmp/$TMP_DIR_NAME"
             fi
-            rm $dumpName
+            # TESTING rm $dumpName
 
             if [ "$DUMP_FLAG" == "0" ]; then
                 process_logs=`find $WORKING_DIR \( -iname "*.log*" -o -iname "*.txt*" \) -type f -print -exec rm -f {} \;`
@@ -1125,7 +1125,7 @@ processDumps()
                          echo "$WORKING_DIR $partnerId $DUMP_NAME $DEVICE_TYPE $VERSION_FILE $encryptionEnable $EnableOCSPStapling $EnableOCSP $TLS $BUILD_TYPE $modNum ${CURL_LOG_OPTION}" > /tmp/uploadtos3params
                          uploadToS3 "`echo $S3_FILENAME`"
                          status=$?
-			 rm /tmp/uploadtos3params
+			 # TESTING rm /tmp/uploadtos3params
 		     else
        			 # A secure upload logic is required to upload the crash dumps to the cloud database server.
 	   		 # The upload script can take in parameters such as Device model, upload options related to security and the dump file to be uploaded
@@ -1149,7 +1149,7 @@ processDumps()
                       saveDump "$ORGINAL_FILENAME"
                   else
                       logMessage "Removing file $S3_FILENAME"
-                      rm -f $S3_FILENAME
+                      # TESTING rm -f $S3_FILENAME
                   fi
                   exit 1
             else
@@ -1157,7 +1157,7 @@ processDumps()
             fi
             ORGINAL_FILENAME=""
             logMessage "Removing file $S3_FILENAME"
-            rm -f $S3_FILENAME
+            # TESTING rm -f $S3_FILENAME
             logUploadTimestamp
         fi
     done
