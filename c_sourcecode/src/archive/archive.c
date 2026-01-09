@@ -236,7 +236,7 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
     uint64_t size_dump_u64 = 0;
     if ( 0 == (file_get_size(new_dump_name, &size_dump_u64))) {
         printf("Size of the file:%llu\n", (unsigned long long)size_dump_u64);
-     }
+    }
     //TODO: Add below telemetry
     //if [ "$IS_T2_ENABLED" == "true" ] && [ ! -s "$dumpName" ]; then
 	//            t2CountNotify "SYST_ERR_MINIDPZEROSIZE"

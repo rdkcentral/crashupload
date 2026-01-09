@@ -25,8 +25,10 @@ int set_time(const char *deny_file, int type)
     if (now == (time_t)-1)
         return -1;
     if (type == RECOVERY_TIME) {
-	printf("Set Rcovery Time inside file:%s\n", deny_file);
+	    printf("Set Rcovery Time inside file:%s\n", deny_file);
         deny_until = (long)now + RECOVERY_DELAY_SEC;
+    } else {
+        deny_until = (long)now;
     }
 
     fp = fopen(deny_file, "w");

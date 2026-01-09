@@ -222,7 +222,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
 	    break;
 	}
     } else {
-        printf("psodt_filed buffer corropted.Total write bytes=%lu and total buf size=%lu\n",totlen, szPostFieldOut);
+        printf("post field buffer corrupted. Total write bytes=%zu and total buf size=%zu\n",totlen, szPostFieldOut);
         printf("postfiled data=%s\n", post_filed);//TODO: Need to remove
 	break;
     }
