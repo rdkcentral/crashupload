@@ -52,7 +52,7 @@ Log() {
     echo "`/bin/timestamp` [uploadDumps.sh] [PID:$$]: $*" >> $CORE_LOG 
 }
 
-UPLOAD_SCRIPT="/lib/rdk/uploadDumps.sh"
+UPLOAD_SCRIPT="/lib/rdk/runDumpUpload.sh"
 UPLOAD_BIN="/usr/bin/crashupload"
 
 find_crashupload() {
