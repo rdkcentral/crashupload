@@ -734,52 +734,52 @@ TEST_F(ScannerTest, ExtractAppname_ComplexPattern) {
 // ============================================================================
 
 TEST_F(ScannerTest, ProcessTelemetry_NullRawfile) {
-    int result = processCrashTelemetryInfo(nullptr, "/tmp/logs");
+    int result = processCrashTelemetryInfo(nullptr, "/tmp/logs", false);
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(ScannerTest, ProcessTelemetry_NullLogPath) {
-    int result = processCrashTelemetryInfo("app.dmp", nullptr);
+    int result = processCrashTelemetryInfo("app.dmp", nullptr, false);
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(ScannerTest, ProcessTelemetry_BothNull) {
-    int result = processCrashTelemetryInfo(nullptr, nullptr);
+    int result = processCrashTelemetryInfo(nullptr, nullptr, false );
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(ScannerTest, ProcessTelemetry_EmptyFilename) {
-    int result = processCrashTelemetryInfo("", "/tmp/logs");
+    int result = processCrashTelemetryInfo("", "/tmp/logs", false);
     EXPECT_EQ(result, 0);
 }
 
 TEST_F(ScannerTest, ProcessTelemetry_SimpleFilename) {
-    int result = processCrashTelemetryInfo("app_name_123.dmp", "/tmp/logs");
+    int result = processCrashTelemetryInfo("app_name_123.dmp", "/tmp/logs", false);
     EXPECT_EQ(result, 0);
 }
 
 TEST_F(ScannerTest, ProcessTelemetry_TgzFile) {
-    int result = processCrashTelemetryInfo("app_mod_info_name.tgz", "/tmp/logs");
+    int result = processCrashTelemetryInfo("app_mod_info_name.tgz", "/tmp/logs", false);
     EXPECT_EQ(result, 0);
 }
 
 TEST_F(ScannerTest, ProcessTelemetry_TgzWithoutMod) {
-    int result = processCrashTelemetryInfo("app_name.tgz", "/tmp/logs");
+    int result = processCrashTelemetryInfo("app_name.tgz", "/tmp/logs", false);
     EXPECT_EQ(result, 0);
 }
 
 TEST_F(ScannerTest, ProcessTelemetry_ContainerDelimiter) {
-    int result = processCrashTelemetryInfo("container<#=#>running<#=#>123456.dmp", "/tmp/logs");
+    int result = processCrashTelemetryInfo("container<#=#>running<#=#>123456.dmp", "/tmp/logs", false);
     EXPECT_EQ(result, 0);
 }
 
 TEST_F(ScannerTest, ProcessTelemetry_ContainerWithoutStatus) {
-    int result = processCrashTelemetryInfo("container<#=#>123456.dmp", "/tmp/logs");
+    int result = processCrashTelemetryInfo("container<#=#>123456.dmp", "/tmp/logs", false);
     EXPECT_EQ(result, 0);
 }
 
 TEST_F(ScannerTest, ProcessTelemetry_LeadingDotSlash) {
-    int result = processCrashTelemetryInfo("./app_name.dmp", "/tmp/logs");
+    int result = processCrashTelemetryInfo("./app_name.dmp", "/tmp/logs", false);
     EXPECT_EQ(result, 0);
 }
 
@@ -788,31 +788,26 @@ TEST_F(ScannerTest, ProcessTelemetry_PathTooLong) {
     memset(long_path, 'a', sizeof(long_path) - 1);
     long_path[sizeof(long_path) - 1] = '\0';
     
-    int result = processCrashTelemetryInfo(long_path, "/tmp/logs");
+    int result = processCrashTelemetryInfo(long_path, "/tmp/logs", false);
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(ScannerTest, ProcessTelemetry_ComplexContainerName) {
-    int result = processCrashTelemetryInfo("app_service<#=#>exited<#=#>1234567890.dmp", "/tmp/logs");
+    int result = processCrashTelemetryInfo("app_service<#=#>exited<#=#>1234567890.dmp", "/tmp/logs", false);
     EXPECT_EQ(result, 0);
 }
 
 
 TEST_F(ScannerTest, ProcessTelemetry_WithT2Enabled) {
-    //setenv("IS_T2_ENABLED", "true", 1);
-    //set_mock_t2_enabled(true);
-    
-    int result = processCrashTelemetryInfo("myapp_proc_123.dmp", "/tmp/logs");
+    int result = processCrashTelemetryInfo("myapp_proc_123.dmp", "/tmp/logs", true);
     EXPECT_EQ(result, 0);
-    
-    //unsetenv("IS_T2_ENABLED");
 }
 
 TEST_F(ScannerTest, ProcessTelemetry_WithLogMapper) {
     // Create log mapper file
     create_log_mapper_file("myapp=/var/log/app.log,/var/log/sys.log\n");
     
-    int result = processCrashTelemetryInfo("myapp_proc_123.dmp", "/tmp/logs");
+    int result = processCrashTelemetryInfo("myapp_proc_123.dmp", "/tmp/logs", false);
     EXPECT_EQ(result, 0);
 }
 

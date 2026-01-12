@@ -193,15 +193,15 @@ coverage:
 	@echo ""
 	@echo "Generating coverage report..."
 	@echo "Capturing coverage from source directory..."
-	@lcov --capture --directory ../c_sourcecode/src/config --output-file coverage.info --rc lcov_branch_coverage=1 2>/dev/null || \
-	 lcov --capture --directory ../c_sourcecode/src/config --output-file coverage.info --rc lcov_branch_coverage=1 --ignore-errors gcov,source || \
-	 lcov --capture --directory ../c_sourcecode/src/config --output-file coverage.info --rc lcov_branch_coverage=1
+	@lcov --capture --directory ../c_sourcecode/src --output-file coverage.info --rc lcov_branch_coverage=1 2>/dev/null || \
+	 lcov --capture --directory ../c_sourcecode/src --output-file coverage.info --rc lcov_branch_coverage=1 --ignore-errors gcov,source || \
+	 lcov --capture --directory ../c_sourcecode/src --output-file coverage.info --rc lcov_branch_coverage=1
 	@echo "Filtering coverage data..."
-	@lcov --extract coverage.info '*/config_manager.c' --output-file coverage.info --rc lcov_branch_coverage=1
+	@lcov --extract coverage.info '*/c_sourcecode/src/*.c' --output-file coverage.info --rc lcov_branch_coverage=1
 	@lcov --remove coverage.info '/usr/*' --output-file coverage.info --rc lcov_branch_coverage=1
 	@echo "Generating HTML report..."
 	@genhtml coverage.info --output-directory coverage_html --branch-coverage 2>/dev/null || \
-	 genhtml coverage.info --output-directory coverage_html --branch-coverage --ignore-errors source
+     genhtml coverage.info --output-directory coverage_html --branch-coverage --ignore-errors source
 	@echo ""
 	@echo "========================================="
 	@echo "Coverage report generated successfully!"
@@ -210,9 +210,9 @@ coverage:
 	@echo ""
 
 coverage-report:
-	@echo "Coverage Summary for config_manager.c:"
+	@echo "Coverage Summary for all source files:"
 	@echo "========================================="
-	@lcov --list coverage.info --rc lcov_branch_coverage=1 | grep -E "(Lines|Functions|Branches|config_manager)" || echo "No coverage data available"
+	@lcov --list coverage.info --rc lcov_branch_coverage=1 | grep -E "(Lines|Functions|Branches|c_sourcecode/src)" || echo "No coverage data available"
 	@echo "========================================="
 
 # Clean targets

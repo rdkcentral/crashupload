@@ -103,7 +103,7 @@ if command -v lcov &> /dev/null; then
     # Display summary
     echo "Coverage Summary:"
     echo "========================================="
-    lcov --list coverage.info --rc lcov_branch_coverage=1 | grep -A 5 "config_manager.c" || true
+    lcov --list coverage.info --rc lcov_branch_coverage=1 | grep "c_sourcecode/src" || true
     echo "========================================="
     echo
     

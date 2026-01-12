@@ -233,62 +233,62 @@ TEST_F(UploadTest, GetS3SignedUrl_LargeBuffer) {
 
 TEST_F(UploadTest, UploadFile_NullFilepath) {
     int result = upload_file(nullptr, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(UploadTest, UploadFile_NullUrl) {
     int result = upload_file(test_archive, nullptr, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(UploadTest, UploadFile_NullDumpName) {
     int result = upload_file(test_archive, test_url, nullptr, "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(UploadTest, UploadFile_NullCrashFwVersion) {
     int result = upload_file(test_archive, test_url, "minidump", nullptr, 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(UploadTest, UploadFile_NullBuildType) {
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             nullptr, "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             nullptr, "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(UploadTest, UploadFile_NullModel) {
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", nullptr, "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", nullptr, "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(UploadTest, UploadFile_NullMd5sum) {
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", nullptr, DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", nullptr, DEVICE_TYPE_MEDIACLIENT, false);
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(UploadTest, UploadFile_AllNullParameters) {
     int result = upload_file(nullptr, nullptr, nullptr, nullptr, 
-                             nullptr, nullptr, nullptr, DEVICE_TYPE_MEDIACLIENT);
+                             nullptr, nullptr, nullptr, DEVICE_TYPE_MEDIACLIENT, false);
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(UploadTest, UploadFile_EmptyFilepath) {
     int result = upload_file("", test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     // Should not crash, may return error
     EXPECT_EQ(result, 0);
 }
 
 TEST_F(UploadTest, UploadFile_EmptyUrl) {
     int result = upload_file(test_archive, "", "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     // Should not crash, may return error
     EXPECT_EQ(result, 0);
 }
@@ -304,7 +304,7 @@ TEST_F(UploadTest, UploadFile_SuccessFirstAttempt) {
     set_mock_s3_put_upload_behavior(0);
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     
     EXPECT_EQ(result, 0);
     // File should be deleted after successful upload
@@ -319,7 +319,7 @@ TEST_F(UploadTest, UploadFile_SuccessWithUrlEncoding) {
     set_mock_s3_put_upload_behavior(0);
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     
     EXPECT_EQ(result, 0);
 }
@@ -332,7 +332,7 @@ TEST_F(UploadTest, UploadFile_SuccessWithNullUrlEncoding) {
     set_mock_s3_put_upload_behavior(0);
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     
     EXPECT_EQ(result, 0);
 }
@@ -344,7 +344,7 @@ TEST_F(UploadTest, UploadFile_SuccessCoredump) {
     set_mock_s3_put_upload_behavior(0);
     
     int result = upload_file(test_archive, test_url, "coredump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     
     EXPECT_EQ(result, 0);
 }
@@ -356,7 +356,7 @@ TEST_F(UploadTest, UploadFile_SuccessBroadband) {
     set_mock_s3_put_upload_behavior(0);
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_BROADBAND);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_BROADBAND, false);
     
     EXPECT_EQ(result, 0);
 }
@@ -374,7 +374,7 @@ TEST_F(UploadTest, UploadFile_RetryOnMetadataPostFailure) {
     set_mock_s3_put_upload_behavior(6); // First S3 upload fails
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
    
     printf("result =%d and attemt=%d\n", result, attempt); 
     // Should retry up to 3 times and fail
@@ -390,7 +390,7 @@ TEST_F(UploadTest, UploadFile_RetryThreeTimesAndFail) {
     set_mock_s3_put_upload_behavior(6);
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     
     printf("result =%d\n", result); 
     EXPECT_EQ(result, 6);
@@ -405,7 +405,7 @@ TEST_F(UploadTest, UploadFile_CurlError6Retry) {
     set_mock_s3_put_upload_behavior(6);
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     printf("result =%d\n", result); 
     
     EXPECT_NE(result, 0);
@@ -418,7 +418,7 @@ TEST_F(UploadTest, UploadFile_HttpError500Retry) {
     set_mock_s3_put_upload_behavior(22);
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     printf("result =%d\n", result); 
     
     EXPECT_NE(result, 0);
@@ -434,7 +434,7 @@ TEST_F(UploadTest, UploadFile_ExtractS3UrlFailure) {
     set_mock_extract_s3_url_behavior(-1, "");
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     
     EXPECT_NE(result, 0);
 }
@@ -445,7 +445,7 @@ TEST_F(UploadTest, UploadFile_ExtractS3UrlEmptyOutput) {
     set_mock_extract_s3_url_behavior(0, "");
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     
     EXPECT_NE(result, 0);
 }
@@ -458,7 +458,7 @@ TEST_F(UploadTest, UploadFile_S3PutUploadFailure) {
     set_mock_upload_status(500, 7);
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     
     EXPECT_NE(result, 0);
 }
@@ -468,7 +468,7 @@ TEST_F(UploadTest, UploadFile_MetadataPostFailure) {
     set_mock_upload_status(0, -1);
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     
     EXPECT_NE(result, 0);
 }
@@ -483,7 +483,7 @@ TEST_F(UploadTest, UploadFile_VeryLongFilepath) {
     long_path[sizeof(long_path) - 1] = '\0';
     
     int result = upload_file(long_path, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     
     // Should not crash
     EXPECT_NE(result, 0);
@@ -495,7 +495,7 @@ TEST_F(UploadTest, UploadFile_VeryLongUrl) {
     long_url[sizeof(long_url) - 1] = '\0';
     
     int result = upload_file(test_archive, long_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     
     // Should not crash
     EXPECT_EQ(result, 0);
@@ -512,7 +512,7 @@ TEST_F(UploadTest, UploadFile_VeryLongParameters) {
     set_mock_s3_put_upload_behavior(0);
     
     int result = upload_file(test_archive, test_url, long_str, long_str, 
-                             long_str, long_str, long_str, DEVICE_TYPE_MEDIACLIENT);
+                             long_str, long_str, long_str, DEVICE_TYPE_MEDIACLIENT, false);
     
     EXPECT_EQ(result, -1);
     // Should not crash but post_filed buffer may be exceeded
@@ -529,7 +529,7 @@ TEST_F(UploadTest, UploadFile_SpecialCharactersInParameters) {
     int result = upload_file(test_archive, test_url, 
                              "dump&name=special", "1.0.0&version", 
                              "PROD&build", "MODEL&X", "md5&sum", 
-                             DEVICE_TYPE_MEDIACLIENT);
+                             DEVICE_TYPE_MEDIACLIENT, false);
     
     EXPECT_EQ(result, 0);
 }
@@ -544,7 +544,7 @@ TEST_F(UploadTest, UploadFile_PostFieldBufferOverflow) {
     
     int result = upload_file(test_archive, test_url, long_filename, long_filename, 
                              long_filename, long_filename, long_filename, 
-                             DEVICE_TYPE_MEDIACLIENT);
+                             DEVICE_TYPE_MEDIACLIENT, false);
     
     // Should detect buffer overflow and exit loop
     EXPECT_EQ(result, -1);
@@ -561,7 +561,7 @@ TEST_F(UploadTest, UploadFile_MediaclientDevice) {
     set_mock_s3_put_upload_behavior(0);
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_MEDIACLIENT, false);
     
     EXPECT_EQ(result, 0);
 }
@@ -573,7 +573,7 @@ TEST_F(UploadTest, UploadFile_BroadbandDevice) {
     set_mock_s3_put_upload_behavior(0);
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_BROADBAND);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_BROADBAND, false);
     
     EXPECT_EQ(result, 0);
 }
@@ -585,7 +585,7 @@ TEST_F(UploadTest, UploadFile_VideoDevice) {
     set_mock_s3_put_upload_behavior(0);
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_VIDEO);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_VIDEO, false);
     
     EXPECT_EQ(result, 0);
 }
@@ -597,7 +597,7 @@ TEST_F(UploadTest, UploadFile_UnknownDevice) {
     set_mock_s3_put_upload_behavior(0);
     
     int result = upload_file(test_archive, test_url, "minidump", "1.0.0", 
-                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_UNKNOWN);
+                             "PROD", "MODEL_X", "md5sum123", DEVICE_TYPE_UNKNOWN, false);
     
     // Should handle unknown device type
     EXPECT_EQ(result, 0);

@@ -737,7 +737,7 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
 /**
  * Mock: Check if box is rebooting
  */
-bool is_box_rebooting(void) {
+bool is_box_rebooting(bool t2_enabled) {
     if (g_mainapp_mock_state.is_box_rebooting_custom_behavior) {
         return g_mainapp_mock_state.is_box_rebooting_return_value;
     }
