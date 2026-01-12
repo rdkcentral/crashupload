@@ -38,17 +38,17 @@ int get_crashupload_s3signed_url(char *url, size_t size_buf)
     int ret = -1;
     if (!url || size_buf <= 0 || size_buf >= 4096) {
         printf("Error invalid parameter getting url\n");
-	return ret;
+	    return ret;
     }
     ret = read_RFCProperty("S3SignedUrl", RFC_CRASHUPLOAD_S3URL, url, size_buf);
     if ((ret == READ_RFC_FAILURE) || (url[0] == '\0')) {
         printf("Read rfc failed For S3SignedUrl. Reading From device.properies file\n");
         ret = getDevicePropertyData("S3_AMAZON_SIGNING_URL", url, size_buf);
-	if (ret == UTILS_SUCCESS) {
-	    printf("S3 Amazon Signing URL:%s\n", url);
-	} else {
-	    printf("Error to Get S3 Signing URL\n");
-	}
+	    if (ret == UTILS_SUCCESS) {
+	        printf("S3 Amazon Signing URL:%s\n", url);
+	    } else {
+	        printf("Error to Get S3 Signing URL\n");
+	    }
     }
     return ret;
 }
@@ -161,10 +161,12 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
         printf("No space available for postfield data\n");
 	return -1;
     }
+    snprintf(s3_url_file, sizeof(s3_url_file), "%s%u", S3_SIGNEDURL_FILE, getpid());
+	printf("S3 URL=%s\n",s3_url_file);
     for (int i = 1; i <= 3; i++) {
     if (totlen < szPostFieldOut) {
         printf("postfiled data=%s\n", post_filed);
-	ret = performMetadataPostWithCertRotationEx(url, filepath, post_filed, &sec_out, &http_code);
+	ret = performMetadataPostWithCertRotationEx(url, s3_url_file, post_filed, &sec_out, &http_code);
 	printf("After performMetadataPostWithCertRotationEx ret=%d=>http code=%lu\n", ret, http_code);
 	__uploadutil_get_status(&http_code, &curl_ret);
 	printf("Curl Connected to $FQDN:%s\n", url);
@@ -173,8 +175,6 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
             //t2ValNotify "coreUpld_split" "$ec, $http_code"
 	if (curl_ret == 0) {
 	    printf("Attempting TLS1.2 connection to Amazon S3\n");
-	    snprintf(s3_url_file, sizeof(s3_url_file), "%s_%u", S3_SIGNEDURL_FILE, getpid());
-	    printf("S3 URL=%s\n",s3_url_file);
             ret = extractS3PresignedUrl(s3_url_file, out_url, sizeof(out_url));
 	    if (ret == 0 && out_url[0] != '\0') {
 	        ret = performS3PutUpload(out_url, filepath, &sec_out);
