@@ -238,10 +238,11 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
     if ( 0 == (file_get_size(new_dump_name, &size_dump_u64))) {
         printf("Size of the file:%llu\n", (unsigned long long)size_dump_u64);
     }
-    //TODO: Add below telemetry
-    //if [ "$IS_T2_ENABLED" == "true" ] && [ ! -s "$dumpName" ]; then
-	//            t2CountNotify "SYST_ERR_MINIDPZEROSIZE"
-          //  fi
+
+    if (config->t2_enabled && size_dump_u64 == 0) {
+        t2CountNotify("SYST_ERR_MINIDPZEROSIZE", 1);
+    }
+
     for (i = 0; i < MAX_FILE_TO_TAR; i++) {
         arch_files_list[i] = malloc(256);
     }
@@ -325,10 +326,11 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
        printf("core log file=%s\n", arch_files_list[2]);
    } else {
        printf("TAR creation failed try by coping to /tmp\n");
-	//TODO:Copy all the file to /tmp and try tar again. This is fall back
-	//[ "$IS_T2_ENABLED" == "true" ] && t2CountNotify "SYST_WARN_CompFail"
-	
-   }
+	    //TODO:Copy all the file to /tmp and try tar again. This is fall back
+        if (config->t2_enabled) {
+            t2ValNotify("SYST_WARN_CompFail", target_file_name);
+        }
+    }
    if (0 == (filePresentCheck(arch_files_list[0]))) {
        unlink(arch_files_list[0]);
    }

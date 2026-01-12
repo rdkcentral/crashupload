@@ -305,7 +305,7 @@ static char *lookup_log_files_for_proc(const char *pname)
  *
  *   This function mirrors the shell get_crashed_log_file() behavior.
  */
-static int get_crashed_log_file(const char *file, const char *log_path)
+static int get_crashed_log_file(const char *file, const char *log_path, bool t2_enabled)
 {
     if (!file) return -1;
     char *token = NULL;
@@ -320,14 +320,11 @@ static int get_crashed_log_file(const char *file, const char *log_path)
     char *appname = extract_appname(file);
 
     printf("Process crashed = %s\n", pname);
-
-    /* Telemetry if enabled (replace IS_T2_ENABLED check as needed) */
-    /*const char *IS_T2_ENABLED = getenv("IS_T2_ENABLED");
-    if (IS_T2_ENABLED && strcmp(IS_T2_ENABLED, "true") == 0) {
+    if (t2_enabled) {
         t2ValNotify("processCrash_split", pname);
         t2ValNotify("SYST_ERR_Process_Crash_accum", pname);
-        t2CountNotify("SYST_ERR_ProcessCrash", NULL);
-    }*/
+        t2CountNotify("SYST_ERR_ProcessCrash", 1);
+    }
     printf("Going to call lookup_log_files_for_proc() ===========================\n");
     /* Lookup log files (comma-separated) */
     char *logrhs = lookup_log_files_for_proc(pname);
@@ -385,7 +382,7 @@ static int get_crashed_log_file(const char *file, const char *log_path)
  *
  *   Returns 0 on success.
  */
-int processCrashTelemetryInfo(const char *rawfile , const char *log_path)
+int processCrashTelemetryInfo(const char *rawfile , const char *log_path, bool t2_enabled)
 {
     if (!rawfile || !log_path) return -1;
 
@@ -426,7 +423,7 @@ int processCrashTelemetryInfo(const char *rawfile , const char *log_path)
             snprintf(file, PATH_MAX_LEN, "%s", tmp);
             printf("Removed the meta information from tgz filename\n");
             printf("tgz file name after remove meta info=%s\n", file);
-            t2CountNotify("SYS_INFO_TGZDUMP", "1");
+            t2CountNotify("SYS_INFO_TGZDUMP", 1);
         }
     }
         /* Container detection: check if containerDelimiter appears in file */
@@ -522,7 +519,7 @@ int processCrashTelemetryInfo(const char *rawfile , const char *log_path)
         t2ValNotify("crashedContainerStatus_split", containerStatus);
         t2ValNotify("crashedContainerAppname_split", Appname);
         t2ValNotify("crashedContainerProcessName_split", ProcessName);
-        t2CountNotify("SYS_INFO_CrashedContainer", NULL);
+        t2CountNotify("SYS_INFO_CrashedContainer", 1);
 
         /* Logging similar to shell */
         printf("Container crash info Basic: %s, %s\n", Appname, ProcessName);
@@ -547,7 +544,7 @@ int processCrashTelemetryInfo(const char *rawfile , const char *log_path)
 
 call_get_crashed:
     /* Finally call get_crashed_log_file() for the (possibly normalized) filename */
-    get_crashed_log_file(file, log_path);
+    get_crashed_log_file(file, log_path, t2_enabled);
     return 0;
 }
 
@@ -652,14 +649,14 @@ int process_file_entry(char *fullpath, char *dump_type, const config_t *config)
         }
         if (0 == (strcmp(dump_type, "0"))) {
             /* call processCrashTelemetryInfo with sanitized filename relative path */
-            processCrashTelemetryInfo(newfull, config->log_path);
+            processCrashTelemetryInfo(newfull, config->log_path, config->t2_enabled);
         } else {
             printf("processCrashTelemetryInfo is not allowed\n");
         }
     } else {
             if (0 == (strcmp(dump_type, "0"))) {
                 /* sanitized == basename: no rename */
-                processCrashTelemetryInfo(fullpath, config->log_path);
+                processCrashTelemetryInfo(fullpath, config->log_path, config->t2_enabled);
             } else {
                 printf("processCrashTelemetryInfo is not allowed\n");
             }

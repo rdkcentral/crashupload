@@ -248,7 +248,8 @@ int main_test(int argc, char *argv[]) {
             continue;
         }
     }
-    if (true == is_box_rebooting()) {
+    if (true == is_box_rebooting(config.t2_enabled)) {
+        printf("Box is rebooting, skip upload process\n");
 	ret = 0;
         goto cleanup;
     }

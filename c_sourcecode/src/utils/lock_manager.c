@@ -4,8 +4,9 @@
  */
 #include "lock_manager.h"
 #include "telemetryinterface.h"
+#include <stdbool.h>
 
-int acquire_process_lock_or_exit(const char *lock_path)
+int acquire_process_lock_or_exit(const char *lock_path, bool t2_enabled)
 {
     //char script_lock_path_dir[32] = {0};
     //snprintf(script_lock_path_dir, sizeof(script_lock_path_dir), "%s.lock.d", lock_path);
@@ -16,9 +17,9 @@ int acquire_process_lock_or_exit(const char *lock_path)
 
     if (flock(fd, LOCK_EX | LOCK_NB) < 0) {
         printf("script is already working. ${path}.lock.d. Skip launch another instance...\n");
-	//TODO: if (t2_enable == true) {
-	   // t2CountNotify "SYST_WARN_NoMinidump"
-	//}
+        if (t2_enabled == true) {
+            t2CountNotify("SYST_WARN_NoMinidump", 1);
+        }
         exit(0);
     }
 

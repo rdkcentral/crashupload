@@ -188,15 +188,16 @@ int system_check_process(const char *name, bool *is_running) {
  * SKELETON
  * Execute system reboot
  */
-bool is_box_rebooting(void) {
+bool is_box_rebooting(bool t2_enabled) {
     bool ret = false;
     /* SKELETON - Using system() call for now */
     if (0 == filePresentCheck("/tmp/set_crash_reboot_flag")) {
         printf("Skipping upload, Since Box is Rebooting now\n");
-	//TODO if [ "$IS_T2_ENABLED" == "true" ]; then
-            //t2CountNotify "SYST_INFO_CoreUpldSkipped"
-	printf("Upload will happen on next reboot\n");
-	ret = true;
+        if (t2_enabled) {
+            t2CountNotify("SYST_INFO_CoreUpldSkipped", 1);
+        }
+	    printf("Upload will happen on next reboot\n");
+	    ret = true;
     }
     return ret;
 }

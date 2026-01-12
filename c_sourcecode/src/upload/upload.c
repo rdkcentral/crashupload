@@ -55,7 +55,7 @@ int get_crashupload_s3signed_url(char *url, size_t size_buf)
 }
 
 /* FULL IMPLEMENTATION - Type-aware upload with optimized retry logic */
-int upload_file(const char *filepath, const char *url, const char *dump_name, const char *crash_fw_version, const char *build_type, const char *model, const char *md5sum, device_type_t device_type) {
+int upload_file(const char *filepath, const char *url, const char *dump_name, const char *crash_fw_version, const char *build_type, const char *model, const char *md5sum, device_type_t device_type, bool t2_enabled) {
     if (!filepath || !url || !dump_name || !crash_fw_version || !build_type || !model || !md5sum) {
         return -1;
     }
@@ -172,8 +172,11 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
 	__uploadutil_get_status(&http_code, &curl_ret);
 	printf("Curl Connected to $FQDN:%s\n", url);
 	printf("Curl return code :%d, HTTP SIGN URL Response:%lu\n", curl_ret, http_code);
-	//TODO:if $IS_T2_ENABLED" == "true then
-            //t2ValNotify "coreUpld_split" "$ec, $http_code"
+    if (t2_enabled) {
+        char upload_split_val[64];
+        snprintf(upload_split_val, sizeof(upload_split_val), "%d, %ld", curl_ret, http_code);
+        t2ValNotify("coreUpld_split", upload_split_val);
+    }
 	if (curl_ret == 0) {
 	    printf("Attempting TLS1.2 connection to Amazon S3\n");
             ret = extractS3PresignedUrl(s3_url_file, out_url, sizeof(out_url));
@@ -197,28 +200,33 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
 	    printf("Curl finished unsuccessfully! Error code: %d\n", curl_ret);
 	    if (device_type != DEVICE_TYPE_BROADBAND) {
 	        tls_log(curl_ret, "mediaclient", fqdn);
-		//TODO: t2ValNotify "certerr_split" "DumpUL, $ec, $FQDN"
+            char certerr_val[1024];
+            snprintf(certerr_val, sizeof(certerr_val), "DumpUL, %d, %s", curl_ret, fqdn);
+            t2ValNotify("certerr_split", certerr_val);
 	    } else {
 	        tls_log(curl_ret, "broadband", fqdn);
 	    }
-#if 0 //TODO
-	    if (t2_enable) {
-                t2CountNotify "SYS_ERROR_S3CoreUpload_Failed"
-		if (curl_ret == 6) {
-		    t2CountNotify "SYST_INFO_CURL6"
-		}
-		t2CountNotify "SYS_ERR_CoreUpload_Curl${ec}"
-		t2ValNotify "CoredumpFail_split" ${ec}
+	    if (t2_enabled) {
+            t2CountNotify("SYS_ERROR_S3CoreUpload_Failed", 1);
+		    if (curl_ret == 6) {
+                t2CountNotify("SYST_INFO_CURL6", 1);
+            }
+            char marker[64];
+            snprintf(marker, sizeof(marker), "SYS_ERR_CoreUpload_Curl%d", curl_ret);
+            t2CountNotify(marker, 1);
+
+            char curl_err_str[16];
+            snprintf(curl_err_str, sizeof(curl_err_str), "%d", curl_ret);
+            t2ValNotify("CoredumpFail_split", curl_err_str);
 	    }
-#endif
 	printf("Execution Status: %d, S3 Amazon Upload of %s Failed\n", curl_ret, filepath);
 	printf("%d: (Retry), minidump S3 Upload\n", i);
 	sleep(2);
 	} else {
 	    printf("S3 ${DUMP_NAME} Upload is successful $tlsMessage\n");
-	    /* //TODO if (t2_enable) {
-	        t2CountNotify "SYS_INFO_S3CoreUploaded"
-	    }*/
+        if (t2_enabled) {
+            t2CountNotify("SYS_INFO_S3CoreUploaded", 1);
+        }
 	    printf("Removing uploaded $DUMP_NAME file %s\n", filepath);
 	    unlink(filepath);
 	    break;
@@ -316,11 +324,9 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
     status = upload_file(archive->archive_name, crashportalEndpointUrl, dump_name, crash_fw_version, config->build_type_val, platform->model, md5sum, config->device_type);
     if (0 == status) {
         printf("Minidump uploadToS3 SUCESS: status: %d\n", status);
-#if 0 //TODO:
-      if [ "$DUMP_NAME" == "minidump" ] && [ "$IS_T2_ENABLED" == "true" ]; then
-			     t2CountNotify "SYST_INFO_minidumpUpld"
-		     fi
-#endif
+        if (config->dump_type == DUMP_TYPE_MINIDUMP && config->t2_enabled) {
+            t2CountNotify("SYST_INFO_minidumpUpld", 1);
+        }
         printf("Execution Status: %d, S3 Amazon Upload of $DUMP_NAME Success\n",status);
 	printf("Removing file %s\n", archive->archive_name);
 	unlink(archive->archive_name);
