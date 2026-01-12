@@ -158,9 +158,14 @@ int main_test(int argc, char *argv[]) {
     /* TODO: Implement dump processing loop */
     dump_file_t *dumps = NULL;
     int dump_count = 0;
-    
+    if (0 != (chdir(config.working_dir_path))) {
+        printf("Error in chnage dir:%s\n",config.working_dir_path);
+	goto cleanup;
+    } else {
+        printf("Successfully chnage dir to %s\n", config.working_dir_path);
+    }
     /* 5.1: Scan for dumps */
-    if (scanner_find_dumps(config.working_dir_path, &dumps, &dump_count) <= 0) {
+    if (scanner_find_dumps(".", &dumps, &dump_count) <= 0) {
         logger_info("No dumps found or scan failed");
         goto cleanup;
     }

@@ -214,9 +214,9 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
 	new_dump_name[strlen(tmp)] = '\0';
     }
     printf("archive_create_smart() After process dump name=%s\n", new_dump_name);
-    char tmp1[512] = {0};
-    snprintf(tmp1, sizeof(tmp1), "%s/%s", config->working_dir_path, new_dump_name);
-    strcpy(new_dump_name, tmp1);
+    //char tmp1[512] = {0};
+    //snprintf(tmp1, sizeof(tmp1), "%s/%s", config->working_dir_path, new_dump_name);
+    //strcpy(new_dump_name, tmp1);
     printf("Rename dump name file->%s->%s\n", dump->path, new_dump_name);
     if (rename(dump->path, new_dump_name) != 0) {
         if (errno == EEXIST || errno == EACCES) {
