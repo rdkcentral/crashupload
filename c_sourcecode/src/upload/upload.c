@@ -176,6 +176,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
 	if (curl_ret == 0) {
 	    printf("Attempting TLS1.2 connection to Amazon S3\n");
             ret = extractS3PresignedUrl(s3_url_file, out_url, sizeof(out_url));
+            printf("extractS3PresignedUrl ret=%d=>out_url=%s\n", ret, out_url);
 	    if (ret == 0 && out_url[0] != '\0') {
 	        ret = performS3PutUpload(out_url, filepath, &sec_out);
 		printf("performS3PutUpload return ret=%d\n", ret);
@@ -187,7 +188,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
 	        snprintf(fqdn, sizeof(fqdn), "%s", out_url);
 		curl_ret = -1;
 	    }
-	    unlink(s3_url_file);
+	    //unlink(s3_url_file);
 	} else {
 	    snprintf(fqdn, sizeof(fqdn), "%s", url);
 	}
