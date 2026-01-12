@@ -36,10 +36,10 @@ fi
 
 case "$DEVICE_TYPE" in
     mediaclient)
-        LOG_DIR="/rdklogs/logs"
+        LOG_DIR="/opt/logs"
         ;;
     broadband|extender)
-        LOG_DIR="/var/log"
+        LOG_DIR="/rdklogs/logs"
         ;;
     *)
         LOG_DIR="/var/log"
