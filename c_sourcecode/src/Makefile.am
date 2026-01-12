@@ -6,7 +6,8 @@ AM_CPPFLAGS = -I$(top_srcdir)/common \
               -I$(top_srcdir)/src/config \
               -I$(top_srcdir)/src/platform \
               -I$(top_srcdir)/include \
-              -I$(top_srcdir)/src/utils
+              -I$(top_srcdir)/src/utils \
+              -I${top_srcdir}/src/t2Interface 
 
 # External library flags
 AM_CFLAGS = $(LIBCURL_CFLAGS) $(OPENSSL_CFLAGS) $(ZLIB_CFLAGS)
@@ -38,7 +39,9 @@ crashupload_SOURCES = \
     rfcInterface/rfcinterface.c \
     rfcInterface/rfcinterface.h \
     utils/logger.c \
-    utils/logger.h
+    utils/logger.h \
+    t2Interface/telemetryinterface.c \
+    t2Interface/telemetryinterface.h
 
 crashupload_LDADD = -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread -lcrypto -larchive -luploadutil
 crashupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) -lcrypto -larchive -luploadutil
