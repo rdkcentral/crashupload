@@ -8,6 +8,10 @@
 
 #include "telemetryinterface.h"
 
+#ifdef T2_EVENT_ENABLED
+#include <telemetry_busmessage_sender.h>
+#endif
+
 /**
  * @brief Sends a telemetry count/numeric event to T2 system
  *
