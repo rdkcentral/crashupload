@@ -3,6 +3,7 @@
  * SKELETON: Implementation needed
  */
 #include "lock_manager.h"
+#include "telemetryinterface.h"
 
 int acquire_process_lock_or_exit(const char *lock_path)
 {

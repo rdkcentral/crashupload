@@ -11,6 +11,7 @@
 #include "archive_crash.h"
 #include <fcntl.h>
 #include "file_utils.h"
+#include "telemetryinterface.h"
 
 #define MIN_FREE_SPACE_MB 50
 #define MAX_FILE_TO_TAR 7

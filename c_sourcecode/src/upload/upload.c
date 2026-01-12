@@ -14,6 +14,7 @@
 #include "upload_status.h"
 #include "ratelimit.h"
 #include <unistd.h>
+#include "telemetryinterface.h"
 
 #define MAX_RETRIES 3
 #define TIMEOUT_SECONDS 45

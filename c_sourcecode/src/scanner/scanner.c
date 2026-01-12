@@ -11,6 +11,7 @@
 #include "../../common/types.h"
 #include "file_utils.h"
 #include "scanner.h"
+#include "telemetryinterface.h"
 
 #define MAX_DUMPS 5
 #define PATH_MAX_LEN 512
@@ -23,18 +24,6 @@ static dump_file_t found_dumps[MAX_DUMPS];
 static int dump_count = 0;
 /* Container delimiter in filenames */
 static const char containerDelimiter[] = "<#=#>";
-
-/* Telemetry stubs - replace with real implementations */
-void t2ValNotify(const char *key, const char *val)
-{
-    (void)key; (void)val;
-    /* integrate with real telemetry API */
-}
-void t2CountNotify(const char *key, const char *val_or_null)
-{
-    (void)key; (void)val_or_null;
-    /* integrate with real telemetry API */
-}
 
 #if 0
 /* Read a single line from file `path` into buffer (sz), trimming newline.

@@ -11,6 +11,7 @@
 #include "rdk_fwdl_utils.h"
 #include "system_utils.h"
 #include "systemutils.h"
+#include "telemetryinterface.h"
 
 /**
  * FULL IMPLEMENTATION
