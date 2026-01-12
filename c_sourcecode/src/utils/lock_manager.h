@@ -18,7 +18,7 @@
  * @param timeout_sec Timeout in seconds
  * @return File descriptor on success, -1 on failure
  */
-int lock_acquire(const char *lock_file, int timeout_sec);
+int lock_acquire(const char *lock_file, int timeout_sec, bool t2_enabled);
 
 /**
  * @brief Release process lock

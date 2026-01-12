@@ -321,7 +321,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         strcpy(dump_name, "coredump");
     }
     GetCrashFirmwareVersion("/version.txt", crash_fw_version, sizeof(crash_fw_version));//TODO: This function should change to untar and read the version.txt image name
-    status = upload_file(archive->archive_name, crashportalEndpointUrl, dump_name, crash_fw_version, config->build_type_val, platform->model, md5sum, config->device_type);
+    status = upload_file(archive->archive_name, crashportalEndpointUrl, dump_name, crash_fw_version, config->build_type_val, platform->model, md5sum, config->device_type, config->t2_enabled);
     if (0 == status) {
         printf("Minidump uploadToS3 SUCESS: status: %d\n", status);
         if (config->dump_type == DUMP_TYPE_MINIDUMP && config->t2_enabled) {

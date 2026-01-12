@@ -58,14 +58,14 @@ void release_process_lock(int lock_fd)
 }
 
 
-int lock_acquire(const char *lock_file, int timeout_sec) {
+int lock_acquire(const char *lock_file, int timeout_sec, bool t2_enabled) {
     int ret = -1;
 
     if (lock_file != NULL) {
         if (timeout_sec > 0) {
 	    ret = acquire_process_lock_or_wait(lock_file, timeout_sec);
 	} else {
-	    ret = acquire_process_lock_or_exit(lock_file);
+	    ret = acquire_process_lock_or_exit(lock_file, t2_enabled);
 	}
     } else {
         printf("Invalid argument\n");

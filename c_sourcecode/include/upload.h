@@ -23,7 +23,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
  * @return 0 on success, -1 on error
  */
 //int upload_file(const char *filepath, const char *url, upload_type_t type);
-int upload_file(const char *filepath, const char *url, const char *dump_name, const char *crash_fw_version, const char *build_type, const char *model, const char *md5sum, device_type_t device_type);
+int upload_file(const char *filepath, const char *url, const char *dump_name, const char *crash_fw_version, const char *build_type, const char *model, const char *md5sum, device_type_t device_type, bool t2_enabled);
 /**
  * Upload coredump file
  * @param filepath Path to coredump file
