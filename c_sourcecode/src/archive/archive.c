@@ -214,7 +214,7 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
     }
     printf("archive_create_smart() After process dump name=%s\n", new_dump_name);
     char tmp1[512] = {0};
-    snprintf(tmp1, sizeof(tmp1), "%s/%s", "/opt/minidumps", new_dump_name);
+    snprintf(tmp1, sizeof(tmp1), "%s/%s", config->working_dir_path, new_dump_name);
     strcpy(new_dump_name, tmp1);
     printf("Rename dump name file->%s->%s\n", dump->path, new_dump_name);
     if (rename(dump->path, new_dump_name) != 0) {
