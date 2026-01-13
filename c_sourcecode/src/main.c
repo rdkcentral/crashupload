@@ -24,6 +24,7 @@
 #include "ratelimit.h"
 #include "systemutils.h"
 #include "upload.h"
+#include "t2Interface/telemetryinterface.h"
 
 int lock_dir_prefix = 0;
 
@@ -108,6 +109,7 @@ int main_test(int argc, char *argv[]) {
     if (system_initialize(argc, argv, &config, &platform) != SYSTEM_INIT_SUCCESS) {
         logger_error("System initialization failed:%d\n", lock_fd);
         printf("Failed system_initialize\n");
+        /* TODO: Add t2Uninit() here for early exit path */
 #ifndef GTEST_ENABLE
         exit(1);
 #else
@@ -119,6 +121,7 @@ int main_test(int argc, char *argv[]) {
     if (lock_fd < LOCK_ACQUIRE_SUCCESS) {
         logger_error("Failed to acquire lock");
         printf("Failed to acquire lock\n");
+        /* TODO: Add t2Uninit() here for early exit path */
 #ifndef GTEST_ENABLE
         exit(0);
 #else
@@ -315,6 +318,9 @@ cleanup:
     if (lock_fd >= 0) {
         lock_release(lock_fd, lock_file_path);
     }
+    /* Uninitialize telemetry */
+    t2Uninit();
+
 #ifndef GTEST_ENABLE
     exit(ret);
 #else

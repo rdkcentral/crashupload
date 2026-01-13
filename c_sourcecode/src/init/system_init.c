@@ -11,6 +11,7 @@
 #include "../../common/constants.h"
 #include "../config/config_manager.h"
 #include "../platform/platform.h"
+#include "../t2Interface/telemetryinterface.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -30,6 +31,10 @@ int system_initialize(int argc, char *argv[],
     if (argc < 0 || !argv || !config || !platform) {
         return -1;
     }
+
+    /* Initialize telemetry */
+    t2Init("crashupload");
+
     config_init_load(config, argc, argv);
     printf("core_log file=%s\n", config->core_log_file);
     if (0 != (filePresentCheck(config->core_log_file))) {

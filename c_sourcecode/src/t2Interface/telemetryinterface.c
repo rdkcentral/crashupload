@@ -13,6 +13,34 @@
 #endif
 
 /**
+ * @brief Initializes the T2 telemetry system
+ *
+ * @param[in] component Component name for telemetry initialization
+ *
+ * @return void
+ *
+ * @note Requires T2_EVENT_ENABLED to be defined
+ */
+void t2Init(const char *component) {
+#ifdef T2_EVENT_ENABLED
+    t2_init(component);
+#endif
+}
+
+/**
+ * @brief Uninitializes the T2 telemetry system
+ *
+ * @return void
+ *
+ * @note Requires T2_EVENT_ENABLED to be defined
+ */
+void t2Uninit(void){
+#ifdef T2_EVENT_ENABLED
+    t2_uninit();
+#endif
+}
+
+/**
  * @brief Sends a telemetry count/numeric event to T2 system
  *
  * @param[in] marker Telemetry marker name/identifier
