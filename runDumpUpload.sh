@@ -3,7 +3,7 @@
 # If not stated otherwise in this file or this component's LICENSE
 # file the following copyright and licenses apply:
 #
-# Copyright 2016 RDK Management
+# Copyright 2025 RDK Management
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,12 +17,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
-#
+
 #Purpose : This script is to used to create and upload dump files
 #Scope : RDK Devices
 #Usage : Triggered by a path based systemd service
 #This file is from crashupload repository
 #Uploads coredumps to an ftp server if there are any
+
 LOGMAPPER_FILE="/etc/breakpad-logmapper.conf"
 LOG_FILES="/tmp/minidump_log_files.txt"
 if [ -f /lib/rdk/t2Shared_api.sh ]; then
