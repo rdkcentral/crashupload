@@ -89,6 +89,9 @@ static int archive_add_file(struct archive *a,
     entry = archive_entry_new();
     if (!entry)
         return ret_result;
+    
+    printf("archive_add_file: path=%s size=%ld mtime=%ld\n",
+           path, (long)st.st_size, (long)st.st_mtime);
 
     archive_entry_copy_stat(entry, &st);
     archive_entry_set_pathname(entry, path);
@@ -96,6 +99,7 @@ static int archive_add_file(struct archive *a,
     archive_entry_set_filetype(entry, AE_IFREG);
     archive_entry_set_perm(entry, 0777);
 
+    printf("archive_add_file: writing header for %s\n", path);
     if (archive_write_header(a, entry) != ARCHIVE_OK)
         goto error;
 
@@ -107,6 +111,7 @@ static int archive_add_file(struct archive *a,
         if (archive_write_data(a, buf, (size_t)r) < 0)
             goto error;
     }
+    printf("archive_add_file: completed writing %s\n", path);
     ret_result = 0;
 
 error:

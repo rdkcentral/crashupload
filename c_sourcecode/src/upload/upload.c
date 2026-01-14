@@ -243,7 +243,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
             t2CountNotify("SYS_INFO_S3CoreUploaded", 1);
         }
 	    printf("Removing uploaded $DUMP_NAME file %s\n", filepath);
-	    unlink(filepath);
+	    // unlink(filepath); // DEBUG
 	    break;
 	}
     } else {
@@ -344,7 +344,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         }
         printf("Execution Status: %d, S3 Amazon Upload of $DUMP_NAME Success\n",status);
 	printf("Removing file %s\n", archive->archive_name);
-	unlink(archive->archive_name);
+	// unlink(archive->archive_name); // DEBUG
     } else {
         printf("S3 Amazon Upload of minidump Failed..!\n");
 	if (config->dump_type == DUMP_TYPE_MINIDUMP) {
@@ -352,7 +352,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
 	    //TODO: save_dump();
 	} else {
 	    printf("Removing file %s\n", archive->archive_name);
-	    unlink(archive->archive_name);
+	    // unlink(archive->archive_name); // DEBUG
 	    set_time("/tmp/.minidump_upload_timestamps", CURRENT_TIME);
 	}
     }
