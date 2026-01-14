@@ -93,11 +93,8 @@ static int archive_add_file(struct archive *a,
     printf("archive_add_file: path=%s size=%ld mtime=%ld\n",
            path, (long)st.st_size, (long)st.st_mtime);
 
-    archive_entry_copy_stat(entry, &st);
     archive_entry_set_pathname(entry, path);
-    archive_entry_set_size(entry, st.st_size);
-    archive_entry_set_filetype(entry, AE_IFREG);
-    archive_entry_set_perm(entry, 0777);
+    archive_entry_copy_stat(entry, &st);
 
     printf("archive_add_file: writing header for %s\n", path);
     if (archive_write_header(a, entry) != ARCHIVE_OK)
