@@ -56,7 +56,7 @@ extern "C" {
 int get_crashupload_s3signed_url(char *url, size_t size_buf);
 int upload_file(const char *filepath, const char *url, const char *dump_name, 
                 const char *crash_fw_version, const char *build_type, 
-                const char *model, const char *md5sum, device_type_t device_type);
+                const char *model, const char *md5sum, device_type_t device_type, bool t2_enabled);
 int upload_process(archive_info_t *archive, const config_t *config, 
                    const platform_config_t *platform);
 

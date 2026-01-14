@@ -63,7 +63,7 @@ int process_file_entry(char *fullpath, char *dump_type, const config_t *config);
 int sanitize_filename_preserve_container(const char *fname, char *out, size_t outsz);
 char *extract_pname(const char *filepath);
 char *extract_appname(const char *filepath);
-int processCrashTelemetryInfo(const char *rawfile, const char *log_path);
+int processCrashTelemetryInfo(const char *rawfile, const char *log_path, bool t2_enabled);
 
 // Mock function declarations
 int is_regular_file(const char *path);

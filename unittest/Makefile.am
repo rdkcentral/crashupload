@@ -40,6 +40,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/../c_sourcecode/src/archive \
 	-I$(top_srcdir)/../c_sourcecode/src/utils \
 	-I$(top_srcdir)/../c_sourcecode/src/upload \
+        -I$(top_srcdir)/../c_sourcecode/src/t2Interface \
 	-I/usr/include \
 	-I/usr/local/include
 
@@ -105,7 +106,8 @@ platform_gtest_LDFLAGS = \
 scanner_gtest_SOURCES = \
 	scanner_gtest.cpp \
 	scanner_gmock.cpp \
-	../c_sourcecode/src/scanner/scanner.c
+	../c_sourcecode/src/scanner/scanner.c \
+	../c_sourcecode/src/t2Interface/telemetryinterface.c
 
 scanner_gtest_LDADD = \
 	-lgtest \
@@ -122,7 +124,8 @@ scanner_gtest_LDFLAGS = \
 archive_gtest_SOURCES = \
 	archive_gtest.cpp \
 	archive_gmock.cpp \
-	../c_sourcecode/src/archive/archive.c
+	../c_sourcecode/src/archive/archive.c \
+	../c_sourcecode/src/t2Interface/telemetryinterface.c
 
 archive_gtest_LDADD = \
 	-lgtest \
@@ -169,7 +172,8 @@ upload_gtest_LDADD = \
 	-lgmock \
 	-lgmock_main \
 	-lpthread \
-	-lgcov
+	-lgcov \
+	-luploadutil
 
 upload_gtest_LDFLAGS = \
 	-fprofile-arcs
