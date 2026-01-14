@@ -90,6 +90,7 @@ static int archive_add_file(struct archive *a,
     if (!entry)
         return ret_result;
 
+    archive_entry_copy_stat(entry, &st);
     archive_entry_set_pathname(entry, path);
     archive_entry_set_size(entry, st.st_size);
     archive_entry_set_filetype(entry, AE_IFREG);
