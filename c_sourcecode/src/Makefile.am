@@ -31,7 +31,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/common \
 # External library flags
 AM_CFLAGS = $(LIBCURL_CFLAGS) $(OPENSSL_CFLAGS) $(ZLIB_CFLAGS)
 AM_LDFLAGS = $(LIBCURL_LIBS) $(OPENSSL_LIBS) $(ZLIB_LIBS) -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
-AM_LDFLAGS += -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread -larchive -luploadutil
+AM_LDFLAGS += -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread -larchive -luploadutil -ltelemetry_msgsender -lt2utils
 
 # Source files for crashupload
 crashupload_SOURCES = \
@@ -62,8 +62,8 @@ crashupload_SOURCES = \
     t2Interface/telemetryinterface.c \
     t2Interface/telemetryinterface.h
 
-crashupload_LDADD = -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread -lcrypto -larchive -luploadutil
-crashupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) -lcrypto -larchive -luploadutil
+crashupload_LDADD = -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread -lcrypto -larchive -luploadutil -ltelemetry_msgsender -lt2utils
+crashupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) -lcrypto -larchive -luploadutil -ltelemetry_msgsender -lt2utils
 
 # Include common headers
 crashupload_SOURCES += \
