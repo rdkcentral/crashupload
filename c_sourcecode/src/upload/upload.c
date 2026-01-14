@@ -153,11 +153,11 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
     remainlen = szPostFieldOut - totlen;
     url_encode_data = urlEncodeString(dump_name);
     if (url_encode_data != NULL) {
-        totlen += snprintf(post_filed+totlen, remainlen, "type=%s", url_encode_data);
+        totlen += snprintf(post_filed+totlen, remainlen, "type=%s&", url_encode_data);
 	free(url_encode_data);
 	url_encode_data = NULL;
     }else {
-        totlen += snprintf(post_filed+totlen, remainlen, "type=%s", dump_name);
+        totlen += snprintf(post_filed+totlen, remainlen, "type=%s&", dump_name);
     }
 
     if (totlen >= szPostFieldOut) {
@@ -165,21 +165,18 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
 	return -1;
     }
     remainlen = szPostFieldOut - totlen;
-    if (md5sum[0] != '\0') {  
-        url_encode_data = urlEncodeString(md5sum);
-        if (url_encode_data != NULL) {
-            totlen += snprintf(post_filed+totlen, remainlen, "&md5=%s", url_encode_data);
-	        free(url_encode_data);
-	        url_encode_data = NULL;
-        }else {
-            totlen += snprintf(post_filed+totlen, remainlen, "type=%s", md5sum);
-        }
-        if (totlen > szPostFieldOut) {
-            printf("No space available for postfield data\n");
-            return -1;
-        }
+    url_encode_data = urlEncodeString(md5sum);
+    if (url_encode_data != NULL) {
+        totlen += snprintf(post_filed+totlen, remainlen, "md5=%s", url_encode_data);
+	free(url_encode_data);
+	url_encode_data = NULL;
+    }else {
+        totlen += snprintf(post_filed+totlen, remainlen, "type=%s", md5sum);
     }
-    
+    if (totlen > szPostFieldOut) {
+        printf("No space available for postfield data\n");
+	return -1;
+    }
     snprintf(s3_url_file, sizeof(s3_url_file), "%s%u", S3_SIGNEDURL_FILE, getpid());
 	printf("S3 URL=%s\n",s3_url_file);
     for (int i = 1; i <= 3; i++) {
