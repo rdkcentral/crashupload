@@ -38,7 +38,7 @@
  *
  * @note Requires T2_EVENT_ENABLED to be defined
  */
-void t2Init(const char *component) {
+void t2Init(char *component) {
 #ifdef T2_EVENT_ENABLED
     t2_init(component);
 #endif
