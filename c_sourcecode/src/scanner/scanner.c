@@ -739,10 +739,10 @@ int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count) {
 
         /* Wait for the file to be fully written using blocking flock */
         printf("Checking if file is ready: %s\n", fullpath);
-+        if (wait_for_file_ready(fullpath) != 0) {
-+            printf("Skipping file (not ready or error): %s\n", fullpath);
-+            continue;
-+        }
+        if (wait_for_file_ready(fullpath) != 0) {
+            printf("Skipping file (not ready or error): %s\n", fullpath);
+            continue;
+        }
         
         /* Get file stats */
         struct stat st;
