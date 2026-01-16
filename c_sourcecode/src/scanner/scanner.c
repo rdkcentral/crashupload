@@ -737,6 +737,15 @@ int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count) {
         char fullpath[256];
         snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name);
         
+        /* Wait for file to be fully written (size stability check) */
+        printf("Checking if file writing is complete: %s\n", fullpath);
+        /* Parameters: check every 1 sec, need 2 stable readings, max 10 iterations */
+        if (wait_for_file_size_stable(fullpath, 1, 2, 10) != 0) {
+            printf("Skipping file (still being written or error): %s\n", fullpath);
+            continue;
+        }
+        printf("File writing complete: %s\n", fullpath);
+
         /* Get file stats */
         struct stat st;
         if (stat(fullpath, &st) != 0) {

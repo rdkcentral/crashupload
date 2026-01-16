@@ -87,4 +87,21 @@ bool file_exists(const char *path);
  */
 int file_get_size(const char *path, uint64_t *size);
 
+/**
+ * @brief Wait for file size to stabilize (indicating write completion)
+ *
+ * Monitors file size by polling at regular intervals. Returns when file size
+ * remains unchanged for a specified number of consecutive checks.
+ *
+ * @param filepath Path to the file to monitor
+ * @param check_interval_sec Seconds to wait between size checks (e.g., 1 or 2)
+ * @param stability_checks Number of consecutive stable checks required (e.g., 2 or 3)
+ * @param max_iterations Maximum total time to wait before timeout (e.g., 30)
+ * @return 0 on success (file stable), -1 on error/timeout
+ */
+int wait_for_file_size_stable(const char *filepath,
+                               int check_interval_sec,
+                               int stability_checks,
+                               int max_iterations)
+
 #endif /* FILE_UTILS_H */
