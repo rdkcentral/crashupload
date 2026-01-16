@@ -99,9 +99,6 @@ int file_get_size(const char *path, uint64_t *size);
  * @param max_iterations Maximum total time to wait before timeout (e.g., 30)
  * @return 0 on success (file stable), -1 on error/timeout
  */
-int wait_for_file_size_stable(const char *filepath,
-                               int check_interval_sec,
-                               int stability_checks,
-                               int max_iterations)
+int wait_for_file_size_stable(const char *filepath, int check_interval_sec, int stability_checks, int max_iterations);
 
 #endif /* FILE_UTILS_H */

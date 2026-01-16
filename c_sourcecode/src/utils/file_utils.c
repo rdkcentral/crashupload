@@ -520,10 +520,7 @@ bool check_process_dmp_file(const char *file)
  * @param max_iterations Maximum number of iterations to check
  * @return 0 on success (file stable), -1 on error/timeout
  */
-int wait_for_file_size_stable(const char *filepath,
-                               int check_interval_sec,
-                               int stability_checks,
-                               int max_iterations) {
+int wait_for_file_size_stable(const char *filepath, int check_interval_sec, int stability_checks, int max_iterations) {
     if (!filepath || check_interval_sec <= 0 || stability_checks <= 0 || max_iterations <= 0) {
         printf("wait_for_file_size_stable: Invalid parameters\n");
         return -1;
@@ -535,16 +532,14 @@ int wait_for_file_size_stable(const char *filepath,
     int iteration = 0;
 
     printf("Monitoring file size stability: %s\n", filepath);
-    printf("Check interval: %ds, Required stable checks: %d, Max iterations: %d\n",
-           check_interval_sec, stability_checks, max_iterations);
+    printf("Check interval: %ds, Required stable checks: %d, Max iterations: %d\n", check_interval_sec, stability_checks, max_iterations);
 
     while (iteration < max_iterations) {
         iteration++;
 
         /* Get current file size */
         if (stat(filepath, &st) != 0) {
-            printf("Iteration %d/%d: Cannot stat file (may not exist yet): %s (errno: %d - %s)\n",
-                   iteration, max_iterations, filepath, errno, strerror(errno));
+            printf("Iteration %d/%d: Cannot stat file (may not exist yet): %s (errno: %d - %s)\n", iteration, max_iterations, filepath, errno, strerror(errno));
             /* File might not exist yet, sleep and retry */
             sleep(check_interval_sec);
             continue;
@@ -555,8 +550,7 @@ int wait_for_file_size_stable(const char *filepath,
         /* First time getting valid size - just record it */
         if (old_size == -1) {
             old_size = current_size;
-            printf("Iteration %d/%d: Initial file size: %lld bytes\n",
-                   iteration, max_iterations, (long long)current_size);
+            printf("Iteration %d/%d: Initial file size: %lld bytes\n", iteration, max_iterations, (long long)current_size);
             sleep(check_interval_sec);
             continue;
         }
@@ -564,21 +558,18 @@ int wait_for_file_size_stable(const char *filepath,
         /* Check if size changed */
         if (current_size != old_size) {
             /* Size changed - file is still being written */
-            printf("Iteration %d/%d: File size changed: %lld -> %lld bytes (still writing...)\n",
-                   iteration, max_iterations, (long long)old_size, (long long)current_size);
+            printf("Iteration %d/%d: File size changed: %lld -> %lld bytes (still writing...)\n", iteration, max_iterations, (long long)old_size, (long long)current_size);
             old_size = current_size;
             stable_count = 0; /* Reset stability counter */
             sleep(check_interval_sec);
         } else {
             /* Size unchanged - increment stability counter */
             stable_count++;
-            printf("Iteration %d/%d: File size stable: %lld bytes (stable check %d/%d)\n",
-                   iteration, max_iterations, (long long)current_size, stable_count, stability_checks);
+            printf("Iteration %d/%d: File size stable: %lld bytes (stable check %d/%d)\n", iteration, max_iterations, (long long)current_size, stable_count, stability_checks);
 
             /* Check if we have enough consecutive stable readings */
             if (stable_count >= stability_checks) {
-                printf("File write completed (size stable for %d checks after %d iterations): %s\n",
-                       stability_checks, iteration, filepath);
+                printf("File write completed (size stable for %d checks after %d iterations): %s\n", stability_checks, iteration, filepath);
                 return 0; /* Success - file is ready */
             }
 
@@ -587,9 +578,7 @@ int wait_for_file_size_stable(const char *filepath,
     }
 
     /* Max iterations reached without stability */
-    printf("Max iterations (%d) reached waiting for file stability: %s\n",
-           max_iterations, filepath);
-    printf("Final size: %lld bytes, stable count: %d/%d\n",
-           (long long)old_size, stable_count, stability_checks);
+    printf("Max iterations (%d) reached waiting for file stability: %s\n", max_iterations, filepath);
+    printf("Final size: %lld bytes, stable count: %d/%d\n", (long long)old_size, stable_count, stability_checks);
     return -1;
 }
