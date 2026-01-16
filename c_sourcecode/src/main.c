@@ -184,6 +184,8 @@ int main_test(int argc, char *argv[]) {
     } else {
         printf("Successfully chnage dir to %s\n", config.working_dir_path);
     }
+    printf("Sleeping for 10 seconds before processing dumps\n");
+    sleep(10);
     /* 5.1: Scan for dumps */
     if (scanner_find_dumps(".", &dumps, &dump_count) <= 0) {
         logger_info("No dumps found or scan failed");
