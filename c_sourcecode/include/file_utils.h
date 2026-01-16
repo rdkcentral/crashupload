@@ -87,16 +87,4 @@ bool file_exists(const char *path);
  */
 int file_get_size(const char *path, uint64_t *size);
 
-/**
- * @brief Wait for file to be fully written using blocking flock
- *
- * This function uses flock() in blocking mode to wait until the file
- * is no longer being written. If the crash handler has an exclusive
- * lock (LOCK_EX), this will block until that lock is released.
- *
- * @param filepath Path to the file to check
- * @return 0 on success (file is ready), -1 on error
- */
-int wait_for_file_ready(const char *filepath);
-
 #endif /* FILE_UTILS_H */
