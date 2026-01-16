@@ -506,3 +506,43 @@ bool check_process_dmp_file(const char *file)
     }
     return ret;
 }
+
+/**
+ * @brief Wait for file to be fully written using blocking flock
+ * @param filepath Path to the file
+ * @return 0 on success, -1 on error
+ */
+int wait_for_file_ready(const char *filepath) {
+    if (!filepath) {
+        printf("wait_for_file_ready: filepath is NULL\n");
+        return -1;
+    }
+
+    printf("Waiting for file to be fully written: %s\n", filepath);
+
+    int fd = open(filepath, O_RDONLY);
+    if (fd < 0) {
+        printf("Cannot open file: %s (errno: %d - %s)\n", filepath, errno, strerror(errno));
+        return -1;
+    }
+
+    /* BLOCKING flock - waits until writer releases exclusive lock
+     * LOCK_SH = shared lock (multiple readers allowed)
+     * Without LOCK_NB flag, this will BLOCK until lock is available
+     */
+    printf("Attempting to acquire shared lock (will block if file is being written): %s\n", filepath);
+
+    if (flock(fd, LOCK_SH) == -1) {
+        printf("Failed to acquire lock: %s (errno: %d - %s)\n", filepath, errno, strerror(errno));
+        close(fd);
+        return -1;
+    }
+
+    printf("Successfully acquired lock - file is ready: %s\n", filepath);
+
+    /* Release lock and close */
+    flock(fd, LOCK_UN);
+    close(fd);
+
+    return 0;
+}
