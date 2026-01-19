@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <time.h>
+#include <fnmatch.h>
 #include "../../common/types.h"
 #include "file_utils.h"
 #include "scanner.h"
