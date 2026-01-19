@@ -32,7 +32,7 @@
  * @param count Number of dumps found (output)
  * @return ERR_SUCCESS on success
  */
-int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count);
+int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count, const char *dump_extn_pattern);
 
 int process_file_entry(char *fullpath, char *dump_type, const config_t *config);
 char *extract_pname(const char *filepath);

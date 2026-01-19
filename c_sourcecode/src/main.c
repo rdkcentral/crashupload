@@ -186,7 +186,7 @@ int main_test(int argc, char *argv[]) {
     }
 
     /* 5.1: Scan for dumps */
-    if (scanner_find_dumps(".", &dumps, &dump_count) <= 0) {
+    if (scanner_find_dumps(".", &dumps, &dump_count, dump_extn_pattern) <= 0) {
         logger_info("No dumps found or scan failed");
         goto cleanup;
     }

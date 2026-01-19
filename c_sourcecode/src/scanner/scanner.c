@@ -682,33 +682,36 @@ int process_file_entry(char *fullpath, char *dump_type, const config_t *config)
 
 
 /* FULL IMPLEMENTATION - Check if file has dump extension */
-static int is_dump_file(const char *filename) {
+static int is_dump_file(const char *filename, const char *dumps_extn_pattern) {
+    if (!filename || !dumps_extn_pattern) {
+        return 0;
+    }
+
     size_t len = strlen(filename);
     
     /* Check for .dmp extension (minidump) */
     if (len > 4 && strcmp(filename + len - 4, ".dmp") == 0) {
         return 1;
-    }
-    
-    /* Check for .core extension (coredump) */
-    if (len > 5 && strcmp(filename + len - 5, ".core") == 0) {
-        return 2;
-    }
-    
-    /* Check for core.* pattern (systemd coredumps) */
-    if (strncmp(filename, "core.", 5) == 0) {
-        return 2;
-    }
-
-    if (len > 4 && strcmp(filename + len - 4, ".tgz") == 0) {
+    } else if (len > 4 && strcmp(filename + len - 4, ".tgz") == 0) {
+        /* Check for .tgz extension */
         return 3;
+    } else {
+        /* Check for core dump patterns */
+        int match = (fnmatch(dumps_extn_pattern, filename, 0) == 0) ? 1 : 0;
+        if (match == 1) {
+            printf("core name match=%s\n", filename);
+            return 2;
+        } else {
+            printf("core name not match=%s\n", filename);
+            return 0;
+        }
     }
     
     return 0;
 }
 
 /* FULL IMPLEMENTATION - Scan directory for dump files */
-int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count) {
+int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count, const char *dumps_extn_pattern) {
     if (!path || !dumps || !count) {
         return -1;
     }
@@ -728,7 +731,7 @@ int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count) {
             continue;
         }
         
-        int dump_type = is_dump_file(entry->d_name);
+        int dump_type = is_dump_file(entry->d_name, dumps_extn_pattern);
         if (dump_type == 0) {
             continue;
         }
