@@ -164,7 +164,13 @@ utils_gtest_LDFLAGS = \
 upload_gtest_SOURCES = \
 	upload_gtest.cpp \
 	upload_gmock.cpp \
-	../c_sourcecode/src/upload/upload.c
+	../c_sourcecode/src/upload/upload.c \
+	../c_sourcecode/src/t2Interface/telemetryinterface.c
+
+upload_gtest_CFLAGS = \
+	$(AM_CFLAGS) \
+	-include rdkcertselector.h \
+	-include common_device_api.h
 
 upload_gtest_LDADD = \
 	-lgtest \
@@ -183,7 +189,8 @@ mainapp_gtest_SOURCES = \
 	mainapp_gtest.cpp \
 	mainapp_gmock.cpp \
 	../c_sourcecode/src/main.c \
-	../c_sourcecode/src/init/system_init.c
+	../c_sourcecode/src/init/system_init.c \
+	../c_sourcecode/src/t2Interface/telemetryinterface.c
 
 mainapp_gtest_LDADD = \
 	-lgtest \

@@ -24,6 +24,7 @@
  */
 
 #include "telemetryinterface.h"
+#include <stdio.h>
 
 #ifdef T2_EVENT_ENABLED
 #include <telemetry_busmessage_sender.h>
@@ -41,7 +42,9 @@
 void t2Init(char *component) {
 #ifdef T2_EVENT_ENABLED
     t2_init(component);
+    printf("[NOT IMPLEMENTED]");
 #endif
+    printf("T2 Telemetry Initialized for component: %s\n", component);
 }
 
 /**
@@ -54,7 +57,9 @@ void t2Init(char *component) {
 void t2Uninit(void){
 #ifdef T2_EVENT_ENABLED
     t2_uninit();
+    printf("[NOT IMPLEMENTED]");
 #endif
+    printf("T2 Telemetry Uninitialized\n");
 }
 
 /**
@@ -70,7 +75,9 @@ void t2Uninit(void){
 void t2CountNotify(char *marker, int val) {
 #ifdef T2_EVENT_ENABLED
     t2_event_d(marker, val);
+    printf("[NOT IMPLEMENTED]");
 #endif
+    printf("Telemetry Count Event Sent: Marker=%s, Value=%d\n", marker, val);
 }
 
 /**
@@ -87,5 +94,7 @@ void t2ValNotify( char *marker, char *val )
 {
 #ifdef T2_EVENT_ENABLED
     t2_event_s(marker, val);
+    printf("[NOT IMPLEMENTED]");
 #endif
+    printf("Telemetry String Event Sent: Marker=%s, Value=%s\n", marker, val);
 }

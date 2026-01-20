@@ -207,7 +207,11 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
 	        snprintf(fqdn, sizeof(fqdn), "%s", out_url);
 		curl_ret = -1;
 	    }
+#if defined(GTEST_ENABLE)
+        unlink(s3_url_file); 
+#else
 	    //unlink(s3_url_file);
+#endif
 	} else {
 	    snprintf(fqdn, sizeof(fqdn), "%s", url);
 	}
@@ -243,7 +247,11 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
             t2CountNotify("SYS_INFO_S3CoreUploaded", 1);
         }
 	    printf("Removing uploaded $DUMP_NAME file %s\n", filepath);
+#if defined(GTEST_ENABLE)
+        unlink(filepath); 
+#else
 	    // unlink(filepath); // DEBUG
+#endif
 	    break;
 	}
     } else {
@@ -343,8 +351,12 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
             t2CountNotify("SYST_INFO_minidumpUpld", 1);
         }
         printf("Execution Status: %d, S3 Amazon Upload of $DUMP_NAME Success\n",status);
-	printf("Removing file %s\n", archive->archive_name);
-	// unlink(archive->archive_name); // DEBUG
+	    printf("Removing file %s\n", archive->archive_name);
+#if defined(GTEST_ENABLE)
+        unlink(archive->archive_name); 
+#else
+	    // unlink(archive->archive_name); // DEBUG
+#endif
     } else {
         printf("S3 Amazon Upload of minidump Failed..!\n");
 	if (config->dump_type == DUMP_TYPE_MINIDUMP) {
@@ -352,7 +364,11 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
 	    //TODO: save_dump();
 	} else {
 	    printf("Removing file %s\n", archive->archive_name);
+#if defined(GTEST_ENABLE)
+        unlink(archive->archive_name); 
+#else
 	    // unlink(archive->archive_name); // DEBUG
+#endif
 	    set_time("/tmp/.minidump_upload_timestamps", CURRENT_TIME);
 	}
     }

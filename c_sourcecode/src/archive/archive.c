@@ -227,16 +227,19 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
 	printf("archive_create_smart Invalid Argument\n");
         return -1;
     }
-    tmp = strstr(new_dump_name, "<#=#>");
-    if (tmp != NULL) {
-        printf("Remove <#=#> from the dump name:%s\n",new_dump_name);
-	*tmp = '_';
-	tmp++;
-	strcpy(tmp, tmp+4);
-	strcpy(new_dump_name, tmp);
-	new_dump_name[strlen(tmp)] = '\0';
+
+    const char *pattern = "<#=#>";
+    const size_t pattern_len = 5;  // Length of "<#=#>"
+    printf("archive_create_smart() Before process dump name=%s\n", new_dump_name);
+    // Sanitize dump name to replace "<#=#>" with "_"
+    while((tmp = strstr(new_dump_name, pattern)) != NULL) {
+        printf("  -> Found '<#=#>' at position %ld\n", (long)(tmp - new_dump_name));
+        *tmp = '_';
+        strcpy(tmp + 1, tmp + pattern_len);
+        printf("  -> Replaced with '_', shifted string\n"); 
     }
     printf("archive_create_smart() After process dump name=%s\n", new_dump_name);
+    
     //char tmp1[512] = {0};
     //snprintf(tmp1, sizeof(tmp1), "%s/%s", config->working_dir_path, new_dump_name);
     //strcpy(new_dump_name, tmp1);

@@ -85,11 +85,11 @@ protected:
     archive_info_t test_archive;
     char test_new_dump_name[512];
     
-    // Test file paths
-    const char* test_dump_file = "/tmp/test_crashupload_dump.dmp";
-    const char* test_version_file = "/tmp/test_version.txt";
-    const char* test_core_log = "/tmp/test_core.log";
-    const char* test_crashed_url = "/tmp/test_crashed_url.txt";
+    // Test file paths - use current directory to avoid cross-device link errors
+    const char* test_dump_file = "./test_crashupload_dump.dmp";
+    const char* test_version_file = "./test_version.txt";
+    const char* test_core_log = "./test_core.log";
+    const char* test_crashed_url = "./test_crashed_url.txt";
     const char* test_log_files = "/tmp/minidump_log_files.txt";
 
     void SetUp() override {
@@ -114,9 +114,9 @@ protected:
         test_config.dump_type = DUMP_TYPE_MINIDUMP;
         test_config.device_type = DEVICE_TYPE_MEDIACLIENT;
         test_config.build_type = BUILD_TYPE_PROD;
-        strcpy(test_config.working_dir_path, "/opt/minidumps");
+        strcpy(test_config.working_dir_path, ".");  // Use current directory
         strcpy(test_config.core_log_file, test_core_log);
-        strcpy(test_config.log_path, "/opt/logs");
+        strcpy(test_config.log_path, ".");  // Use current directory
         strcpy(test_config.box_type, "XG1v4");
         
         // Setup test platform
@@ -149,12 +149,15 @@ protected:
         unlink(test_core_log);
         unlink(test_crashed_url);
         unlink(test_log_files);
-        unlink("/tmp/set_crash_reboot_flag");
+        unlink("./set_crash_reboot_flag");
         
-        // Clean up generated archives
-        unlink("/opt/minidumps/test_dump.dmp");
-        unlink("/opt/minidumps/test_dump.dmp.tgz");
-        unlink("/opt/minidumps/test_dump.dmp.core.tgz");
+        // Clean up generated archives and renamed files
+        unlink("./test_dump.dmp");
+        unlink("./test_dump.dmp.tgz");
+        unlink("./test_dump.dmp.core.tgz");
+        
+        // Clean up any process log files
+        system("rm -f ./mac*.log 2>/dev/null");
     }
     
     void CreateTestFile(const char* path, const char* content) {
@@ -438,6 +441,10 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_Minidump_WithProcessLogs_Success) {
     CreateTestFile("/tmp/proc1.log", "Process 1 log");
     CreateTestFile("/tmp/proc2.log", "Process 2 log");
     CreateTestFile("/tmp/proc3.log", "Process 3 log");
+
+    // Verify log files were created
+    ASSERT_TRUE(FileExists(test_log_files)) << "Log files list not created";
+    ASSERT_TRUE(FileExists("/tmp/proc1.log")) << "Proc1 log not created";
     
     test_config.dump_type = DUMP_TYPE_MINIDUMP;
     test_config.device_type = DEVICE_TYPE_MEDIACLIENT;

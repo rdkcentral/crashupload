@@ -55,6 +55,10 @@ struct ScannerMockState {
     int join_path_return_value;
     bool join_path_custom_behavior;
     
+    // wait_for_file_size_stable
+    int wait_for_file_size_stable_return_value;
+    bool wait_for_file_size_stable_custom_behavior;
+    
     // t2 telemetry
     bool t2_enabled;
     int t2_val_notify_call_count;
@@ -67,6 +71,8 @@ static ScannerMockState g_scanner_mock_state = {
     1,      // is_regular_file returns 1 (true) by default
     false,  // no custom behavior
     0,      // join_path returns 0 (success) by default
+    false,  // no custom behavior
+    0,      // wait_for_file_size_stable returns 0 (success) by default
     false,  // no custom behavior
     false,  // t2 disabled by default
     0,      // t2 call counts
@@ -100,6 +106,15 @@ void set_mock_join_path_behavior(int return_value) {
 }
 
 /**
+ * Set behavior for wait_for_file_size_stable mock
+ * @param return_value Return value for the mock (0 for success, -1 for error)
+ */
+void set_mock_wait_for_file_size_stable_behavior(int return_value) {
+    g_scanner_mock_state.wait_for_file_size_stable_return_value = return_value;
+    g_scanner_mock_state.wait_for_file_size_stable_custom_behavior = true;
+}
+
+/**
  * Enable or disable T2 telemetry mocking
  * @param enabled true to enable telemetry, false to disable
  */
@@ -115,6 +130,8 @@ void reset_scanner_mocks() {
     g_scanner_mock_state.is_regular_file_custom_behavior = false;
     g_scanner_mock_state.join_path_return_value = 0;
     g_scanner_mock_state.join_path_custom_behavior = false;
+    g_scanner_mock_state.wait_for_file_size_stable_return_value = 0;
+    g_scanner_mock_state.wait_for_file_size_stable_custom_behavior = false;
     g_scanner_mock_state.t2_enabled = false;
     g_scanner_mock_state.t2_val_notify_call_count = 0;
     g_scanner_mock_state.t2_count_notify_call_count = 0;
@@ -235,6 +252,38 @@ int join_path(char *dest, size_t dest_size, const char *dir, const char *name) {
     
     return 0;
 }
+
+/**
+ * Mock implementation of wait_for_file_size_stable()
+ * Waits for file size to stabilize (no growth for specified duration)
+ * 
+ * @param filepath Path to file to monitor
+ * @param check_interval_sec Interval between size checks (seconds)
+ * @param stability_checks Number of consecutive stable checks required
+ * @param max_iterations Maximum number of check iterations
+ * @return 0 on success (file stable), -1 on error or timeout
+ * 
+ * Default behavior: Returns 0 (success - file is stable)
+ * Custom behavior: Returns configured return value
+ */
+int wait_for_file_size_stable(const char *filepath, int check_interval_sec, int stability_checks, int max_iterations) {
+    if (!filepath) {
+        return -1;
+    }
+    
+    // Suppress unused parameter warnings
+    (void)check_interval_sec;
+    (void)stability_checks;
+    (void)max_iterations;
+    
+    if (g_scanner_mock_state.wait_for_file_size_stable_custom_behavior) {
+        return g_scanner_mock_state.wait_for_file_size_stable_return_value;
+    }
+    
+    // Default: Return success (file is stable)
+    return 0;
+}
+
 #if 0
 /**
  * Mock implementation of t2ValNotify()

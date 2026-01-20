@@ -56,7 +56,7 @@ extern "C" {
 #include "../c_sourcecode/common/constants.h"
 
 // External functions being tested
-int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count);
+int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count, const char *dump_extn_pattern);
 int scanner_get_sorted_dumps(dump_file_t **dumps, int *count);
 void scanner_cleanup(void);
 int process_file_entry(char *fullpath, char *dump_type, const config_t *config);
@@ -170,26 +170,26 @@ TEST_F(ScannerTest, FindDumps_NullPath) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(nullptr, &dumps, &count);
+    int result = scanner_find_dumps(nullptr, &dumps, &count, "*.core");
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(ScannerTest, FindDumps_NullDumpsPointer) {
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, nullptr, &count);
+    int result = scanner_find_dumps(test_dump_dir, nullptr, &count, "*.core");
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(ScannerTest, FindDumps_NullCountPointer) {
     dump_file_t* dumps = nullptr;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, nullptr);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, nullptr, "*.core");
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(ScannerTest, FindDumps_AllNullParameters) {
-    int result = scanner_find_dumps(nullptr, nullptr, nullptr);
+    int result = scanner_find_dumps(nullptr, nullptr, nullptr, "*.core");
     EXPECT_EQ(result, -1);
 }
 
@@ -197,7 +197,7 @@ TEST_F(ScannerTest, FindDumps_InvalidPath) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps("/nonexistent/path/12345", &dumps, &count);
+    int result = scanner_find_dumps("/nonexistent/path/12345", &dumps, &count, "*.core");
     EXPECT_EQ(result, -1);
 }
 
@@ -205,7 +205,7 @@ TEST_F(ScannerTest, FindDumps_EmptyDirectory) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     EXPECT_EQ(result, 0);
     EXPECT_EQ(count, 0);
 }
@@ -218,7 +218,7 @@ TEST_F(ScannerTest, FindDumps_OnlyMinidumps) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     EXPECT_EQ(result, 3);
     EXPECT_EQ(count, 3);
     EXPECT_NE(dumps, nullptr);
@@ -238,7 +238,8 @@ TEST_F(ScannerTest, FindDumps_OnlyCoredumps) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    // Use "*core*" pattern to match both "*.core" and "core.*" files
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*core*");
     EXPECT_EQ(result, 3);
     EXPECT_EQ(count, 3);
     
@@ -257,7 +258,8 @@ TEST_F(ScannerTest, FindDumps_MixedDumpTypes) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    // Use "*core*" pattern to match both "*.core" and "core.*" files
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*core*");
     EXPECT_EQ(result, 4);
     EXPECT_EQ(count, 4);
 }
@@ -270,7 +272,7 @@ TEST_F(ScannerTest, FindDumps_WithTgzFiles) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     EXPECT_EQ(result, 3);
     EXPECT_EQ(count, 3);
 }
@@ -284,7 +286,7 @@ TEST_F(ScannerTest, FindDumps_IgnoreNonDumpFiles) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     EXPECT_EQ(result, 1);
     EXPECT_EQ(count, 1);
 }
@@ -296,7 +298,7 @@ TEST_F(ScannerTest, FindDumps_IgnoreDotFiles) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     // . and .. are skipped, .hidden.dmp should be processed if it's a valid dump
     EXPECT_GE(result, 1);
     EXPECT_GE(count, 1);
@@ -313,7 +315,7 @@ TEST_F(ScannerTest, FindDumps_MaxDumpsLimit) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     // Should stop at MAX_DUMPS (100)
     EXPECT_LE(count, 100);
     EXPECT_EQ(count, result);
@@ -325,7 +327,7 @@ TEST_F(ScannerTest, FindDumps_VerifyFilePaths) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     EXPECT_EQ(result, 1);
     EXPECT_EQ(count, 1);
     
@@ -341,7 +343,7 @@ TEST_F(ScannerTest, FindDumps_VerifyFileSize) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     EXPECT_EQ(result, 2);
     EXPECT_EQ(count, 2);
     
@@ -357,7 +359,7 @@ TEST_F(ScannerTest, FindDumps_SkipDirectories) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     // Should only find the file, not the directory
     EXPECT_EQ(result, 1);
     EXPECT_EQ(count, 1);
@@ -398,7 +400,7 @@ TEST_F(ScannerTest, GetSortedDumps_SingleFile) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    scanner_find_dumps(test_dump_dir, &dumps, &count);
+    scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     
     dumps = nullptr;
     count = 0;
@@ -418,7 +420,7 @@ TEST_F(ScannerTest, GetSortedDumps_MultipleSorted) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    scanner_find_dumps(test_dump_dir, &dumps, &count);
+    scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     
     dumps = nullptr;
     count = 0;
@@ -455,7 +457,7 @@ TEST_F(ScannerTest, Cleanup_AfterFindDumps) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    scanner_find_dumps(test_dump_dir, &dumps, &count);
+    scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     EXPECT_GT(count, 0);
     
     scanner_cleanup();
@@ -984,7 +986,7 @@ TEST_F(ScannerTest, EdgeCase_VeryLongFilename) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     EXPECT_GE(result, 0);
 }
 
@@ -994,7 +996,7 @@ TEST_F(ScannerTest, EdgeCase_SpecialCharactersInPath) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps("/tmp/scanner_test/dir with spaces", &dumps, &count);
+    int result = scanner_find_dumps("/tmp/scanner_test/dir with spaces", &dumps, &count, "*.core");
     // Should handle path with spaces
     EXPECT_GE(result, -1);
 }
@@ -1012,7 +1014,7 @@ TEST_F(ScannerTest, EdgeCase_SymbolicLink) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     // Should find at least the real file
     EXPECT_GE(result, 1);
 }
@@ -1023,7 +1025,7 @@ TEST_F(ScannerTest, EdgeCase_ZeroByteFile) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     EXPECT_EQ(result, 1);
     EXPECT_EQ(count, 1);
     
@@ -1038,7 +1040,7 @@ TEST_F(ScannerTest, EdgeCase_LargeFile) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     EXPECT_EQ(result, 1);
     EXPECT_EQ(count, 1);
     
@@ -1061,7 +1063,7 @@ TEST_F(ScannerTest, StressTest_ManyFilesRepeated) {
         dump_file_t* dumps = nullptr;
         int count = 0;
         
-        int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+        int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
         EXPECT_GE(result, 0);
         EXPECT_LE(count, 100);
     }
@@ -1098,7 +1100,7 @@ TEST_F(ScannerTest, RobustnessTest_CorruptedFiles) {
     dump_file_t* dumps = nullptr;
     int count = 0;
     
-    int result = scanner_find_dumps(test_dump_dir, &dumps, &count);
+    int result = scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
     // Should not crash
     EXPECT_GE(result, -1);
 }
@@ -1119,7 +1121,7 @@ TEST_F(ScannerTest, ConcurrentAccess_MultipleCleanups) {
     
     dump_file_t* dumps1 = nullptr;
     int count1 = 0;
-    scanner_find_dumps(test_dump_dir, &dumps1, &count1);
+    scanner_find_dumps(test_dump_dir, &dumps1, &count1, "*.core");
     
     scanner_cleanup();
     scanner_cleanup(); // Double cleanup
