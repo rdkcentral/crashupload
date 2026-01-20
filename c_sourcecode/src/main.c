@@ -180,10 +180,10 @@ int main_test(int argc, char *argv[]) {
     dump_file_t *dumps = NULL;
     int dump_count = 0;
     if (0 != (chdir(config.working_dir_path))) {
-        printf("Error in chnage dir:%s\n",config.working_dir_path);
+        printf("Error in change dir:%s\n",config.working_dir_path);
 	goto cleanup;
     } else {
-        printf("Successfully chnage dir to %s\n", config.working_dir_path);
+        printf("Successfully change dir to %s\n", config.working_dir_path);
     }
 
     /* 5.1: Scan for dumps */

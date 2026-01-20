@@ -42,9 +42,9 @@
 void t2Init(char *component) {
 #ifdef T2_EVENT_ENABLED
     t2_init(component);
-    printf("[NOT IMPLEMENTED]");
+#else
+    printf("[NOT IMPLEMENTED] T2 Telemetry Initialized for component: %s\n", component);
 #endif
-    printf("T2 Telemetry Initialized for component: %s\n", component);
 }
 
 /**
@@ -57,9 +57,9 @@ void t2Init(char *component) {
 void t2Uninit(void){
 #ifdef T2_EVENT_ENABLED
     t2_uninit();
-    printf("[NOT IMPLEMENTED]");
+#else
+    printf("[NOT IMPLEMENTED] T2 Telemetry Uninitialized\n");
 #endif
-    printf("T2 Telemetry Uninitialized\n");
 }
 
 /**
@@ -75,9 +75,9 @@ void t2Uninit(void){
 void t2CountNotify(char *marker, int val) {
 #ifdef T2_EVENT_ENABLED
     t2_event_d(marker, val);
-    printf("[NOT IMPLEMENTED]");
+#else
+    printf("[NOT IMPLEMENTED] T2 Telemetry Count Event Sent: Marker=%s, Value=%d\n", marker, val);
 #endif
-    printf("Telemetry Count Event Sent: Marker=%s, Value=%d\n", marker, val);
 }
 
 /**
@@ -94,7 +94,7 @@ void t2ValNotify( char *marker, char *val )
 {
 #ifdef T2_EVENT_ENABLED
     t2_event_s(marker, val);
-    printf("[NOT IMPLEMENTED]");
+#else
+    printf("[NOT IMPLEMENTED] T2 Telemetry String Event Sent: Marker=%s, Value=%s\n", marker, val);
 #endif
-    printf("Telemetry String Event Sent: Marker=%s, Value=%s\n", marker, val);
 }
