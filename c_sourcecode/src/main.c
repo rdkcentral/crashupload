@@ -134,7 +134,8 @@ int main_test(int argc, char *argv[]) {
 #endif
     }
     /* Step 2: Lock Acquisition */
-    lock_fd = lock_acquire(lock_file_path, 5, config.t2_enabled);
+    int lock_sec = (config.lock_mode == LOCK_MODE_WAIT) ? 5 : 0;
+    lock_fd = lock_acquire(lock_file_path, lock_sec, config.t2_enabled);
     if (lock_fd < LOCK_ACQUIRE_SUCCESS) {
         logger_error("Failed to acquire lock");
         printf("Failed to acquire lock\n");
