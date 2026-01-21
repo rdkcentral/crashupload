@@ -85,7 +85,7 @@ clean_build_artifacts() {
     rm -f stamp-h1 2>/dev/null || true
     rm -f libtool 2>/dev/null || true
     rm -f configure 2>/dev/null || true
-    rm -f Makefile.in Makefile 2>/dev/null || true
+    rm -f Makefile.in Makefile src/Makefile.in 2>/dev/null || true
     rm -f aclocal.m4 2>/dev/null || true
     rm -f compile depcomp install-sh missing 2>/dev/null || true
     rm -f config.sub config.guess 2>/dev/null || true

@@ -33,7 +33,7 @@ int acquire_process_lock_or_exit(const char *lock_path, bool t2_enabled)
     }
 
     if (flock(fd, LOCK_EX | LOCK_NB) < 0) {
-        printf("script is already working. ${path}.lock.d. Skip launch another instance...\n");
+        printf("Another execution is already working. %s. Skip launch another instance...\n", lock_path);
         if (t2_enabled == true) {
             t2CountNotify("SYST_WARN_NoMinidump", 1);
         }

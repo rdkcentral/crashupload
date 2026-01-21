@@ -49,10 +49,10 @@ void handle_signal(int no, siginfo_t* info, void* uc)
 {
     printf("Raise SIGTERM signal.\nSystemd Terminating, Removing the script locks\n");
     if (lock_dir_prefix == 1) {
-        unlink("/tmp/.uploadCoredumps");
+        unlink(COREDUMP_LOCK_FILE);
 	//dump file clean up is pending
     } else {
-        unlink("/tmp/.uploadMinidumps");
+        unlink(MINIDUMP_LOCK_FILE);
 	//dump file clean up is pending
     }
 }
@@ -107,10 +107,10 @@ int main_test(int argc, char *argv[]) {
     }
     if (1 == atoi(argv[2])) {
         lock_dir_prefix = 1;
-	    strcpy(lock_file_path, "/tmp/.uploadCoredumps");
+	    strcpy(lock_file_path, COREDUMP_LOCK_FILE);
     } else {
         lock_dir_prefix = 0;
-	    strcpy(lock_file_path, "/tmp/.uploadMinidumps");
+	    strcpy(lock_file_path, MINIDUMP_LOCK_FILE);
     }
     struct sigaction rdkv_newaction;
     memset(&rdkv_newaction, '\0', sizeof(rdkv_newaction));

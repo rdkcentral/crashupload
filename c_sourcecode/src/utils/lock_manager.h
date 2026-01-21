@@ -30,6 +30,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#define MINIDUMP_LOCK_FILE "/tmp/.uploadMinidumps"
+#define COREDUMP_LOCK_FILE  "/tmp/.uploadCoredumps"
+
 /**
  * @brief Acquire process lock
  * @param lock_file Path to lock file
