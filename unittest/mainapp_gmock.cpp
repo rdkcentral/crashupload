@@ -151,6 +151,9 @@ struct MainAppMockState {
     bool upload_process_custom_behavior;
     
     // Logger call counts
+    int logger_init_call_count;
+    int logger_exit_call_count;
+    int crashupload_log_call_count;
     int logger_error_call_count;
     int logger_info_call_count;
     int logger_warn_call_count;
@@ -196,6 +199,9 @@ static MainAppMockState g_mainapp_mock_state = {
     false,      // no custom behavior
     0,          // upload_process returns success
     false,      // no custom behavior
+    0,          // logger_init call count
+    0,          // logger_exit call count
+    0,          // crashupload_log call count
     0,          // logger_error call count
     0,          // logger_info call count
     0           // logger_warn call count
@@ -445,6 +451,9 @@ void reset_mainapp_mocks() {
     g_mainapp_mock_state.upload_process_return_value = 0;
     g_mainapp_mock_state.upload_process_custom_behavior = false;
     
+    g_mainapp_mock_state.logger_init_call_count = 0;
+    g_mainapp_mock_state.logger_exit_call_count = 0;
+    g_mainapp_mock_state.crashupload_log_call_count = 0;
     g_mainapp_mock_state.logger_error_call_count = 0;
     g_mainapp_mock_state.logger_info_call_count = 0;
     g_mainapp_mock_state.logger_warn_call_count = 0;
@@ -458,6 +467,9 @@ void reset_mainapp_mocks() {
  * Mock: Configuration initialization and loading
  */
 int config_init_load(config_t *config, int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
+    
     if (!config) {
         return -1;
     }
@@ -534,6 +546,8 @@ int lock_acquire(const char *lock_file, int timeout_sec) {
  * Mock: Lock release
  */
 void lock_release(int fd, const char *file) {
+    (void)fd;
+    (void)file;
     // No-op for mock
 }
 
@@ -574,6 +588,12 @@ bool privacy_uploads_blocked(const config_t *config) {
  */
 int cleanup_batch(const char *working_dir, const char *pattern, 
                   const char *cleanup_base, char *dump_type, int max_files) {
+    (void)working_dir;
+    (void)pattern;
+    (void)cleanup_base;
+    (void)dump_type;
+    (void)max_files;
+    
     g_mainapp_mock_state.cleanup_batch_call_count++;
     return g_mainapp_mock_state.cleanup_batch_return_value;
 }
@@ -582,6 +602,8 @@ int cleanup_batch(const char *working_dir, const char *pattern,
  * Mock: Remove pending dumps
  */
 void remove_pending_dumps(const char *working_dir, const char *pattern) {
+    (void)working_dir;
+    (void)pattern;
     // No-op for mock
 }
 
@@ -713,6 +735,8 @@ int trim_process_name_in_path(const char *full_path, const char *process_name,
         return -1;
     }
     
+    (void)max_pname_trim;
+    
     if (g_mainapp_mock_state.trim_process_name_in_path_custom_behavior) {
         if (g_mainapp_mock_state.trim_process_name_in_path_return_value == 0) {
             strncpy(out, g_mainapp_mock_state.trim_process_name_in_path_output, out_len - 1);
@@ -755,6 +779,8 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
  * Mock: Check if box is rebooting
  */
 bool is_box_rebooting(bool t2_enabled) {
+    (void)t2_enabled;
+    
     if (g_mainapp_mock_state.is_box_rebooting_custom_behavior) {
         return g_mainapp_mock_state.is_box_rebooting_return_value;
     }
@@ -766,6 +792,8 @@ bool is_box_rebooting(bool t2_enabled) {
  * Mock: Rate limit check unified
  */
 int ratelimit_check_unified(dump_type_t dump) {
+    (void)dump;
+    
     if (g_mainapp_mock_state.ratelimit_check_unified_custom_behavior) {
         return g_mainapp_mock_state.ratelimit_check_unified_return_value;
     }
@@ -792,9 +820,37 @@ int upload_process(archive_info_t *archive, const config_t *config,
 }
 
 /**
+ * Mock: Logger init
+ */
+int logger_init(void) {
+    g_mainapp_mock_state.logger_init_call_count++;
+    // Default: success
+    return 0;
+}
+
+/**
+ * Mock: Logger exit
+ */
+void logger_exit(void) {
+    g_mainapp_mock_state.logger_exit_call_count++;
+}
+
+/**
+ * Mock: Crashupload log (fallback logging)
+ */
+void crashupload_log(unsigned int level, const char *file, int line, const char *msg, ...) {
+    (void)level;
+    (void)file;
+    (void)line;
+    (void)msg;
+    g_mainapp_mock_state.crashupload_log_call_count++;
+}
+
+/**
  * Mock: Logger error
  */
 void logger_error(const char *fmt, ...) {
+    (void)fmt;
     g_mainapp_mock_state.logger_error_call_count++;
 }
 
@@ -802,6 +858,7 @@ void logger_error(const char *fmt, ...) {
  * Mock: Logger info
  */
 void logger_info(const char *fmt, ...) {
+    (void)fmt;
     g_mainapp_mock_state.logger_info_call_count++;
 }
 
@@ -809,6 +866,7 @@ void logger_info(const char *fmt, ...) {
  * Mock: Logger warn
  */
 void logger_warn(const char *fmt, ...) {
+    (void)fmt;
     g_mainapp_mock_state.logger_warn_call_count++;
 }
 
