@@ -77,6 +77,7 @@ int main(int argc, char *argv[]) {
 #else
 int main_test(int argc, char *argv[]) {
 #endif
+    logger_init(); /* Initialize the logger */
     config_t config;
     platform_config_t platform;
     int lock_fd = -1;
@@ -96,7 +97,8 @@ int main_test(int argc, char *argv[]) {
     char time_stamp_file_name[64] = {0};
     
     if (argc < 3) {
-        printf("Number of parameter is less\n");
+        CRASHUPLOAD_ERROR("Number of parameter is less\n");
+        logger_exit();
 #ifndef GTEST_ENABLE
 	exit(1);
 #else
@@ -105,10 +107,10 @@ int main_test(int argc, char *argv[]) {
     }
     if (1 == atoi(argv[2])) {
         lock_dir_prefix = 1;
-	strcpy(lock_file_path, "/tmp/.uploadCoredumps");
+	    strcpy(lock_file_path, "/tmp/.uploadCoredumps");
     } else {
         lock_dir_prefix = 0;
-	strcpy(lock_file_path, "/tmp/.uploadMinidumps");
+	    strcpy(lock_file_path, "/tmp/.uploadMinidumps");
     }
     struct sigaction rdkv_newaction;
     memset(&rdkv_newaction, '\0', sizeof(rdkv_newaction));
@@ -117,16 +119,17 @@ int main_test(int argc, char *argv[]) {
     rdkv_newaction.sa_flags = SA_SIGINFO;
     ret_sig = sigaction(SIGTERM, &rdkv_newaction, NULL);
     if (ret_sig == -1) {
-        printf( "SIGTERM handler install fail\n");
+        CRASHUPLOAD_ERROR("SIGTERM handler install fail\n");
     }else {
-        printf( "SIGTERM handler install success\n");
+        CRASHUPLOAD_INFO("SIGTERM handler install success\n");
     }
     /* Step 1: Consolidated Initialization */
     /* TODO: Implement consolidated initialization */
     if (system_initialize(argc, argv, &config, &platform) != SYSTEM_INIT_SUCCESS) {
-        logger_error("System initialization failed:%d\n", lock_fd);
+        CRASHUPLOAD_ERROR("System initialization failed:%d\n", lock_fd);
         printf("Failed system_initialize\n");
-        /* TODO: Add t2Uninit() here for early exit path */
+        t2Uninit();
+        logger_exit();
 #ifndef GTEST_ENABLE
         exit(1);
 #else
@@ -137,9 +140,10 @@ int main_test(int argc, char *argv[]) {
     int lock_sec = (config.lock_mode == LOCK_MODE_WAIT) ? 5 : 0;
     lock_fd = lock_acquire(lock_file_path, lock_sec, config.t2_enabled);
     if (lock_fd < LOCK_ACQUIRE_SUCCESS) {
-        logger_error("Failed to acquire lock");
+        CRASHUPLOAD_ERROR("Failed to acquire lock");
         printf("Failed to acquire lock\n");
-        /* TODO: Add t2Uninit() here for early exit path */
+        t2Uninit();
+        logger_exit();
 #ifndef GTEST_ENABLE
         exit(0);
 #else
@@ -149,7 +153,7 @@ int main_test(int argc, char *argv[]) {
     /* Step 2: Combined Prerequisites Check */
     /* TODO: Implement combined network + time check */
     if (prerequisites_wait(&config, PREREQUISITE_TIMEOUT_SEC) != PREREQUISITES_SUCCESS) {
-        logger_error("Prerequisites check failed");
+        CRASHUPLOAD_ERROR("Prerequisites check failed");
         printf("Prerequisites check failed\n");
         //lock_release(lock_fd, lock_file_path);
         goto cleanup;
@@ -165,52 +169,56 @@ int main_test(int argc, char *argv[]) {
 #endif
     if (config.dump_type == DUMP_TYPE_MINIDUMP) {
             strcpy(dump_extn_pattern, "*.dmp*");
-	    strcpy(time_stamp_file_name, "/tmp/.minidump_upload_timestamps");
+	        strcpy(time_stamp_file_name, "/tmp/.minidump_upload_timestamps");
         } else if (config.dump_type == DUMP_TYPE_COREDUMP) {
             strcpy(dump_extn_pattern, "*core.prog*.gz*");
-	    strcpy(time_stamp_file_name, "/tmp/.coredump_upload_timestamps");
+	        strcpy(time_stamp_file_name, "/tmp/.coredump_upload_timestamps");
         } else {
-	    strcpy(time_stamp_file_name, "/tmp/.minidump_upload_timestamps");
-            printf("Invalid Dump Type\n");
+	        strcpy(time_stamp_file_name, "/tmp/.minidump_upload_timestamps");
+            CRASHUPLOAD_ERROR("Invalid Dump Type\n");
         }
 
     cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES);
+    
     /* Step 5: Process Dumps */
     /* TODO: Implement dump processing loop */
     dump_file_t *dumps = NULL;
     int dump_count = 0;
     if (0 != (chdir(config.working_dir_path))) {
-        printf("Error in change dir:%s\n",config.working_dir_path);
-	goto cleanup;
+        CRASHUPLOAD_ERROR("Error in change dir:%s\n",config.working_dir_path);
+	    goto cleanup;
     } else {
+        CRASHUPLOAD_INFO("Successfully change dir to %s\n", config.working_dir_path);
         printf("Successfully change dir to %s\n", config.working_dir_path);
     }
 
     /* 5.1: Scan for dumps */
     if (scanner_find_dumps(".", &dumps, &dump_count, dump_extn_pattern) <= 0) {
-        logger_info("No dumps found or scan failed");
+        CRASHUPLOAD_INFO("No dumps found or scan failed");
         goto cleanup;
     }
     printf("After scan dump found:%d\n", dump_count);
     archive = malloc(dump_count*sizeof(archive_info_t));
     if (archive == NULL) {
-        printf("Error to allocate memory for archive\n");
-	ret = 1;
-	goto cleanup;
+        CRASHUPLOAD_ERROR("Error to allocate memory for archive\n");
+	    ret = 1;
+	    goto cleanup;
     }
+
     memset(archive, '\0',dump_count * sizeof(archive));
     /* 5.2: Process each dump */
     for (int i = 0; i < dump_count; i++) {
+        CRASHUPLOAD_INFO("** Processing dump: %s", (dumps+i)->path);
         printf("List of dump file=%s=======>\n", (dumps+i)->path);
-	process_file_entry((dumps+i)->path, argv[2], &config);
+	    process_file_entry((dumps+i)->path, argv[2], &config);
         printf("List of dump file After process_file_entry=%s=======>\n", (dumps+i)->path);
-	len = strlen((dumps+i)->path);
-	if (len > 4 && strcmp((dumps+i)->path + len - 4, ".tgz") == 0) {
-	    printf("Skip archiving %s as it is a tarball already.\n", (dumps+i)->path);
-	    snprintf((archive+i)->archive_name, sizeof((archive+i)->archive_name), "%s", (dumps+i)->path);
-	    printf("Skip archiving %s as it is a tarball already.\n", (archive+i)->archive_name);
-	    continue;
-	}
+	    len = strlen((dumps+i)->path);
+	    if (len > 4 && strcmp((dumps+i)->path + len - 4, ".tgz") == 0) {
+            printf("Skip archiving %s as it is a tarball already.\n", (dumps+i)->path);
+            snprintf((archive+i)->archive_name, sizeof((archive+i)->archive_name), "%s", (dumps+i)->path);
+            printf("Skip archiving %s as it is a tarball already.\n", (archive+i)->archive_name);
+            continue;
+	    }
         if (0 == file_get_mtime_formatted((dumps+i)->path, mtime_date, sizeof(mtime_date))) {
 	    printf("mtime ============> %s\n", mtime_date);
 	    strncpy((dumps+i)->mtime_date, mtime_date, sizeof((dumps+i)->mtime_date));
@@ -339,6 +347,7 @@ cleanup:
     }
     /* Uninitialize telemetry */
     t2Uninit();
+    logger_exit();
 
 #ifndef GTEST_ENABLE
     exit(ret);

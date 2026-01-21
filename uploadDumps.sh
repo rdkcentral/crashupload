@@ -77,8 +77,25 @@ run_crashupload() {
     bin="$(find_crashupload || true)"
     if [ -n "$bin" ]; then
         Log "Delegating to crashupload binary: $bin"
-        "$bin" "$@"
-        return $?
+        "$bin" "$@" >> $CORE_LOG 2>&1
+        exit_code=$?
+
+        case $exit_code in
+            0)
+                Log "crashupload completed successfully."
+                return 0
+                ;;
+            1)
+                Log "Critical error in crashupload binary (exit=$exit_code)"
+                Log "Falling back to legacy uploader."
+                run_legacy "$@"
+                ;;
+            *)
+                Log "crashupload failed with: $exit_code"
+                Log "Falling back to legacy uploader."
+                run_legacy "$@"
+                ;;
+        esac
     fi
     Log "crashupload binary not found; falling back to legacy uploader."
     run_legacy "$@"
