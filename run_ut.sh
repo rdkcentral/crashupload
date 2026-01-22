@@ -404,8 +404,11 @@ run_single_test() {
     
     cd "$UNITTEST_DIR"
     
-    # Run test and capture exit code
-    if ./"$test_name"; then
+    # Create output directory for JSON reports
+    mkdir -p /tmp/Gtest_Report
+    
+    # Run test with JSON output and capture exit code
+    if ./"$test_name" --gtest_output=json:/tmp/Gtest_Report/${test_name}.json; then
         exit_code=0
     else
         exit_code=$?
