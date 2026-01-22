@@ -13,7 +13,7 @@ jobs:
     name: Execute unit tests in gtest test suite
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/rdkcentral/docker-rdk-ci:latest
+      image: ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
 
     steps:
       - name: Checkout code
