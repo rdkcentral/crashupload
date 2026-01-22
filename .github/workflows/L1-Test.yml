@@ -19,6 +19,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Build crashupload binary and dependencies
+        run: |
+          chmod +x cov_build.sh
+          ./cov_build.sh
+
       - name: Run unit tests
         run: sh run_ut.sh
 
