@@ -39,17 +39,40 @@
  *   - No external dependencies
  */
 int logger_init() {
-    printf("CRASHUPLOAD: Logger initialization\n");
+    printf("CRASHUPLOAD: Logger initialization starting...\n");
 #if defined(RDK_LOGGER)
-    if (rdk_logger_init(DEBUG_INI_NAME) != 0) {
+    printf("CRASHUPLOAD: RDK_LOGGER is DEFINED - using RDK Logger\n");
+    printf("CRASHUPLOAD: Initializing RDK Logger with config: %s\n", DEBUG_INI_NAME);
+    
+    int ret = rdk_logger_init(DEBUG_INI_NAME);
+    if (ret != 0) {
+        fprintf(stderr, "CRASHUPLOAD: ERROR - rdk_logger_init() failed with return code: %d\n", ret);
+        fprintf(stderr, "CRASHUPLOAD: Make sure %s exists and is properly configured\n", DEBUG_INI_NAME);
+        fprintf(stderr, "CRASHUPLOAD: Example config:\n");
+        fprintf(stderr, "  LOG.RDK.CRASHUPLOAD=INFO\n");
+        fprintf(stderr, "  ENABLE_STDOUT=1\n");
         return 1; // Return non-zero on failure
     }
-    printf("CRASHUPLOAD: Using RDK Logger\n");
-    RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.CRASHUPLOAD", "TEST: Logger initialized successfully - RDK Logger is working!\n");
+    
+    printf("CRASHUPLOAD: RDK Logger initialized successfully\n");
+    printf("CRASHUPLOAD: Testing RDK_LOG output...\n");
+    
+    // Test all log levels to verify they work
+    RDK_LOG(RDK_LOG_FATAL, "LOG.RDK.CRASHUPLOAD", "TEST: FATAL level message\n");
+    RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.CRASHUPLOAD", "TEST: ERROR level message\n");
+    RDK_LOG(RDK_LOG_WARN, "LOG.RDK.CRASHUPLOAD", "TEST: WARN level message\n");
+    RDK_LOG(RDK_LOG_INFO, "LOG.RDK.CRASHUPLOAD", "TEST: INFO level message\n");
+    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.CRASHUPLOAD", "TEST: DEBUG level message\n");
+    
+    printf("CRASHUPLOAD: If you don't see RDK_LOG messages above, check:\n");
+    printf("  1. /etc/debug.ini exists\n");
+    printf("  2. LOG.RDK.CRASHUPLOAD=INFO (or DEBUG/TRACE1) is set\n");
+    printf("  3. ENABLE_STDOUT=1 is set (for console output)\n");
+    printf("  4. Log file location if ENABLE_LOGFILE=1\n");
 #else
-    printf("CRASHUPLOAD: Using fallback logger\n");
+    printf("CRASHUPLOAD: RDK_LOGGER is NOT DEFINED - using fallback logger\n");
 #endif
-    printf("CRASHUPLOAD: Logger initialized successfully\n");
+    printf("CRASHUPLOAD: Logger initialization complete\n");
     return 0; // Return 0 on success
 }
 

@@ -77,6 +77,17 @@ int main(int argc, char *argv[]) {
 #else
 int main_test(int argc, char *argv[]) {
 #endif
+    /* Print build configuration */
+    printf("========================================\n");
+    printf("CRASHUPLOAD - Build Configuration\n");
+    printf("========================================\n");
+#if defined(RDK_LOGGER)
+    printf("RDK_LOGGER: ENABLED\n");
+#else
+    printf("RDK_LOGGER: DISABLED (using fallback)\n");
+#endif
+    printf("========================================\n");
+    
     logger_init(); /* Initialize the logger */
     config_t config;
     platform_config_t platform;
