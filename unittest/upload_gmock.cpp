@@ -630,4 +630,23 @@ int set_time(const char* deny_file, int type) {
     return 0;
 }
 
+/**
+ * Mock implementation of crashupload_log
+ * 
+ * This is the logging function used by crashupload components.
+ * For unit tests, we provide a minimal mock that discards log messages.
+ * 
+ * @param level Log level
+ * @param file Source file name
+ * @param line Source line number
+ * @param msg Format string and variadic arguments
+ */
+void crashupload_log(unsigned int level, const char *file, int line, const char *msg, ...) {
+    // Mock implementation - do nothing
+    (void)level;
+    (void)file;
+    (void)line;
+    (void)msg;
+}
+
 } // extern "C"

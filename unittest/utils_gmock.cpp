@@ -147,4 +147,23 @@ void TLSLOG(int level, const char *format, ...) {
 #define TLS_LOG_ERR 3
 #endif
 
+/**
+ * Mock implementation of crashupload_log
+ * 
+ * This is the logging function used by crashupload components.
+ * For unit tests, we provide a minimal mock that discards log messages.
+ * 
+ * @param level Log level
+ * @param file Source file name
+ * @param line Source line number
+ * @param msg Format string and variadic arguments
+ */
+void crashupload_log(unsigned int level, const char *file, int line, const char *msg, ...) {
+    // Mock implementation - do nothing
+    (void)level;
+    (void)file;
+    (void)line;
+    (void)msg;
+}
+
 } // extern "C"

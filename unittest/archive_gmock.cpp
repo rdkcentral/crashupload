@@ -304,4 +304,23 @@ int filePresentCheck(const char *filename) {
     return g_archive_mock_state.filePresentCheck_return_value;
 }
 
+/**
+ * Mock implementation of crashupload_log
+ * 
+ * This is the logging function used by crashupload components.
+ * For unit tests, we provide a minimal mock that discards log messages.
+ * 
+ * @param level Log level
+ * @param file Source file name
+ * @param line Source line number
+ * @param msg Format string and variadic arguments
+ */
+void crashupload_log(unsigned int level, const char *file, int line, const char *msg, ...) {
+    // Mock implementation - do nothing
+    (void)level;
+    (void)file;
+    (void)line;
+    (void)msg;
+}
+
 } // extern "C"

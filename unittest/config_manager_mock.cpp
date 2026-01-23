@@ -1,4 +1,4 @@
-/**
+=/**
  * Copyright 2025 RDK Management
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -184,6 +184,33 @@ int filePresentCheck(const char* filename) {
     
     // Return mocked behavior
     return g_mock_state.file_present_return_value;
+}
+
+/**
+ * Mock implementation of crashupload_log
+ * 
+ * This is the logging function used by crashupload components.
+ * For unit tests, we provide a minimal mock that discards log messages.
+ * 
+ * @param level Log level
+ * @param file Source file name
+ * @param line Source line number
+ * @param msg Format string and variadic arguments
+ */
+void crashupload_log(unsigned int level, const char *file, int line, const char *msg, ...) {
+    // Mock implementation - do nothing or optionally print for debugging
+    // Uncomment the following lines if you want to see log output during tests:
+    // va_list args;
+    // va_start(args, msg);
+    // printf("[TEST LOG] [%s:%d] ", file, line);
+    // vprintf(msg, args);
+    // printf("\n");
+    // va_end(args);
+    
+    (void)level;
+    (void)file;
+    (void)line;
+    (void)msg;
 }
 
 } // extern "C"
