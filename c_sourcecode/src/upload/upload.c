@@ -297,11 +297,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                     t2CountNotify("SYS_INFO_S3CoreUploaded", 1);
                 }
                 CRASHUPLOAD_INFO("Removing uploaded $DUMP_NAME file %s\n", filepath);
-#if defined(GTEST_ENABLE)
                 unlink(filepath);
-#else
-                // unlink(filepath); // DEBUG
-#endif
                 break;
             }
         }
@@ -430,11 +426,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         }
         CRASHUPLOAD_INFO("Execution Status: %d, S3 Amazon Upload of $DUMP_NAME Success\n", status);
         CRASHUPLOAD_INFO("Removing file %s\n", archive->archive_name);
-#if defined(GTEST_ENABLE)
         unlink(archive->archive_name);
-#else
-        // unlink(archive->archive_name); // DEBUG
-#endif
     }
     else
     {
@@ -447,11 +439,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         else
         {
             CRASHUPLOAD_INFO("Removing file %s\n", archive->archive_name);
-#if defined(GTEST_ENABLE)
             unlink(archive->archive_name);
-#else
-            // unlink(archive->archive_name); // DEBUG
-#endif
             set_time("/tmp/.minidump_upload_timestamps", CURRENT_TIME);
         }
     }

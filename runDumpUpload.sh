@@ -223,41 +223,44 @@ logStdout()
 # before you leave.
 create_lock_or_exit()
 {
-    path="$1"
-    while true; do
-        if [[ -d "${path}.lock.d" ]]; then
-            if [ "$IS_T2_ENABLED" == "true" ]; then
-                t2CountNotify "SYST_WARN_NoMinidump"
-            fi
-            logMessage "Script is already working. ${path}.lock.d. Skip launch another instance..."
-            wait
-            exit 0
+    lock_file="$1"
+    
+    # Check if lock file exists
+    if [ -f "$lock_file" ]; then
+        if [ "$IS_T2_ENABLED" == "true" ]; then
+            t2CountNotify "SYST_WARN_NoMinidump"
         fi
-        mkdir "${path}.lock.d" || logMessage "Error creating ${path}.lock.d"
-        break;
-    done
+        logMessage "Script is already working. Lock file: $lock_file. Skip launch another instance..."
+        wait
+        exit 0
+    fi
+    
+    # Create lock file with PID
+    echo $$ > "$lock_file" 2>/dev/null || logMessage "Error creating lock file $lock_file"
+    logMessage "Lock file created: $lock_file (PID: $$)"
 }
 
 # creates a lock or waits until it can be created
 create_lock_or_wait()
 {
-    path="$1"
-    while true; do
-        if [[ -d "${path}.lock.d" ]]; then
-            logMessage "Script is already working. ${path}.lock.d. Waiting to launch another instance..."
-            sleep 2
-            continue
-        fi
-        mkdir "${path}.lock.d" || logMessage "Error creating ${path}.lock.d"
-        break;
+    lock_file="$1"
+    
+    while [ -f "$lock_file" ]; do
+        logMessage "Script is already working. Lock file: $lock_file. Waiting to launch another instance..."
+        sleep 2
     done
+    
+    # Create lock file with PID
+    echo $$ > "$lock_file" 2>/dev/null || logMessage "Error creating lock file $lock_file"
+    logMessage "Lock file created: $lock_file (PID: $$)"
 }
 
 remove_lock()
 {
-    path="$1"
-    if [ -d "${path}.lock.d" ]; then
-        rmdir "${path}.lock.d" || logMessage "Error deleting ${path}.lock.d"
+    lock_file="$1"
+    if [ -f "$lock_file" ]; then
+        rm -f "$lock_file" || logMessage "Error deleting lock file $lock_file"
+        logMessage "Lock file removed: $lock_file"
     fi
 }
 
@@ -403,8 +406,7 @@ finalize()
 {
     cleanup
     [ -f "$crashLoopFlagFile" ] && rm -f "$crashLoopFlagFile"
-    remove_lock $LOCK_DIR_PREFIX
-    remove_lock "$TIMESTAMP_FILENAME"
+    remove_lock "$LOCK_FILE_PATH"
     if [ "$DEVICE_TYPE" = "broadband" ];then
          touch /tmp/crash_reboot
     fi    
@@ -414,16 +416,14 @@ sigkill_function()
 {
     echo "Systemd Killing, Removing the script locks"
     [ -f "$crashLoopFlagFile" ] && rm -f "$crashLoopFlagFile"
-    remove_lock $LOCK_DIR_PREFIX
-    remove_lock "$TIMESTAMP_FILENAME"
+    remove_lock "$LOCK_FILE_PATH"
 }
 
 sigterm_function()
 {
     echo "Systemd Terminating, Removing the script locks"
     [ -f "$crashLoopFlagFile" ] && rm -f "$crashLoopFlagFile"
-    remove_lock $LOCK_DIR_PREFIX
-    remove_lock "$TIMESTAMP_FILENAME"
+    remove_lock "$LOCK_FILE_PATH"
 }
 
 trap 'sigkill_function' SIGKILL
@@ -435,7 +435,7 @@ if [ "$DUMP_FLAG" == "1" ] ; then
     DUMPS_EXTN=*core.prog*.gz*
     TARBALLS=*.core.tgz
     #to limit this to only one instance at any time..
-    LOCK_DIR_PREFIX="/tmp/.uploadCoredumps"
+    LOCK_FILE_PATH="/tmp/.uploadCoredumps"
     CRASH_PORTAL_PATH="/opt/crashportal_uploads/coredumps/"
 else
     logMessage "starting minidump processing"
@@ -449,7 +449,7 @@ else
     TARBALLS=*.dmp.tgz
     CRASH_PORTAL_PATH="/opt/crashportal_uploads/minidumps/"
     #to limit this to only one instance at any time..
-    LOCK_DIR_PREFIX="/tmp/.uploadMinidumps"
+    LOCK_FILE_PATH="/tmp/.uploadMinidumps"
     sleep 5
 fi
 
@@ -569,9 +569,9 @@ TIMESTAMP_FILENAME="/tmp/.${DUMP_NAME}_upload_timestamps"
 
 # Will wait if unable to create lock and 4th parameter is "wait_for_lock".
 if [ "$WAIT_FOR_LOCK" = "wait_for_lock" ]; then
-    create_lock_or_wait $LOCK_DIR_PREFIX
+    create_lock_or_wait "$LOCK_FILE_PATH"
 else
-    create_lock_or_exit $LOCK_DIR_PREFIX
+    create_lock_or_exit "$LOCK_FILE_PATH"
 fi
 
 #defer code upload for 8 mins of uptime to avoid CPU load during bootup(Only for Video devices)
