@@ -40,7 +40,6 @@
  *   - No external dependencies
  */
 int logger_init() {
-    printf("CRASHUPLOAD: Logger initialization\n");
 #if defined(RDK_LOGGER)
 
 #if defined(USE_EXTENDED_LOGGER_INIT)
@@ -57,7 +56,6 @@ int logger_init() {
         printf("CRASHUPLOAD: ERROR - Extended logger init failed\n");
         return 1; // Return non-zero on failure
     }
-    printf("CRASHUPLOAD: Using RDK Logger (Extended Init)\n");
 #else
     /* Standard initialization with debug.ini file */
     printf("RDK logger standard init with %s\n", DEBUG_INI_NAME);
@@ -65,14 +63,11 @@ int logger_init() {
         printf("CRASHUPLOAD: ERROR - Logger init failed\n");
         return 1; // Return non-zero on failure
     }
-    printf("CRASHUPLOAD: Using RDK Logger (Standard Init)\n");
 #endif
-    printf("CRASHUPLOAD: in RDK Logger mode\n");
-    RDK_LOG(RDK_LOG_INFO, "LOG.RDK.CRASHUPLOAD", "Logger initialized successfully - RDK Logger is working!\n");
+
 #else
     printf("CRASHUPLOAD: Using fallback logger\n");
 #endif
-    printf("CRASHUPLOAD: Logger initialized successfully\n");
     return 0; // Return 0 on success
 }
 
@@ -88,14 +83,12 @@ int logger_init() {
  *   - No-op
  */
 void logger_exit() {
-    printf("CRASHUPLOAD: Logger cleanup\n");
 #if defined(RDK_LOGGER)
     rdk_logger_deinit();
     printf("CRASHUPLOAD: RDK Logger cleaned up\n");
 #else
     printf("CRASHUPLOAD: Fallback logger cleanup (no-op)\n");
 #endif
-    printf("CRASHUPLOAD: Logger cleanup complete\n");
 }
 
 #if !defined(RDK_LOGGER)

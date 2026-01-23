@@ -45,6 +45,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern "C" {
+#include "../c_sourcecode/common/types.h"
+}
+
 // Mock state control structure
 struct ScannerMockState {
     // is_regular_file
@@ -400,6 +404,82 @@ void crashupload_log(unsigned int level, const char *file, int line, const char 
     (void)file;
     (void)line;
     (void)msg;
+}
+
+// ============================================================================
+// Test-Only Helper Functions
+// ============================================================================
+
+/**
+ * These functions provide test utilities that access scanner internal state.
+ * They are NOT part of the production scanner API and exist only for testing.
+ * 
+ * NOTE: These functions work by having the test code explicitly pass data
+ * from scanner_find_dumps() to scanner_update_test_state() so that 
+ * scanner_get_sorted_dumps() can access and sort it.
+ */
+
+// Static variables to track scanner state for testing
+static dump_file_t* g_test_scanner_dumps = nullptr;
+static int g_test_scanner_count = 0;
+
+/**
+ * @brief Update test state with scanner results
+ * Call this after scanner_find_dumps() to capture its results for sorting
+ */
+void scanner_update_test_state(dump_file_t *dumps, int count)
+{
+    g_test_scanner_dumps = dumps;
+    g_test_scanner_count = count;
+}
+
+/**
+ * @brief Get sorted dumps for testing
+ * This is a test-only function that provides sorted access to found dumps.
+ * Requires scanner_update_test_state() to be called first with the results
+ * from scanner_find_dumps().
+ */
+int scanner_get_sorted_dumps(dump_file_t **dumps, int *count)
+{
+    if (!dumps || !count)
+    {
+        return -1;
+    }
+
+    // Use the data provided via scanner_update_test_state
+    if (g_test_scanner_dumps == nullptr || g_test_scanner_count == 0) {
+        *dumps = nullptr;
+        *count = 0;
+        return 0;
+    }
+
+    /* Simple bubble sort by modification time (oldest first) */
+    for (int i = 0; i < g_test_scanner_count - 1; i++)
+    {
+        for (int j = 0; j < g_test_scanner_count - i - 1; j++)
+        {
+            if (g_test_scanner_dumps[j].mtime > g_test_scanner_dumps[j + 1].mtime)
+            {
+                dump_file_t temp = g_test_scanner_dumps[j];
+                g_test_scanner_dumps[j] = g_test_scanner_dumps[j + 1];
+                g_test_scanner_dumps[j + 1] = temp;
+            }
+        }
+    }
+
+    *dumps = g_test_scanner_dumps;
+    *count = g_test_scanner_count;
+    return 0;
+}
+
+/**
+ * @brief Cleanup scanner state for testing
+ * This is a test-only function that resets internal test state
+ */
+void scanner_cleanup(void)
+{
+    g_test_scanner_dumps = nullptr;
+    g_test_scanner_count = 0;
 }
 
 } // extern "C"

@@ -882,31 +882,3 @@ int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count, const 
 
     return dump_count;
 }
-
-/* FULL IMPLEMENTATION - Get sorted dumps (oldest first for upload priority) */
-int scanner_get_sorted_dumps(dump_file_t **dumps, int *count)
-{
-    if (!dumps || !count)
-    {
-        return -1;
-    }
-
-    /* Simple bubble sort by modification time (oldest first) */
-    for (int i = 0; i < dump_count - 1; i++)
-    {
-        for (int j = 0; j < dump_count - i - 1; j++)
-        {
-            if (found_dumps[j].mtime > found_dumps[j + 1].mtime)
-            {
-                dump_file_t temp = found_dumps[j];
-                found_dumps[j] = found_dumps[j + 1];
-                found_dumps[j + 1] = temp;
-            }
-        }
-    }
-
-    *dumps = found_dumps;
-    *count = dump_count;
-    return 0;
-}
-

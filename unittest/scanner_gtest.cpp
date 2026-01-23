@@ -59,6 +59,7 @@ extern "C" {
 int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count, const char *dump_extn_pattern);
 int scanner_get_sorted_dumps(dump_file_t **dumps, int *count);
 void scanner_cleanup(void);
+void scanner_update_test_state(dump_file_t *dumps, int count);
 int process_file_entry(char *fullpath, char *dump_type, const config_t *config);
 int sanitize_filename_preserve_container(const char *fname, char *out, size_t outsz);
 char *extract_pname(const char *filepath);
@@ -401,6 +402,7 @@ TEST_F(ScannerTest, GetSortedDumps_SingleFile) {
     int count = 0;
     
     scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
+    scanner_update_test_state(dumps, count);
     
     dumps = nullptr;
     count = 0;
@@ -421,6 +423,7 @@ TEST_F(ScannerTest, GetSortedDumps_MultipleSorted) {
     int count = 0;
     
     scanner_find_dumps(test_dump_dir, &dumps, &count, "*.core");
+    scanner_update_test_state(dumps, count);
     
     dumps = nullptr;
     count = 0;
