@@ -25,6 +25,7 @@
 
 #if defined(RDK_LOGGER)
 #include "rdk_debug.h"
+#include "rdk_logger.h"  /* For rdk_logger_ext_init and types */
 
 #define CRASHUPLOAD_TRACE(format, ...)   RDK_LOG(RDK_LOG_TRACE1, "LOG.RDK.CRASHUPLOAD", format, ##__VA_ARGS__)
 #define CRASHUPLOAD_DEBUG(format, ...)   RDK_LOG(RDK_LOG_DEBUG,  "LOG.RDK.CRASHUPLOAD", format, ##__VA_ARGS__)

@@ -275,7 +275,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
     char pPartnerId[16] = {0};
     char encryptionEnable[8] = {0};
     char portal_url[1024] = {0};
-    char crashportalEndpointUrl[1024] = {0};
+    char crashportalEndpointUrl[512] = {0};
     bool ocsp_stapling_enable = false;
     int request_type = 0;
     char md5sum[128] = {0};

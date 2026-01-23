@@ -88,7 +88,11 @@ int main_test(int argc, char *argv[]) {
 #endif
     printf("========================================\n");
     
-    logger_init(); /* Initialize the logger */
+    /* Initialize the logger - continue even if RDK Logger init fails (will use fallback) */
+    if (logger_init() != 0) {
+        printf("WARNING: RDK Logger initialization failed, using fallback logger\n");
+    }
+
     config_t config;
     platform_config_t platform;
     int lock_fd = -1;
