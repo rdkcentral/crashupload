@@ -51,8 +51,8 @@
  * @param platform Pointer to platform structure (output)
  * @return ERR_SUCCESS on success, error code on failure
  */
-int system_initialize(int argc, char *argv[], 
-                     config_t *config,
-                     platform_config_t *platform);
+int system_initialize(int argc, char *argv[],
+                      config_t *config,
+                      platform_config_t *platform);
 
 #endif /* SYSTEM_INIT_H */

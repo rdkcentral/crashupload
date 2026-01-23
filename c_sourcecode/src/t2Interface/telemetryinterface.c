@@ -25,6 +25,7 @@
 
 #include "telemetryinterface.h"
 #include <stdio.h>
+#include "../utils/logger.h"
 
 #ifdef T2_EVENT_ENABLED
 #include <telemetry_busmessage_sender.h>
@@ -39,11 +40,12 @@
  *
  * @note Requires T2_EVENT_ENABLED to be defined
  */
-void t2Init(char *component) {
+void t2Init(char *component)
+{
 #ifdef T2_EVENT_ENABLED
     t2_init(component);
 #else
-    printf("[NOT IMPLEMENTED] T2 Telemetry Initialized for component: %s\n", component);
+    CRASHUPLOAD_INFO("[NOT IMPLEMENTED] T2 Telemetry Initialized for component: %s\n", component);
 #endif
 }
 
@@ -54,11 +56,12 @@ void t2Init(char *component) {
  *
  * @note Requires T2_EVENT_ENABLED to be defined
  */
-void t2Uninit(void){
+void t2Uninit(void)
+{
 #ifdef T2_EVENT_ENABLED
     t2_uninit();
 #else
-    printf("[NOT IMPLEMENTED] T2 Telemetry Uninitialized\n");
+    CRASHUPLOAD_INFO("[NOT IMPLEMENTED] T2 Telemetry Uninitialized\n");
 #endif
 }
 
@@ -72,11 +75,12 @@ void t2Uninit(void){
  *
  * @note Requires T2_EVENT_ENABLED to be defined
  */
-void t2CountNotify(char *marker, int val) {
+void t2CountNotify(char *marker, int val)
+{
 #ifdef T2_EVENT_ENABLED
     t2_event_d(marker, val);
 #else
-    printf("[NOT IMPLEMENTED] T2 Telemetry Count Event Sent: Marker=%s, Value=%d\n", marker, val);
+    CRASHUPLOAD_INFO("[NOT IMPLEMENTED] T2 Telemetry Count Event Sent: Marker=%s, Value=%d\n", marker, val);
 #endif
 }
 
@@ -90,11 +94,11 @@ void t2CountNotify(char *marker, int val) {
  *
  * @note Requires T2_EVENT_ENABLED to be defined
  */
-void t2ValNotify( char *marker, char *val )
+void t2ValNotify(char *marker, char *val)
 {
 #ifdef T2_EVENT_ENABLED
     t2_event_s(marker, val);
 #else
-    printf("[NOT IMPLEMENTED] T2 Telemetry String Event Sent: Marker=%s, Value=%s\n", marker, val);
+    CRASHUPLOAD_INFO("[NOT IMPLEMENTED] T2 Telemetry String Event Sent: Marker=%s, Value=%s\n", marker, val);
 #endif
 }

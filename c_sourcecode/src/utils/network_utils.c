@@ -37,25 +37,33 @@ static const time_t CACHE_TTL = 60; /* 60 seconds as per optimization spec */
  * Get MAC address with 60-second caching optimization
  * Uses ioctl() instead of system() calls for efficiency
  */
-int network_get_mac_address(const char *iface, char *mac, size_t len, bool colons) {
-    if (!iface || !mac || len < (colons ? 18 : 13)) {
+int network_get_mac_address(const char *iface, char *mac, size_t len, bool colons)
+{
+    if (!iface || !mac || len < (colons ? 18 : 13))
+    {
         return -1;
     }
 
     time_t now = time(NULL);
-    
+
     /* Check cache validity (60-second TTL) */
-    if (cached_mac[0] != '\0' && 
+    if (cached_mac[0] != '\0' &&
         strcmp(cached_iface, iface) == 0 &&
-        (now - cache_time) < CACHE_TTL) {
+        (now - cache_time) < CACHE_TTL)
+    {
         /* Cache hit - return cached value */
-        if (colons) {
+        if (colons)
+        {
             snprintf(mac, len, "%s", cached_mac);
-        } else {
+        }
+        else
+        {
             /* Remove colons from cached MAC */
             int j = 0;
-            for (int i = 0; cached_mac[i] != '\0' && j < (int)len - 1; i++) {
-                if (cached_mac[i] != ':') {
+            for (int i = 0; cached_mac[i] != '\0' && j < (int)len - 1; i++)
+            {
+                if (cached_mac[i] != ':')
+                {
                     mac[j++] = cached_mac[i];
                 }
             }
@@ -66,7 +74,8 @@ int network_get_mac_address(const char *iface, char *mac, size_t len, bool colon
 
     /* Cache miss - retrieve MAC address using ioctl */
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock < 0) {
+    if (sock < 0)
+    {
         return -1;
     }
 
@@ -74,16 +83,17 @@ int network_get_mac_address(const char *iface, char *mac, size_t len, bool colon
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, iface, IFNAMSIZ - 1);
 
-    if (ioctl(sock, SIOCGIFHWADDR, &ifr) < 0) {
+    if (ioctl(sock, SIOCGIFHWADDR, &ifr) < 0)
+    {
         close(sock);
         return -1;
     }
     close(sock);
 
     unsigned char *hwaddr = (unsigned char *)ifr.ifr_hwaddr.sa_data;
-    
+
     /* Store in cache with colons (canonical format) */
-    snprintf(cached_mac, sizeof(cached_mac), 
+    snprintf(cached_mac, sizeof(cached_mac),
              "%02X:%02X:%02X:%02X:%02X:%02X",
              hwaddr[0], hwaddr[1], hwaddr[2],
              hwaddr[3], hwaddr[4], hwaddr[5]);
@@ -91,9 +101,12 @@ int network_get_mac_address(const char *iface, char *mac, size_t len, bool colon
     cache_time = now;
 
     /* Return in requested format */
-    if (colons) {
+    if (colons)
+    {
         snprintf(mac, len, "%s", cached_mac);
-    } else {
+    }
+    else
+    {
         snprintf(mac, len, "%02X%02X%02X%02X%02X%02X",
                  hwaddr[0], hwaddr[1], hwaddr[2],
                  hwaddr[3], hwaddr[4], hwaddr[5]);
@@ -106,13 +119,16 @@ int network_get_mac_address(const char *iface, char *mac, size_t len, bool colon
  * FULL IMPLEMENTATION
  * Get IP address using ioctl() for efficiency
  */
-int network_get_ip_address(const char *iface, char *ip, size_t len) {
-    if (!iface || !ip || len < 16) {
+int network_get_ip_address(const char *iface, char *ip, size_t len)
+{
+    if (!iface || !ip || len < 16)
+    {
         return -1;
     }
 
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock < 0) {
+    if (sock < 0)
+    {
         return -1;
     }
 
@@ -121,7 +137,8 @@ int network_get_ip_address(const char *iface, char *ip, size_t len) {
     strncpy(ifr.ifr_name, iface, IFNAMSIZ - 1);
     ifr.ifr_addr.sa_family = AF_INET;
 
-    if (ioctl(sock, SIOCGIFADDR, &ifr) < 0) {
+    if (ioctl(sock, SIOCGIFADDR, &ifr) < 0)
+    {
         close(sock);
         return -1;
     }
@@ -129,7 +146,8 @@ int network_get_ip_address(const char *iface, char *ip, size_t len) {
 
     struct sockaddr_in *addr = (struct sockaddr_in *)&ifr.ifr_addr;
     const char *ip_str = inet_ntoa(addr->sin_addr);
-    if (!ip_str) {
+    if (!ip_str)
+    {
         return -1;
     }
 

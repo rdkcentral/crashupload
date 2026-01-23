@@ -21,6 +21,7 @@
  */
 #include "platform.h"
 #include "../../common/errors.h"
+#include "../utils/logger.h"
 
 /* function NormalizeMac - gets the eSTB MAC address of the device.
 
@@ -49,10 +50,11 @@ void NormalizeMac(char *mac, size_t size)
 
         // Convert lowercase alphabet to uppercase
         if (c >= 'a' && c <= 'z')
-            c = c - ('a' - 'A');   // or use toupper(c)
+            c = c - ('a' - 'A'); // or use toupper(c)
 
         // Write character back, ensuring no overflow
-        if (write_idx < size - 1) {
+        if (write_idx < size - 1)
+        {
             mac[write_idx++] = c;
         }
     }
@@ -71,99 +73,110 @@ void NormalizeMac(char *mac, size_t size)
 
             RETURN - number of characters copied to the output buffer.
 */
-size_t GetEstbMac( char *pEstbMac, size_t szBufSize )
+size_t GetEstbMac(char *pEstbMac, size_t szBufSize)
 {
     FILE *fp;
     size_t i = 0;
     char estb_interface[8] = {0};
     int ret = -1;
     bool read_from_hwinterface = false; // default value
-    if( pEstbMac != NULL )
+    if (pEstbMac != NULL)
     {
         *pEstbMac = 0;
-        if( (fp = fopen( MAC_FILE, "r" )) != NULL )
+        if ((fp = fopen(MAC_FILE, "r")) != NULL)
         {
-            if (NULL != (fgets( pEstbMac, szBufSize, fp ))) {   // better be a valid string on first line
-                i = stripinvalidchar( pEstbMac, szBufSize );
-	    }
-            fclose( fp );
-            i = stripinvalidchar( pEstbMac, szBufSize );
-            printf("GetEstbMac: After reading ESTB_MAC_FILE value=%s\n", pEstbMac);
+            if (NULL != (fgets(pEstbMac, szBufSize, fp)))
+            { // better be a valid string on first line
+                i = stripinvalidchar(pEstbMac, szBufSize);
+            }
+            fclose(fp);
+            i = stripinvalidchar(pEstbMac, szBufSize);
+            CRASHUPLOAD_INFO("GetEstbMac: After reading ESTB_MAC_FILE value=%s\n", pEstbMac);
             /* Below condition if ESTB_MAC_FILE file having empty data and pEstbMac does not have 17 character
-            * including total mac address with : separate */
+             * including total mac address with : separate */
             if (pEstbMac[0] == '\0' || pEstbMac[0] == '\n' || i != MAC_ADDRESS_LEN)
             {
-                printf("GetEstbMac: ESTB_MAC_FILE file is empty read_from_hwinterface is set to true\n");
+                CRASHUPLOAD_INFO("GetEstbMac: ESTB_MAC_FILE file is empty read_from_hwinterface is set to true\n");
                 read_from_hwinterface = true;
             }
         }
         else
         {
-            read_from_hwinterface = true;//ESTB_MAC_FILE file does not present proceed for reading from interface
-            printf("GetEstbMac: read_from_hwinterface is set to true\n");
+            read_from_hwinterface = true; // ESTB_MAC_FILE file does not present proceed for reading from interface
+            CRASHUPLOAD_INFO("GetEstbMac: read_from_hwinterface is set to true\n");
         }
         if (read_from_hwinterface == true)
         {
-            printf("GetEstbMac: Reading from hw interface\n");
+            CRASHUPLOAD_INFO("GetEstbMac: Reading from hw interface\n");
             ret = getDevicePropertyData("ESTB_INTERFACE", estb_interface, sizeof(estb_interface));
             if (ret == UTILS_SUCCESS)
             {
                 i = GetHwMacAddress(estb_interface, pEstbMac, szBufSize);
-                if(i)
+                if (i)
                 {
-                    printf("GetEstbMac: Hardware address=%s=\n", pEstbMac);
+                    CRASHUPLOAD_INFO("GetEstbMac: Hardware address=%s=\n", pEstbMac);
                 }
                 else
                 {
                     /* When there is no hw address available */
                     *pEstbMac = 0;
-                    printf("GetEstbMac: GetHwMacAddress return fail\n");
+                    CRASHUPLOAD_INFO("GetEstbMac: GetHwMacAddress return fail\n");
                 }
             }
             else
             {
                 *pEstbMac = 0;
                 i = 0;
-		printf("GetEstbMac: Interface is not part of /etc/device.properties missing\n");
+                CRASHUPLOAD_INFO("GetEstbMac: Interface is not part of /etc/device.properties missing\n");
             }
         }
     }
     else
     {
-        printf( "GetEstbMac: Error, input argument NULL\n" );
+        CRASHUPLOAD_INFO("GetEstbMac: Error, input argument NULL\n");
     }
     return i;
 }
 
-int platform_initialize(const config_t *config, platform_config_t *platform) {
+int platform_initialize(const config_t *config, platform_config_t *platform)
+{
     int ret = 0;
 
     memset(platform, 0, sizeof(platform_config_t));
 
     /* TODO: Get IP, device ID, SHA1 */
     ret = GetEstbMac(platform->mac_address, sizeof(platform->mac_address));
-    if (ret) {
+    if (ret)
+    {
         NormalizeMac(platform->mac_address, sizeof(platform->mac_address));
-	printf("Mac address is %s\n", platform->mac_address);
-    }else {
-        printf("Get mac is failed. Setting dafult value\n");
-        strcpy(platform->mac_address,"000000000000");
+        CRASHUPLOAD_INFO("Mac address is %s\n", platform->mac_address);
     }
-    //TODO: For brodband and extender we have change the code
-    ret = GetModelNum( platform->model, sizeof(platform->model) );
-    if (ret) {
-        printf("Model Num=%s\n", platform->model);
-    }else {
-        printf("GetModel is failed. Setting dafult value\n");
-        strcpy(platform->model,"UNKNOWN");
+    else
+    {
+        CRASHUPLOAD_ERROR("Get mac is failed. Setting dafult value\n");
+        strcpy(platform->mac_address, "000000000000");
+    }
+    // TODO: For brodband and extender we have change the code
+    ret = GetModelNum(platform->model, sizeof(platform->model));
+    if (ret)
+    {
+        CRASHUPLOAD_INFO("Model Num=%s\n", platform->model);
+    }
+    else
+    {
+        CRASHUPLOAD_ERROR("GetModel is failed. Setting dafult value\n");
+        strcpy(platform->model, "UNKNOWN");
     }
     ret = file_get_sha1("/version.txt", platform->platform_sha1, sizeof(platform->platform_sha1));
-    if (ret == 0) {
-        printf("file sha=%s\n", platform->platform_sha1);
-    } else {
-        printf("file_get_sha1 error. Assign default value\n");
-	strcpy(platform->platform_sha1,"000000000000000000000000000000000000000");
-        printf("file sha=%s\n", platform->platform_sha1);
+    if (ret == 0)
+    {
+        CRASHUPLOAD_INFO("file sha=%s\n", platform->platform_sha1);
+    }
+    else
+    {
+        CRASHUPLOAD_ERROR("file_get_sha1 error. Assign default value\n");
+        strcpy(platform->platform_sha1, "000000000000000000000000000000000000000");
+        CRASHUPLOAD_INFO("file sha=%s\n", platform->platform_sha1);
     }
     return PLATFORM_INIT_SUCCESS;
 }

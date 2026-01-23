@@ -29,7 +29,7 @@
 #include "file_utils.h"
 #include "common_device_api.h"
 
-#define MAC_FILE           "/tmp/.macAddress"
+#define MAC_FILE "/tmp/.macAddress"
 #define MAC_ADDRESS_LEN 17
 
 /**

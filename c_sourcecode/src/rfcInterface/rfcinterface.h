@@ -43,17 +43,19 @@
 #ifdef GTEST_ENABLE
 /*Below code is use when GTEST is enable. Because During this
  * L1 Unit Test rfcapi.h header file not present */
-typedef struct gtest_rfc {
-    char value[32];
-    char name[32];
-    int type;
-    int status;
-}RFC_ParamData_t;
-typedef enum {
-    WDMP_FAILURE = 0,
-    WDMP_SUCCESS,
-    WDMP_ERR_DEFAULT_VALUE
-}WDMP_STATUS;
+typedef struct gtest_rfc
+{
+  char value[32];
+  char name[32];
+  int type;
+  int status;
+} RFC_ParamData_t;
+typedef enum
+{
+  WDMP_FAILURE = 0,
+  WDMP_SUCCESS,
+  WDMP_ERR_DEFAULT_VALUE
+} WDMP_STATUS;
 
 #define WDMP_STRING 1
 #define WDMP_UINT 3
@@ -62,24 +64,24 @@ typedef enum {
 
 typedef enum
 {
-  RFC_STRING=1,
+  RFC_STRING = 1,
   RFC_BOOL,
   RFC_UINT
-}RFCVALDATATYPE;
+} RFCVALDATATYPE;
 
 #define RFC_TELEMETRY_OPTOUT "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryOptOut.Enable"
 #define RFC_DMP_ENCRYPT_UPLOAD "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable"
 #define RFC_CRASH_PORTAL_URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl"
-#define RFC_CRASHUPLOAD_S3URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.S3SigningUrl" 
+#define RFC_CRASHUPLOAD_S3URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.S3SigningUrl"
 #define RFC_CRASH_PORTAL_ENDPOINT_URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CrashportalEndpoint.URL"
 #define RFC_TELEMETRY_OPTOUT "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryOptOut.Enable"
 
 #if defined(RFC_API_ENABLED)
-int read_RFCProperty(char* type, const char* key, char *data, size_t datasize);
-int write_RFCProperty(char* type, const char* key, const char *data, RFCVALDATATYPE datatype);
+int read_RFCProperty(char *type, const char *key, char *data, size_t datasize);
+int write_RFCProperty(char *type, const char *key, const char *data, RFCVALDATATYPE datatype);
 #else
-int read_RFCProperty(const char* type, const char* key, char *data, size_t datasize);
-int write_RFCProperty(const char* type, const char* key, const char *data, RFCVALDATATYPE datatype);
+int read_RFCProperty(const char *type, const char *key, char *data, size_t datasize);
+int write_RFCProperty(const char *type, const char *key, const char *data, RFCVALDATATYPE datatype);
 #endif
 
 #endif /* VIDEO_RFCINTERFACE_RFCINTERFACE_H_ */

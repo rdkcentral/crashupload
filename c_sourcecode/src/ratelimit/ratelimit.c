@@ -25,7 +25,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "ratelimit.h"
-
+#include "../utils/logger.h"
 
 int set_time(const char *deny_file, int type)
 {
@@ -39,10 +39,13 @@ int set_time(const char *deny_file, int type)
     now = time(NULL);
     if (now == (time_t)-1)
         return -1;
-    if (type == RECOVERY_TIME) {
-	    printf("Set Rcovery Time inside file:%s\n", deny_file);
+    if (type == RECOVERY_TIME)
+    {
+        CRASHUPLOAD_INFO("Set Recovery Time inside file:%s\n", deny_file);
         deny_until = (long)now + RECOVERY_DELAY_SEC;
-    } else {
+    }
+    else
+    {
         deny_until = (long)now;
     }
 
@@ -50,7 +53,8 @@ int set_time(const char *deny_file, int type)
     if (!fp)
         return -1;
 
-    if (fprintf(fp, "%ld", deny_until) < 0) {
+    if (fprintf(fp, "%ld", deny_until) < 0)
+    {
         fclose(fp);
         return -1;
     }
@@ -71,20 +75,26 @@ int is_upload_limit_reached(const char *file)
     int line_cnt = 0;
 
     fp = fopen(file, "r");
-    if (fp != NULL) {
-        while(fgets(buf, sizeof(buf), fp)) {
-	    line_cnt++;
-	    if (line_cnt == 1) {
-	        strncpy(first_line_data, buf, sizeof(first_line_data)-1);
-		first_line_data[sizeof(first_line_data)-1] = '\0';
-	    }
-	}
-    } else {
-        printf("File for rate limit check not present:%s\n", file);
-	return ret;
+    if (fp != NULL)
+    {
+        while (fgets(buf, sizeof(buf), fp))
+        {
+            line_cnt++;
+            if (line_cnt == 1)
+            {
+                strncpy(first_line_data, buf, sizeof(first_line_data) - 1);
+                first_line_data[sizeof(first_line_data) - 1] = '\0';
+            }
+        }
+    }
+    else
+    {
+        CRASHUPLOAD_INFO("File for rate limit check not present:%s\n", file);
+        return ret;
     }
     /* Validate numeric content */
-    for (size_t i = 0; buf[i] != '\0' && buf[i] != '\n'; i++) {
+    for (size_t i = 0; buf[i] != '\0' && buf[i] != '\n'; i++)
+    {
         if (!isdigit((unsigned char)buf[i]))
             return ALLOW_UPLOAD;
     }
@@ -96,17 +106,23 @@ int is_upload_limit_reached(const char *file)
     now = time(NULL);
     if (now == (time_t)-1)
         return ALLOW_UPLOAD;
-    
-    if (line_cnt <= 10) {
-        printf("is_upload_limit_reached() not reached.%d\n", line_cnt);
-    } else {
-	if ((now - first_crash_time) < RECOVERY_DELAY_SEC) {
-            printf("Not uploading the dump. Too many dumps.\n");
-	    ret = STOP_UPLOAD;
-	} else {
-            printf("is_upload_limit_reached() not reached proceed for upload\n");
-	    unlink(file);
-	}
+
+    if (line_cnt <= 10)
+    {
+        CRASHUPLOAD_INFO("is_upload_limit_reached() not reached.%d\n", line_cnt);
+    }
+    else
+    {
+        if ((now - first_crash_time) < RECOVERY_DELAY_SEC)
+        {
+            CRASHUPLOAD_INFO("Not uploading the dump. Too many dumps.\n");
+            ret = STOP_UPLOAD;
+        }
+        else
+        {
+            CRASHUPLOAD_INFO("is_upload_limit_reached() not reached proceed for upload\n");
+            unlink(file);
+        }
     }
     return ret;
 }
@@ -131,14 +147,16 @@ int is_recovery_time_reached(const char *deny_file)
     if (!fp)
         return ALLOW_UPLOAD;
 
-    if (!fgets(buf, sizeof(buf), fp)) {
+    if (!fgets(buf, sizeof(buf), fp))
+    {
         fclose(fp);
         return ALLOW_UPLOAD;
     }
     fclose(fp);
 
     /* Validate numeric content */
-    for (size_t i = 0; buf[i] != '\0' && buf[i] != '\n'; i++) {
+    for (size_t i = 0; buf[i] != '\0' && buf[i] != '\n'; i++)
+    {
         if (!isdigit((unsigned char)buf[i]))
             return ALLOW_UPLOAD;
     }
@@ -163,21 +181,26 @@ int ratelimit_check_unified(dump_type_t dump_type)
 {
     int status = -1;
     status = is_recovery_time_reached(DENY_UPLOADS_FILE);
-    if (status != ALLOW_UPLOAD) {
-        printf("Shifting the recovery time forward.\n");
-	set_time(DENY_UPLOADS_FILE, CURRENT_TIME);
-	return RATELIMIT_BLOCK;
+    if (status != ALLOW_UPLOAD)
+    {
+        CRASHUPLOAD_INFO("Shifting the recovery time forward.\n");
+        set_time(DENY_UPLOADS_FILE, CURRENT_TIME);
+        return RATELIMIT_BLOCK;
     }
-    if (dump_type == DUMP_TYPE_MINIDUMP) {
-	status = is_upload_limit_reached("/tmp/.minidump_upload_timestamps");
-        if (status != ALLOW_UPLOAD) {
-	    printf("Upload rate limit has been reached.\n");
-	    //TODO: markAsCrashLoopedAndUpload $f
-	    printf("Setting recovery time\n");
-	    set_time(DENY_UPLOADS_FILE, CURRENT_TIME);
-	    status = RATELIMIT_BLOCK;
-	}
-    } else {
+    if (dump_type == DUMP_TYPE_MINIDUMP)
+    {
+        status = is_upload_limit_reached("/tmp/.minidump_upload_timestamps");
+        if (status != ALLOW_UPLOAD)
+        {
+            CRASHUPLOAD_INFO("Upload rate limit has been reached.\n");
+            // TODO: markAsCrashLoopedAndUpload $f
+            CRASHUPLOAD_INFO("Setting recovery time\n");
+            set_time(DENY_UPLOADS_FILE, CURRENT_TIME);
+            status = RATELIMIT_BLOCK;
+        }
+    }
+    else
+    {
         status = ALLOW_UPLOAD;
     }
     return status;

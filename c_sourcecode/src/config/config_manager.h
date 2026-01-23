@@ -33,6 +33,7 @@ bool get_opt_out_status(void);
  */
 int config_init_load(config_t *config, int argc, char *argv[]);
 
+#if 0
 /**
  * @brief Get configuration value by key
  * @param key Configuration key
@@ -41,6 +42,7 @@ int config_init_load(config_t *config, int argc, char *argv[]);
  * @return ERR_SUCCESS on success
  */
 int config_get(const char *key, char *value, size_t len);
+#endif
 
 void config_cleanup(config_t *config);
 #endif

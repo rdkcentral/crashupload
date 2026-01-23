@@ -29,21 +29,23 @@
 #include "file_utils.h"
 #include "common_device_api.h"
 #include "rdkv_cdl_log_wrapper.h"
+#include "logger.h"
 
 #define SHA1_CHUNK_SIZE 8192
 #define TIMESTAMP_DEFAULT_VALUE "2000-01-01-00-00-00"
 
 bool tls_log(int curl_code, const char *device_type, const char *fqdn)
 {
-    if (!device_type || !fqdn) {
+    if (!device_type || !fqdn)
+    {
         return false;
     }
-    if (0 != (strcmp(device_type, "broadband")	)) {
-    if((curl_code == 35) || (curl_code == 51) || (curl_code == 53) || (curl_code == 54) || (curl_code == 58) || (curl_code == 59) || (curl_code == 60)
-            || (curl_code == 64) || (curl_code == 66) || (curl_code == 77) || (curl_code == 80) || (curl_code == 82) || (curl_code == 83)
-            || (curl_code == 90) || (curl_code == 91)) {
-        TLSLOG(TLS_LOG_ERR, "CERTERR, DumpUL, %d, %s", curl_code, fqdn);
-    }
+    if (0 != (strcmp(device_type, "broadband")))
+    {
+        if ((curl_code == 35) || (curl_code == 51) || (curl_code == 53) || (curl_code == 54) || (curl_code == 58) || (curl_code == 59) || (curl_code == 60) || (curl_code == 64) || (curl_code == 66) || (curl_code == 77) || (curl_code == 80) || (curl_code == 82) || (curl_code == 83) || (curl_code == 90) || (curl_code == 91))
+        {
+            TLSLOG(TLS_LOG_ERR, "CERTERR, DumpUL, %d, %s", curl_code, fqdn);
+        }
     }
     return true;
 }
@@ -58,41 +60,41 @@ bool tls_log(int curl_code, const char *device_type, const char *fqdn)
 
             RETURN - number of characters copied to the output buffer.
 */
-size_t GetCrashFirmwareVersion( const char *versionFile, char *pFWVersion, size_t szBufSize )
+size_t GetCrashFirmwareVersion(const char *versionFile, char *pFWVersion, size_t szBufSize)
 {
     FILE *fp;
     size_t i = 0;
     char *pTmp;
     char buf[150];
 
-    if( pFWVersion != NULL && versionFile != NULL)
+    if (pFWVersion != NULL && versionFile != NULL)
     {
         *pFWVersion = 0;
-        if( (fp = fopen( versionFile, "r" )) != NULL )
+        if ((fp = fopen(versionFile, "r")) != NULL)
         {
             pTmp = NULL;
-            while( fgets( buf, sizeof(buf), fp ) != NULL )
+            while (fgets(buf, sizeof(buf), fp) != NULL)
             {
-                if( (pTmp = strstr( buf, "imagename:" )) != NULL )
+                if ((pTmp = strstr(buf, "imagename:")) != NULL)
                 {
-                    while( *pTmp++ != ':' )
+                    while (*pTmp++ != ':')
                     {
                         ;
                     }
                     break;
                 }
             }
-            fclose( fp );
-            if( pTmp )
+            fclose(fp);
+            if (pTmp)
             {
-                i = snprintf( pFWVersion, szBufSize, "%s", pTmp );
-                i = stripinvalidchar( pFWVersion, i );
+                i = snprintf(pFWVersion, szBufSize, "%s", pTmp);
+                i = stripinvalidchar(pFWVersion, i);
             }
         }
     }
     else
     {
-        printf( "GetFirmwareVersion: Error, input argument NULL\n" );
+        CRASHUPLOAD_WARN("GetFirmwareVersion: Error, input argument NULL\n");
     }
     return i;
 }
@@ -106,21 +108,29 @@ size_t GetCrashFirmwareVersion( const char *versionFile, char *pFWVersion, size_
  */
 int join_path(char *dest, size_t dest_size, const char *dir, const char *name)
 {
-    if (!dest || !dir || !name) return -1;
+    if (!dest || !dir || !name)
+        return -1;
     size_t dlen = strlen(dir);
-    if (dlen == 0) {
-        if (strlen(name) >= dest_size) return -1;
-        if (snprintf(dest, dest_size, "%s", name) >= dest_size) return -1;
+    if (dlen == 0)
+    {
+        if (strlen(name) >= dest_size)
+            return -1;
+        if (snprintf(dest, dest_size, "%s", name) >= dest_size)
+            return -1;
         return 0;
     }
-    if (dir[dlen - 1] == '/') {
-        if (snprintf(dest, dest_size, "%s%s", dir, name) >= dest_size) return -1;
-    } else {
-        if (snprintf(dest, dest_size, "%s/%s", dir, name) >= dest_size) return -1;
+    if (dir[dlen - 1] == '/')
+    {
+        if (snprintf(dest, dest_size, "%s%s", dir, name) >= dest_size)
+            return -1;
+    }
+    else
+    {
+        if (snprintf(dest, dest_size, "%s/%s", dir, name) >= dest_size)
+            return -1;
     }
     return 0;
 }
-
 
 int compute_s3_md5_base64(const char *filepath,
                           char *out_b64_md5,
@@ -152,7 +162,8 @@ int compute_s3_md5_base64(const char *filepath,
     if (EVP_DigestInit_ex(mdctx, EVP_md5(), NULL) != 1)
         goto cleanup;
 
-    while ((nread = fread(io_buf, 1, sizeof(io_buf), fp)) > 0) {
+    while ((nread = fread(io_buf, 1, sizeof(io_buf), fp)) > 0)
+    {
         if (EVP_DigestUpdate(mdctx, io_buf, nread) != 1)
             goto cleanup;
     }
@@ -223,7 +234,8 @@ int file_get_sha1(const char *path, char *hash, size_t len)
     SHA_CTX ctx;
     SHA1_Init(&ctx);
 
-    while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+    while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0)
+    {
         SHA1_Update(&ctx, buffer, bytes_read);
     }
 
@@ -235,19 +247,23 @@ int file_get_sha1(const char *path, char *hash, size_t len)
        OPENSSL 3.x (uses EVP API)
        ================================================================ */
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
-    if (!ctx) {
+    if (!ctx)
+    {
         fclose(fp);
         return -1;
     }
 
-    if (EVP_DigestInit_ex(ctx, EVP_sha1(), NULL) != 1) {
+    if (EVP_DigestInit_ex(ctx, EVP_sha1(), NULL) != 1)
+    {
         EVP_MD_CTX_free(ctx);
         fclose(fp);
         return -1;
     }
 
-    while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
-        if (EVP_DigestUpdate(ctx, buffer, bytes_read) != 1) {
+    while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0)
+    {
+        if (EVP_DigestUpdate(ctx, buffer, bytes_read) != 1)
+        {
             EVP_MD_CTX_free(ctx);
             fclose(fp);
             return -1;
@@ -257,7 +273,8 @@ int file_get_sha1(const char *path, char *hash, size_t len)
     unsigned char digest[SHA_DIGEST_LENGTH];
     unsigned int digest_len = 0;
 
-    if (EVP_DigestFinal_ex(ctx, digest, &digest_len) != 1) {
+    if (EVP_DigestFinal_ex(ctx, digest, &digest_len) != 1)
+    {
         EVP_MD_CTX_free(ctx);
         fclose(fp);
         return -1;
@@ -269,7 +286,8 @@ int file_get_sha1(const char *path, char *hash, size_t len)
     fclose(fp);
 
     /* Convert binary digest to hex string */
-    for (int i = 0; i < SHA_DIGEST_LENGTH; i++) {
+    for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
+    {
         snprintf(hash + (i * 2), len - (i * 2), "%02x", digest[i]);
     }
     hash[40] = '\0';
@@ -281,18 +299,22 @@ int file_get_sha1(const char *path, char *hash, size_t len)
  * FULL IMPLEMENTATION
  * Get file modification time in YYYY-MM-DD-HH-MM-SS format
  */
-int file_get_mtime_formatted(const char *path, char *mtime, size_t len) {
-    if (!path || !mtime || len < 20) {
+int file_get_mtime_formatted(const char *path, char *mtime, size_t len)
+{
+    if (!path || !mtime || len < 20)
+    {
         return -1;
     }
 
     struct stat st;
-    if (stat(path, &st) < 0) {
+    if (stat(path, &st) < 0)
+    {
         return -1;
     }
 
     struct tm *tm_info = localtime(&st.st_mtime);
-    if (!tm_info) {
+    if (!tm_info)
+    {
         return -1;
     }
 
@@ -304,13 +326,16 @@ int file_get_mtime_formatted(const char *path, char *mtime, size_t len) {
  * FULL IMPLEMENTATION
  * Get file size in bytes
  */
-int file_get_size(const char *path, uint64_t *size) {
-    if (!path || !size) {
+int file_get_size(const char *path, uint64_t *size)
+{
+    if (!path || !size)
+    {
         return -1;
     }
 
     struct stat st;
-    if (stat(path, &st) < 0) {
+    if (stat(path, &st) < 0)
+    {
         return -1;
     }
 
@@ -325,29 +350,33 @@ int file_get_size(const char *path, uint64_t *size) {
  */
 int get_crash_timestamp_utc(char *out, size_t outsz)
 {
-    if (!out || outsz < 20) {
-        return -1;  // Invalid buffer
+    if (!out || outsz < 20)
+    {
+        return -1; // Invalid buffer
     }
 
     struct timespec ts;
-    
+
     // systemd-compatible: use CLOCK_REALTIME for wall time
-    if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
-	strcpy(out,TIMESTAMP_DEFAULT_VALUE);
+    if (clock_gettime(CLOCK_REALTIME, &ts) != 0)
+    {
+        strcpy(out, TIMESTAMP_DEFAULT_VALUE);
         return -1;
     }
 
     struct tm tm_utc;
 
     // Convert to UTC (equivalent to "date -u")
-    if (gmtime_r(&ts.tv_sec, &tm_utc) == NULL) {
-	strcpy(out,TIMESTAMP_DEFAULT_VALUE);
+    if (gmtime_r(&ts.tv_sec, &tm_utc) == NULL)
+    {
+        strcpy(out, TIMESTAMP_DEFAULT_VALUE);
         return -1;
     }
 
     // Format: %Y-%m-%d-%H-%M-%S
-    if (strftime(out, outsz, "%Y-%m-%d-%H-%M-%S", &tm_utc) == 0) {
-	strcpy(out,TIMESTAMP_DEFAULT_VALUE);
+    if (strftime(out, outsz, "%Y-%m-%d-%H-%M-%S", &tm_utc) == 0)
+    {
+        strcpy(out, TIMESTAMP_DEFAULT_VALUE);
         return -1;
     }
 
@@ -362,8 +391,8 @@ int get_crash_timestamp_utc(char *out, size_t outsz)
  *   extract_tail("app.log", "app_tail.log", 500);
  */
 int extract_tail(const char *src,
-                        const char *dst,
-                        int max_lines)
+                 const char *dst,
+                 int max_lines)
 {
     FILE *in = NULL;
     FILE *out = NULL;
@@ -390,54 +419,59 @@ int extract_tail(const char *src,
     if (!ring)
         goto cleanup;
 
-    //printf("Read start===========>\n");
+    // printf("Read start===========>\n");
     /* Read file line by line */
-    while (fgets(buf, sizeof(buf), in)) {
+    while (fgets(buf, sizeof(buf), in))
+    {
         free(ring[idx]);
         ring[idx] = strdup(buf);
         if (!ring[idx])
             goto cleanup;
 
-        //printf("idx=%d and %s\n", idx, ring[idx]);
+        // printf("idx=%d and %s\n", idx, ring[idx]);
         idx = (idx + 1) % max_lines;
-        //printf("idx=%d and %s\n", idx, ring[idx]);
+        // printf("idx=%d and %s\n", idx, ring[idx]);
         if (count < max_lines)
             count++;
     }
 
-
-    printf("Read End===========>\n");
+    CRASHUPLOAD_INFO("Read End===========>\n");
     start = (count < max_lines) ? 0 : idx;
     /* Write lines in correct order */
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < count; i++)
+    {
         int pos = (start + i) % max_lines;
         if (ring[pos])
             fputs(ring[pos], out);
     }
     ret = 0;
-    //printf("Write to another file  End===========>\n");
+    // printf("Write to another file  End===========>\n");
 
 cleanup:
-    if (ring) {
-        for (i = 0; i < max_lines; i++) {
-	    if (ring[i] != NULL) {
+    if (ring)
+    {
+        for (i = 0; i < max_lines; i++)
+        {
+            if (ring[i] != NULL)
+            {
                 free(ring[i]);
-	    }
-	}
+            }
+        }
         free(ring);
     }
-    if (in) fclose(in);
-    if (out) fclose(out);
+    if (in)
+        fclose(in);
+    if (out)
+        fclose(out);
     return ret;
 }
-
 
 int trim_process_name_in_path(const char *full_path,
                               const char *process_name, int max_pname_trim,
                               char *out,
                               size_t out_len)
 {
-    //size_t path_len;
+    // size_t path_len;
     size_t pname_len;
     char trimmed_pname[64];
     const char *src;
@@ -446,7 +480,7 @@ int trim_process_name_in_path(const char *full_path,
     if (!full_path || !process_name || !out || out_len == 0)
         return -1;
 
-    //path_len = strlen(full_path);
+    // path_len = strlen(full_path);
 
     pname_len = strlen(process_name);
     if (pname_len == 0)
@@ -463,8 +497,10 @@ int trim_process_name_in_path(const char *full_path,
     dst = out;
 
     /* Replace all occurrences of process_name */
-    while (*src != '\0') {
-        if (strncmp(src, process_name, strlen(process_name)) == 0) {
+    while (*src != '\0')
+    {
+        if (strncmp(src, process_name, strlen(process_name)) == 0)
+        {
             /* Copy trimmed process name */
             if ((size_t)(dst - out) + pname_len >= out_len)
                 return -1;
@@ -472,7 +508,9 @@ int trim_process_name_in_path(const char *full_path,
             memcpy(dst, trimmed_pname, pname_len);
             dst += pname_len;
             src += strlen(process_name);
-        } else {
+        }
+        else
+        {
             if ((size_t)(dst - out) + 1 >= out_len)
                 return -1;
 
@@ -488,7 +526,8 @@ int trim_process_name_in_path(const char *full_path,
 int is_regular_file(const char *path)
 {
     struct stat st;
-    if (stat(path, &st) != 0) return 0;
+    if (stat(path, &st) != 0)
+        return 0;
     return S_ISREG(st.st_mode);
 }
 bool check_process_dmp_file(const char *file)
@@ -499,10 +538,12 @@ bool check_process_dmp_file(const char *file)
     char *box = "_box";
     char *mod = "_mod";
 
-    if (file != NULL) {
-        if (strstr(file, mac) || strstr(file, dat) || strstr(file, box) || strstr(file, mod)) {
-	    ret = true;
-	}
+    if (file != NULL)
+    {
+        if (strstr(file, mac) || strstr(file, dat) || strstr(file, box) || strstr(file, mod))
+        {
+            ret = true;
+        }
     }
     return ret;
 }
@@ -520,9 +561,11 @@ bool check_process_dmp_file(const char *file)
  * @param max_iterations Maximum number of iterations to check
  * @return 0 on success (file stable), -1 on error/timeout
  */
-int wait_for_file_size_stable(const char *filepath, int check_interval_sec, int stability_checks, int max_iterations) {
-    if (!filepath || check_interval_sec <= 0 || stability_checks <= 0 || max_iterations <= 0) {
-        printf("wait_for_file_size_stable: Invalid parameters\n");
+int wait_for_file_size_stable(const char *filepath, int check_interval_sec, int stability_checks, int max_iterations)
+{
+    if (!filepath || check_interval_sec <= 0 || stability_checks <= 0 || max_iterations <= 0)
+    {
+        CRASHUPLOAD_WARN("wait_for_file_size_stable: Invalid parameters\n");
         return -1;
     }
 
@@ -531,15 +574,17 @@ int wait_for_file_size_stable(const char *filepath, int check_interval_sec, int 
     int stable_count = 0;
     int iteration = 0;
 
-    printf("Monitoring file size stability: %s\n", filepath);
-    printf("Check interval: %ds, Required stable checks: %d, Max iterations: %d\n", check_interval_sec, stability_checks, max_iterations);
+    CRASHUPLOAD_INFO("Monitoring file size stability: %s\n", filepath);
+    CRASHUPLOAD_INFO("Check interval: %ds, Required stable checks: %d, Max iterations: %d\n", check_interval_sec, stability_checks, max_iterations);
 
-    while (iteration < max_iterations) {
+    while (iteration < max_iterations)
+    {
         iteration++;
 
         /* Get current file size */
-        if (stat(filepath, &st) != 0) {
-            printf("Iteration %d/%d: Cannot stat file (may not exist yet): %s (errno: %d - %s)\n", iteration, max_iterations, filepath, errno, strerror(errno));
+        if (stat(filepath, &st) != 0)
+        {
+            CRASHUPLOAD_WARN("Iteration %d/%d: Cannot stat file (may not exist yet): %s (errno: %d - %s)\n", iteration, max_iterations, filepath, errno, strerror(errno));
             /* File might not exist yet, sleep and retry */
             sleep(check_interval_sec);
             continue;
@@ -548,28 +593,33 @@ int wait_for_file_size_stable(const char *filepath, int check_interval_sec, int 
         off_t current_size = st.st_size;
 
         /* First time getting valid size - just record it */
-        if (old_size == -1) {
+        if (old_size == -1)
+        {
             old_size = current_size;
-            printf("Iteration %d/%d: Initial file size: %lld bytes\n", iteration, max_iterations, (long long)current_size);
+            CRASHUPLOAD_INFO("Iteration %d/%d: Initial file size: %lld bytes\n", iteration, max_iterations, (long long)current_size);
             sleep(check_interval_sec);
             continue;
         }
 
         /* Check if size changed */
-        if (current_size != old_size) {
+        if (current_size != old_size)
+        {
             /* Size changed - file is still being written */
-            printf("Iteration %d/%d: File size changed: %lld -> %lld bytes (still writing...)\n", iteration, max_iterations, (long long)old_size, (long long)current_size);
+            CRASHUPLOAD_INFO("Iteration %d/%d: File size changed: %lld -> %lld bytes (still writing...)\n", iteration, max_iterations, (long long)old_size, (long long)current_size);
             old_size = current_size;
             stable_count = 0; /* Reset stability counter */
             sleep(check_interval_sec);
-        } else {
+        }
+        else
+        {
             /* Size unchanged - increment stability counter */
             stable_count++;
-            printf("Iteration %d/%d: File size stable: %lld bytes (stable check %d/%d)\n", iteration, max_iterations, (long long)current_size, stable_count, stability_checks);
+            CRASHUPLOAD_INFO("Iteration %d/%d: File size stable: %lld bytes (stable check %d/%d)\n", iteration, max_iterations, (long long)current_size, stable_count, stability_checks);
 
             /* Check if we have enough consecutive stable readings */
-            if (stable_count >= stability_checks) {
-                printf("File write completed (size stable for %d checks after %d iterations): %s\n", stability_checks, iteration, filepath);
+            if (stable_count >= stability_checks)
+            {
+                CRASHUPLOAD_INFO("File write completed (size stable for %d checks after %d iterations): %s\n", stability_checks, iteration, filepath);
                 return 0; /* Success - file is ready */
             }
 
@@ -578,7 +628,7 @@ int wait_for_file_size_stable(const char *filepath, int check_interval_sec, int 
     }
 
     /* Max iterations reached without stability */
-    printf("Max iterations (%d) reached waiting for file stability: %s\n", max_iterations, filepath);
-    printf("Final size: %lld bytes, stable count: %d/%d\n", (long long)old_size, stable_count, stability_checks);
+    CRASHUPLOAD_INFO("Max iterations (%d) reached waiting for file stability: %s\n", max_iterations, filepath);
+    CRASHUPLOAD_INFO("Final size: %lld bytes, stable count: %d/%d\n", (long long)old_size, stable_count, stability_checks);
     return -1;
 }
