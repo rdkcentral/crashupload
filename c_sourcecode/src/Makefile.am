@@ -50,6 +50,7 @@ crashupload_SOURCES = \
     utils/cleanup_batch.c \
     utils/cleanup_batch.h \
     scanner/scanner.c \
+    scanner/scanner.h \
     archive/archive.c \
     archive/archive_crash.h \
     ratelimit/ratelimit.c \

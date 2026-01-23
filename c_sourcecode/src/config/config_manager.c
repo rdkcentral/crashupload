@@ -225,13 +225,6 @@ int config_init_load(config_t *config, int argc, char *argv[])
     return CONFIG_SUCCESS;
 }
 
-#if 0
-int config_get(const char *key, char *value, size_t len) {
-    /* TODO: Implement config lookup */
-    return ERR_NOT_IMPLEMENTED;
-}
-#endif
-
 /**
  * FULL IMPLEMENTATION
  * Clean up configuration resources

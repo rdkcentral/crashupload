@@ -69,15 +69,6 @@ int file_get_sha1(const char *path, char *hash, size_t len);
 int file_get_mtime_formatted(const char *path, char *mtime, size_t len);
 
 /**
- * Check if file exists
- * @param path File path
- * @return true if file exists, false otherwise
- * 
- * FULL IMPLEMENTATION
- */
-bool file_exists(const char *path);
-
-/**
  * Get file size in bytes
  * @param path File path
  * @param size Pointer to store file size

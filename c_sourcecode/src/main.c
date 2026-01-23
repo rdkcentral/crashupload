@@ -30,7 +30,6 @@
 #include "../common/errors.h"
 #include "init/system_init.h"
 #include "utils/prerequisites.h"
-#include "utils/privacy.h"
 #include "utils/lock_manager.h"
 #include "scanner/scanner.h"
 #include "archive/archive_crash.h"
@@ -167,6 +166,7 @@ int main_test(int argc, char *argv[])
         return 0;
 #endif
     }
+    CRASHUPLOAD_INFO("Lock (%s) acquired successfully. Proceeding with dump processing.\n", lock_file_path);
     /* Step 2: Combined Prerequisites Check */
     /* TODO: Implement combined network + time check */
     if (prerequisites_wait(&config, PREREQUISITE_TIMEOUT_SEC) != PREREQUISITES_SUCCESS)

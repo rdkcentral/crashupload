@@ -41,29 +41,5 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
  */
 //int upload_file(const char *filepath, const char *url, upload_type_t type);
 int upload_file(const char *filepath, const char *url, const char *dump_name, const char *crash_fw_version, const char *build_type, const char *model, const char *md5sum, device_type_t device_type, bool t2_enabled);
-/**
- * Upload coredump file
- * @param filepath Path to coredump file
- * @param url Upload URL
- * @return 0 on success, -1 on error
- */
-int upload_coredump(const char *filepath, const char *url);
-
-/**
- * Upload minidump file
- * @param filepath Path to minidump file
- * @param url Upload URL
- * @return 0 on success, -1 on error
- */
-int upload_minidump(const char *filepath, const char *url);
-
-/**
- * Upload multiple files in batch
- * @param filepaths Array of file paths
- * @param urls Array of URLs
- * @param count Number of files
- * @return 0 if all successful, -1 if any failed
- */
-int upload_batch(const char **filepaths, const char **urls, int count);
 
 #endif /* UPLOAD_H */

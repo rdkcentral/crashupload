@@ -42,25 +42,6 @@ static int dump_count = 0;
 /* Container delimiter in filenames */
 static const char containerDelimiter[] = "<#=#>";
 
-#if 0
-/* Read a single line from file `path` into buffer (sz), trimming newline.
- * Returns 0 on success, -1 on error.
- */
-int read_line_trim(const char *path, char *buf, size_t sz)
-{
-    if (!path || !buf || sz == 0) return -1;
-    FILE *f = fopen(path, "r");
-    if (!f) return -1;
-    if (!fgets(buf, (int)sz, f)) {
-        fclose(f);
-        return -1;
-    }
-    fclose(f);
-    /* trim newline */
-    buf[strcspn(buf, "\r\n")] = '\0';
-    return 0;
-}
-#endif
 /* Write a single line to LOG_FILES_PATH (append). Return 0 on success */
 static int append_logfile_entry(const char *entry)
 {
@@ -929,9 +910,3 @@ int scanner_get_sorted_dumps(dump_file_t **dumps, int *count)
     return 0;
 }
 
-/* FULL IMPLEMENTATION - Clear scanner state */
-void scanner_cleanup(void)
-{
-    dump_count = 0;
-    memset(found_dumps, 0, sizeof(found_dumps));
-}
