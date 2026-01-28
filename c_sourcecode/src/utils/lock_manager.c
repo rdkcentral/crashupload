@@ -107,6 +107,7 @@ int lock_acquire(const char *lock_file, int timeout_sec, bool t2_enabled)
 
 void lock_release(int fd, const char *lock_file)
 {
+    CRASHUPLOAD_INFO("Releasing lock and removing lock file: %s\n", lock_file);
     release_process_lock(fd);
     unlink(lock_file);
 }

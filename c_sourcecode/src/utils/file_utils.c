@@ -434,8 +434,6 @@ int extract_tail(const char *src,
         if (count < max_lines)
             count++;
     }
-
-    CRASHUPLOAD_INFO("Read End===========>\n");
     start = (count < max_lines) ? 0 : idx;
     /* Write lines in correct order */
     for (i = 0; i < count; i++)

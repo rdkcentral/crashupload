@@ -452,7 +452,7 @@ int cleanup_batch(const char *working_dir,
         CRASHUPLOAD_INFO("need_run_startup = %d\n", need_run_startup);
         if (need_run_startup)
         {
-            CRASHUPLOAD_INFO("=========>Inside run start up cleanup\n");
+            CRASHUPLOAD_INFO("Inside run start up cleanup\n");
             /* delete unfinished files from previous run (matching "*_mac*_dat*") */
             delete_files_matching_pattern(working_dir, "*_mac*_dat*");
 
@@ -476,7 +476,7 @@ int cleanup_batch(const char *working_dir,
     }
     else
     {
-        CRASHUPLOAD_INFO("=========>Inside not run start up cleanup\n");
+        CRASHUPLOAD_INFO("Inside not run start up cleanup\n");
         /* If upload_on_startup exists and dump_flag == "1", remove the file (mirror shell behaviour) */
         if (dump_flag && strcmp(dump_flag, "1") == 0)
         {

@@ -292,7 +292,7 @@ static char *lookup_log_files_for_proc(const char *pname)
     char *lhs = NULL;
     char *rhs = NULL;
     char *eq = NULL;
-    CRASHUPLOAD_INFO("=============> pname=%s\n", pname);
+    CRASHUPLOAD_INFO("pname=%s\n", pname);
     while (fgets(line, sizeof(line), f))
     {
         /* trim newline */
@@ -341,7 +341,7 @@ static int get_crashed_log_file(const char *file, const char *log_path, bool t2_
     if (!file)
         return -1;
     char *token = NULL;
-    CRASHUPLOAD_INFO("In get_crashed_log_file file=%s====log_path=%s=====>\n", file, log_path);
+    CRASHUPLOAD_INFO("In get_crashed_log_file file=%s | log_path=%s\n", file, log_path);
     /* Extract pname */
     char *pname = extract_pname(file);
     if (!pname)
@@ -359,10 +359,10 @@ static int get_crashed_log_file(const char *file, const char *log_path, bool t2_
         t2ValNotify("SYST_ERR_Process_Crash_accum", pname);
         t2CountNotify("SYST_ERR_ProcessCrash", 1);
     }
-    CRASHUPLOAD_INFO("Going to call lookup_log_files_for_proc() ===========================\n");
+    CRASHUPLOAD_INFO("Going to call lookup_log_files_for_proc()\n");
     /* Lookup log files (comma-separated) */
     char *logrhs = lookup_log_files_for_proc(pname);
-    CRASHUPLOAD_INFO("Call End lookup_log_files_for_proc() ===========================\n");
+    CRASHUPLOAD_INFO("Call End lookup_log_files_for_proc()\n");
     if (logrhs)
     {
         CRASHUPLOAD_INFO("Crashed process log file(s)\n");

@@ -465,10 +465,10 @@ ON_STARTUP_DUMPS_CLEANED_UP_BASE="/tmp/.on_startup_dumps_cleaned_up"
 # Uses globals: TIMESTAMP_FILENAME
 logUploadTimestamp()
 {
-    if [ "$BUILD_TYPE" = "prod" ]; then
+    #if [ "$BUILD_TYPE" = "prod" ]; then
         date +%s >> "$TIMESTAMP_FILENAME"
         truncateTimeStampFile
-    fi
+    #fi
 }
 
 # truncate $TIMESTAMP_FILENAME to 15 lines. We won't need more.

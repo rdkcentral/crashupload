@@ -325,7 +325,7 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
     }
     else
     {
-        CRASHUPLOAD_INFO("Inside minidump==============>\n");
+        CRASHUPLOAD_INFO("Inside minidump\n");
         snprintf(target_file_name, sizeof(target_file_name), "%s.tgz", new_dump_name);
         if (config->device_type == DEVICE_TYPE_MEDIACLIENT)
         {

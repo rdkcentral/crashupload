@@ -291,12 +291,12 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
             }
             else
             {
-                CRASHUPLOAD_INFO("S3 ${DUMP_NAME} Upload is successful $tlsMessage\n");
+                CRASHUPLOAD_INFO("S3 %s Upload is successful\n", filepath);
                 if (t2_enabled)
                 {
                     t2CountNotify("SYS_INFO_S3CoreUploaded", 1);
                 }
-                CRASHUPLOAD_INFO("Removing uploaded $DUMP_NAME file %s\n", filepath);
+                CRASHUPLOAD_INFO("Removing uploaded %s file\n", filepath);
                 unlink(filepath);
                 break;
             }
@@ -380,7 +380,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         }
         else
         {
-            CRASHUPLOAD_INFO("Read rfc Success crashportalEndpointUrl:\n Overriding the S3 Amazon SIgning URL:%s\n", crashportalEndpointUrl);
+            CRASHUPLOAD_INFO("Read rfc Success crashportalEndpointUrl:\n Overriding the S3 Amazon Signing URL:%s\n", crashportalEndpointUrl);
         }
     }
     else if (config->device_type == DEVICE_TYPE_BROADBAND)
@@ -388,14 +388,14 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         ret = -1;
         CRASHUPLOAD_WARN("TODO: SUPPORT NOT AVAILABLE\n");
         CRASHUPLOAD_WARN("Unknown device\n");
-        CRASHUPLOAD_WARN("[ERROR] Unknown DEVICE_TYPE:\n");
+        CRASHUPLOAD_WARN("Unknown DEVICE_TYPE:\n");
         return ret;
     }
     else
     {
         ret = -1;
         CRASHUPLOAD_WARN("Unknown device\n");
-        CRASHUPLOAD_WARN("[ERROR] Unknown DEVICE_TYPE:\n");
+        CRASHUPLOAD_WARN("Unknown DEVICE_TYPE:\n");
         return ret;
     }
     if ((0 == (filePresentCheck(EnableOCSPStapling))) || (0 == (filePresentCheck(EnableOCSP))))
@@ -424,7 +424,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         {
             t2CountNotify("SYST_INFO_minidumpUpld", 1);
         }
-        CRASHUPLOAD_INFO("Execution Status: %d, S3 Amazon Upload of $DUMP_NAME Success\n", status);
+        CRASHUPLOAD_INFO("Execution Status: %d, S3 Amazon Upload of Success\n", status);
         CRASHUPLOAD_INFO("Removing file %s\n", archive->archive_name);
         unlink(archive->archive_name);
     }
@@ -440,8 +440,8 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         {
             CRASHUPLOAD_INFO("Removing file %s\n", archive->archive_name);
             unlink(archive->archive_name);
-            set_time("/tmp/.minidump_upload_timestamps", CURRENT_TIME);
         }
     }
+    set_time(MINIDUMP_UPLOAD_TIMESTAMPS_FILE, CURRENT_TIME);
     return status;
 }
