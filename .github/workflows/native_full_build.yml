@@ -1,0 +1,31 @@
+name: Build Component in Native Environment
+
+on:
+  pull_request:
+    branches: [ develop, main ]
+    paths: 
+      - '**/*.c'
+      - '**/*.cpp'
+      - '**/*.cc'
+      - '**/*.cxx'
+      - '**/*.h'
+      - '**/*.hpp'
+      - '**/Makefile.am'
+      - '**/configure.ac'
+      - '.github/workflows/build-on-pr.yml'
+
+jobs:
+  build-crashupload-on-pr:
+    name: Build crashupload component in github rdkcentral
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build crashupload binary
+        run: |
+          chmod +x cov_build.sh
+          ./cov_build.sh
