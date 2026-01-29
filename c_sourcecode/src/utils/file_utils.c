@@ -24,6 +24,8 @@
 #include <openssl/evp.h>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
+#include <archive.h>
+#include <archive_entry.h>
 #include "rdk_fwdl_utils.h"
 #include "system_utils.h"
 #include "file_utils.h"
@@ -50,53 +52,320 @@ bool tls_log(int curl_code, const char *device_type, const char *fqdn)
     return true;
 }
 
-/* function GetFirmwareVersion - gets the firmware version of the device.
+/**
+ * @brief Check if a file is a tarball based on extension
+ * @param filepath Path to the file
+ * @return true if file ends with .tgz or .tar.gz
+ */
+static bool is_tarball(const char *filepath)
+{
+    if (!filepath)
+        return false;
+    
+    size_t len = strlen(filepath);
+    if (len < 4)
+        return false;
+    
+    // Check for .tgz
+    if (len >= 4 && strcmp(filepath + len - 4, ".tgz") == 0)
+        return true;
+    
+    // Check for .tar.gz
+    if (len >= 7 && strcmp(filepath + len - 7, ".tar.gz") == 0)
+        return true;
+    
+    return false;
+}
 
-        Usage: size_t GetFirmwareVersion <char *pFWVersion> <size_t szBufSize>
+/**
+ * @brief Parse imagename from version.txt content
+ * @param content The content of version.txt
+ * @param output Buffer to store parsed imagename
+ * @param output_size Size of output buffer
+ * @return Number of characters written to output, or 0 on failure
+ */
+static size_t parse_imagename_from_content(const char *content, char *output, size_t output_size)
+{
+    if (!content || !output || output_size == 0)
+        return 0;
+    
+    const char *line_start = content;
+    const char *line_end;
+    char line_buf[256];
+    
+    // Search through lines for "imagename:"
+    while (*line_start)
+    {
+        // Find end of line
+        line_end = strchr(line_start, '\n');
+        if (!line_end)
+            line_end = line_start + strlen(line_start);
+        
+        // Copy line to buffer
+        size_t line_len = line_end - line_start;
+        if (line_len >= sizeof(line_buf))
+            line_len = sizeof(line_buf) - 1;
+        
+        memcpy(line_buf, line_start, line_len);
+        line_buf[line_len] = '\0';
+        
+        // Check if this line contains "imagename:"
+        char *imagename_ptr = strstr(line_buf, "imagename:");
+        if (imagename_ptr)
+        {
+            // Skip past "imagename:"
+            imagename_ptr += strlen("imagename:");
+            
+            // Skip any whitespace
+            while (*imagename_ptr == ' ' || *imagename_ptr == '\t')
+                imagename_ptr++;
+            
+            // Copy to output and strip invalid chars
+            size_t result_len = snprintf(output, output_size, "%s", imagename_ptr);
+            return stripinvalidchar(output, result_len);
+        }
+        
+        // Move to next line
+        if (*line_end == '\n')
+            line_start = line_end + 1;
+        else
+            break;
+    }
+    
+    return 0;
+}
+
+/**
+ * @brief Extract version.txt from tarball in-memory and parse imagename
+ * @param tarball_path Path to the .tgz file
+ * @param output Buffer to store the firmware version
+ * @param output_size Size of output buffer
+ * @return Number of characters written, or 0 on failure
+ */
+static size_t extract_version_from_tarball(const char *tarball_path, char *output, size_t output_size)
+{
+    struct archive *a = NULL;
+    struct archive_entry *entry = NULL;
+    char *file_content = NULL;
+    size_t result = 0;
+    int r;
+    
+    if (!tarball_path || !output || output_size == 0)
+        return 0;
+    
+    CRASHUPLOAD_INFO("Attempting to extract version.txt from tarball: %s\n", tarball_path);
+    
+    // Create archive reader
+    a = archive_read_new();
+    if (!a)
+    {
+        CRASHUPLOAD_ERROR("Failed to create archive reader\n");
+        return 0;
+    }
+    
+    // Support gzip and tar formats
+    archive_read_support_filter_gzip(a);
+    archive_read_support_format_tar(a);
+    
+    // Open the tarball
+    r = archive_read_open_filename(a, tarball_path, 10240);
+    if (r != ARCHIVE_OK)
+    {
+        CRASHUPLOAD_ERROR("Failed to open tarball %s: %s\n", tarball_path, archive_error_string(a));
+        archive_read_free(a);
+        return 0;
+    }
+    
+    // Iterate through archive entries to find version.txt
+    while (archive_read_next_header(a, &entry) == ARCHIVE_OK)
+    {
+        const char *entry_name = archive_entry_pathname(entry);
+        
+        if (!entry_name)
+        {
+            archive_read_data_skip(a);
+            continue;
+        }
+        
+        CRASHUPLOAD_INFO("Found entry in tarball: %s\n", entry_name);
+        
+        // Check if this is version.txt (may have path prefix)
+        if (strcmp(entry_name, "version.txt") == 0 || 
+            strstr(entry_name, "/version.txt") != NULL ||
+            strcmp(entry_name, "./version.txt") == 0)
+        {
+            size_t file_size = archive_entry_size(entry);
+            
+            CRASHUPLOAD_INFO("Found version.txt in tarball, size: %zu bytes\n", file_size);
+            
+            // Sanity check: version.txt should be reasonably small
+            if (file_size == 0 || file_size > 4096)
+            {
+                CRASHUPLOAD_WARN("version.txt has unusual size: %zu bytes, skipping\n", file_size);
+                archive_read_data_skip(a);
+                continue;
+            }
+            
+            // Allocate buffer for file content
+            file_content = (char *)malloc(file_size + 1);
+            if (!file_content)
+            {
+                CRASHUPLOAD_ERROR("Failed to allocate memory for version.txt content\n");
+                break;
+            }
+            
+            // Read file content into memory
+            ssize_t bytes_read = archive_read_data(a, file_content, file_size);
+            if (bytes_read < 0)
+            {
+                CRASHUPLOAD_ERROR("Failed to read version.txt from tarball: %s\n", archive_error_string(a));
+                free(file_content);
+                file_content = NULL;
+                break;
+            }
+            
+            file_content[bytes_read] = '\0';
+            
+            CRASHUPLOAD_INFO("Successfully extracted version.txt (%zd bytes)\n", bytes_read);
+            
+            // Parse imagename from the content
+            result = parse_imagename_from_content(file_content, output, output_size);
+            
+            if (result > 0)
+            {
+                CRASHUPLOAD_INFO("Extracted firmware version from tarball: %s\n", output);
+            }
+            else
+            {
+                CRASHUPLOAD_WARN("Could not parse imagename from version.txt in tarball\n");
+            }
+            
+            free(file_content);
+            break;
+        }
+        
+        // Skip other entries
+        archive_read_data_skip(a);
+    }
+    
+    // Cleanup
+    archive_read_free(a);
+    
+    return result;
+}
+
+/**
+ * @brief Read version from a regular file
+ * @param filepath Path to version.txt
+ * @param output Buffer to store the firmware version
+ * @param output_size Size of output buffer
+ * @return Number of characters written, or 0 on failure
+ */
+static size_t read_version_from_file(const char *filepath, char *output, size_t output_size)
+{
+    FILE *fp;
+    size_t result = 0;
+    char *pTmp;
+    char buf[150];
+    
+    if (!filepath || !output || output_size == 0)
+        return 0;
+    
+    *output = '\0';
+    
+    fp = fopen(filepath, "r");
+    if (!fp)
+    {
+        CRASHUPLOAD_WARN("Failed to open version file: %s\n", filepath);
+        return 0;
+    }
+    
+    pTmp = NULL;
+    while (fgets(buf, sizeof(buf), fp) != NULL)
+    {
+        if ((pTmp = strstr(buf, "imagename:")) != NULL)
+        {
+            while (*pTmp++ != ':')
+            {
+                ;
+            }
+            break;
+        }
+    }
+    fclose(fp);
+    
+    if (pTmp)
+    {
+        result = snprintf(output, output_size, "%s", pTmp);
+        result = stripinvalidchar(output, result);
+    }
+    
+    return result;
+}
+
+/* function GetCrashFirmwareVersion - gets the firmware version of the device.
+        
+        This function intelligently determines the firmware version by:
+        1. Checking if the source is a tarball (.tgz)
+        2. If YES: Extracting version.txt from the tarball in-memory (for dumps from previous boots)
+        3. If NO or extraction fails: Reading from /version.txt (current boot)
+
+        Usage: size_t GetCrashFirmwareVersion <char *source> <char *pFWVersion> <size_t szBufSize>
+
+            source - Can be either:
+                     - A tarball path (e.g., "/minidumps/mac...dat...tgz") 
+                     - A regular file path (e.g., "/version.txt")
 
             pFWVersion - pointer to a char buffer to store the output string.
 
-            szBufSize - the size of the character buffer in argument 1.
+            szBufSize - the size of the character buffer in argument 2.
 
             RETURN - number of characters copied to the output buffer.
 */
-size_t GetCrashFirmwareVersion(const char *versionFile, char *pFWVersion, size_t szBufSize)
+size_t GetCrashFirmwareVersion(const char *source, char *pFWVersion, size_t szBufSize)
 {
-    FILE *fp;
-    size_t i = 0;
-    char *pTmp;
-    char buf[150];
-
-    if (pFWVersion != NULL && versionFile != NULL)
+    size_t result = 0;
+    
+    if (!pFWVersion || !source)
     {
-        *pFWVersion = 0;
-        if ((fp = fopen(versionFile, "r")) != NULL)
+        CRASHUPLOAD_WARN("GetCrashFirmwareVersion: Error, input argument NULL\n");
+        return 0;
+    }
+    
+    *pFWVersion = '\0';
+    
+    // Check if source is a tarball
+    if (is_tarball(source))
+    {
+        CRASHUPLOAD_INFO("Source is a tarball, attempting to extract version.txt\n");
+        
+        // Try to extract version.txt from tarball
+        result = extract_version_from_tarball(source, pFWVersion, szBufSize);
+        
+        if (result > 0)
         {
-            pTmp = NULL;
-            while (fgets(buf, sizeof(buf), fp) != NULL)
-            {
-                if ((pTmp = strstr(buf, "imagename:")) != NULL)
-                {
-                    while (*pTmp++ != ':')
-                    {
-                        ;
-                    }
-                    break;
-                }
-            }
-            fclose(fp);
-            if (pTmp)
-            {
-                i = snprintf(pFWVersion, szBufSize, "%s", pTmp);
-                i = stripinvalidchar(pFWVersion, i);
-            }
+            CRASHUPLOAD_INFO("Successfully extracted firmware version from tarball: %s\n", pFWVersion);
+            return result;
         }
+        
+        // Extraction failed, fall back to current version
+        CRASHUPLOAD_WARN("Failed to extract version from tarball, falling back to /version.txt\n");
+    }
+    
+    // Either not a tarball, or extraction failed - use current boot's version.txt
+    CRASHUPLOAD_INFO("Reading firmware version from /version.txt\n");
+    result = read_version_from_file("/version.txt", pFWVersion, szBufSize);
+    
+    if (result > 0)
+    {
+        CRASHUPLOAD_INFO("Using current firmware version: %s\n", pFWVersion);
     }
     else
     {
-        CRASHUPLOAD_WARN("GetFirmwareVersion: Error, input argument NULL\n");
+        CRASHUPLOAD_ERROR("Failed to read firmware version from /version.txt\n");
     }
-    return i;
+    
+    return result;
 }
 
 /*
