@@ -31,5 +31,7 @@
 
 int ratelimit_check_unified(dump_type_t dump);
 int set_time(const char *deny_file, int type);
+int is_upload_limit_reached(const char *file);
+int is_recovery_time_reached(const char *deny_file);
 
 #endif /* RATELIMIT_H */

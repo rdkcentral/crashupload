@@ -30,6 +30,13 @@
 #include "telemetryinterface.h"
 #include "../utils/logger.h"
 
+// For unit testing: allow static functions to be visible
+#ifdef L2_TEST
+#define STATIC_TESTABLE
+#else
+#define STATIC_TESTABLE static
+#endif
+
 #define MAX_DUMPS 5
 #define PATH_MAX_LEN 512
 
@@ -43,7 +50,7 @@ static int dump_count = 0;
 static const char containerDelimiter[] = "<#=#>";
 
 /* Write a single line to LOG_FILES_PATH (append). Return 0 on success */
-static int append_logfile_entry(const char *entry)
+STATIC_TESTABLE int append_logfile_entry(const char *entry)
 {
     if (!entry)
         return -1;
@@ -61,7 +68,7 @@ static int append_logfile_entry(const char *entry)
     return 0;
 }
 
-static int is_allowed_char(char c)
+STATIC_TESTABLE int is_allowed_char(char c)
 {
     return ((c >= '0' && c <= '9') ||
             (c >= 'A' && c <= 'Z') ||
@@ -69,8 +76,10 @@ static int is_allowed_char(char c)
             c == '/' || c == ' ' || c == '.' || c == '_' || c == '-');
 }
 
-static char *sanitize_segment(const char *s)
+STATIC_TESTABLE char *sanitize_segment(const char *s)
 {
+    if (!s)
+        return NULL;
     size_t len = strlen(s);
     char *out = calloc(len + 1, 1);
     if (!out)
@@ -279,7 +288,7 @@ char *extract_appname(const char *filepath)
  *
  *   Returns malloc'd string with comma-separated filenames on success (caller frees), NULL if none found.
  */
-static char *lookup_log_files_for_proc(const char *pname)
+STATIC_TESTABLE char *lookup_log_files_for_proc(const char *pname)
 {
     if (!pname)
         return NULL;
@@ -336,7 +345,7 @@ static char *lookup_log_files_for_proc(const char *pname)
  *
  *   This function mirrors the shell get_crashed_log_file() behavior.
  */
-static int get_crashed_log_file(const char *file, const char *log_path, bool t2_enabled)
+STATIC_TESTABLE int get_crashed_log_file(const char *file, const char *log_path, bool t2_enabled)
 {
     if (!file)
         return -1;
@@ -768,7 +777,7 @@ int process_file_entry(char *fullpath, char *dump_type, const config_t *config)
 }
 
 /* FULL IMPLEMENTATION - Check if file has dump extension */
-static int is_dump_file(const char *filename, const char *dumps_extn_pattern)
+STATIC_TESTABLE int is_dump_file(const char *filename, const char *dumps_extn_pattern)
 {
     if (!filename || !dumps_extn_pattern)
     {

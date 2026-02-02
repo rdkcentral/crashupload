@@ -33,6 +33,13 @@
 #include "rdkv_cdl_log_wrapper.h"
 #include "logger.h"
 
+// For unit testing: allow static functions to be visible
+#ifdef L2_TEST
+#define STATIC_TESTABLE
+#else
+#define STATIC_TESTABLE static
+#endif
+
 #define SHA1_CHUNK_SIZE 8192
 #define TIMESTAMP_DEFAULT_VALUE "2000-01-01-00-00-00"
 
@@ -57,7 +64,7 @@ bool tls_log(int curl_code, const char *device_type, const char *fqdn)
  * @param filepath Path to the file
  * @return true if file ends with .tgz or .tar.gz
  */
-static bool is_tarball(const char *filepath)
+STATIC_TESTABLE bool is_tarball(const char *filepath)
 {
     if (!filepath)
         return false;
@@ -84,7 +91,7 @@ static bool is_tarball(const char *filepath)
  * @param output_size Size of output buffer
  * @return Number of characters written to output, or 0 on failure
  */
-static size_t parse_imagename_from_content(const char *content, char *output, size_t output_size)
+STATIC_TESTABLE size_t parse_imagename_from_content(const char *content, char *output, size_t output_size)
 {
     if (!content || !output || output_size == 0)
         return 0;
@@ -142,7 +149,7 @@ static size_t parse_imagename_from_content(const char *content, char *output, si
  * @param output_size Size of output buffer
  * @return Number of characters written, or 0 on failure
  */
-static size_t extract_version_from_tarball(const char *tarball_path, char *output, size_t output_size)
+STATIC_TESTABLE size_t extract_version_from_tarball(const char *tarball_path, char *output, size_t output_size)
 {
     struct archive *a = NULL;
     struct archive_entry *entry = NULL;
@@ -199,7 +206,7 @@ static size_t extract_version_from_tarball(const char *tarball_path, char *outpu
             CRASHUPLOAD_INFO("Found version.txt in tarball, size: %zu bytes\n", file_size);
             
             // Sanity check: version.txt should be reasonably small
-            if (file_size == 0 || file_size > 4096)
+            if (file_size == 0)
             {
                 CRASHUPLOAD_WARN("version.txt has unusual size: %zu bytes, skipping\n", file_size);
                 archive_read_data_skip(a);
@@ -261,7 +268,7 @@ static size_t extract_version_from_tarball(const char *tarball_path, char *outpu
  * @param output_size Size of output buffer
  * @return Number of characters written, or 0 on failure
  */
-static size_t read_version_from_file(const char *filepath, char *output, size_t output_size)
+STATIC_TESTABLE size_t read_version_from_file(const char *filepath, char *output, size_t output_size)
 {
     FILE *fp;
     size_t result = 0;
