@@ -116,7 +116,7 @@ void lock_release(int fd, const char *lock_file)
         }
         return;
     }
-    CRASHUPLOAD_INFO("Releasing lock and removing lock file: %s\n", lock_file); 1
+    CRASHUPLOAD_INFO("Releasing lock and removing lock file: %s\n", lock_file);
     release_process_lock(fd);
-    unlink(lock_file); 1
+    unlink(lock_file);
 }
