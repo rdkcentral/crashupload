@@ -16,320 +16,222 @@
  */
 
 /**
- * @file lock_manager_gtest.cpp
- * @brief Comprehensive GTest suite for lock manager functions
+ * @file logger_gtest.cpp
+ * @brief Minimal GTest suite for logger functions
  * 
- * Tests all lock management logic including:
- * - lock_acquire()
- * - lock_release()
- * - acquire_process_lock_or_wait()
- * - release_process_lock()
+ * Tests logger initialization and cleanup
  */
 
 #include <gtest/gtest.h>
-#include <cstring>
-#include <cstdlib>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/file.h>
-#include <fcntl.h>
-#include <sys/wait.h>
 
 extern "C" {
-#include "../c_sourcecode/src/utils/lock_manager.h"
-
-// Forward declarations for internal functions not in header
-int acquire_process_lock_or_wait(const char *lock_path, int wait_time);
-void release_process_lock(int lock_fd);
+int logger_init(void);
+void logger_exit(void);
+void logger_error(const char *fmt, ...);
+void logger_warn(const char *fmt, ...);
+void logger_info(const char *fmt, ...);
 }
 
 // ============================================================================
 // Test Fixture
 // ============================================================================
 
-class LockManagerTest : public ::testing::Test {
+class LoggerTest : public ::testing::Test {
 protected:
-    const char* test_lock_file = "/tmp/test_lock_file.lock";
-    
     void SetUp() override {
-        // Clean up any existing test files
-        unlink(test_lock_file);
+        // Setup for each test
     }
 
     void TearDown() override {
-        // Clean up test files
-        unlink(test_lock_file);
+        // Cleanup after each test
     }
 };
 
 // ============================================================================
-// Tests for lock_acquire() with timeout_sec > 0 (wait mode)
+// Tests for logger_init()
 // ============================================================================
 
-TEST_F(LockManagerTest, LockAcquire_WithTimeout_Success) {
-    int fd = lock_acquire(test_lock_file, 1, false);
-    
-    EXPECT_GE(fd, 0);
-    EXPECT_TRUE(access(test_lock_file, F_OK) == 0);
-    
-    // Cleanup
-    lock_release(fd, test_lock_file);
+TEST_F(LoggerTest, LoggerInit_Success) {
+    int result = logger_init();
+    EXPECT_EQ(result, 0);
 }
 
-TEST_F(LockManagerTest, LockAcquire_WithTimeout_MultipleAcquire) {
-    // First acquire
-    int fd1 = lock_acquire(test_lock_file, 1, false);
-    EXPECT_GE(fd1, 0);
+TEST_F(LoggerTest, LoggerInit_MultipleCallsSucceed) {
+    int result1 = logger_init();
+    int result2 = logger_init();
     
-    // Release first
-    lock_release(fd1, test_lock_file);
-    
-    // Second acquire should succeed
-    int fd2 = lock_acquire(test_lock_file, 1, false);
-    EXPECT_GE(fd2, 0);
-    
-    // Cleanup
-    lock_release(fd2, test_lock_file);
+    EXPECT_EQ(result1, 0);
+    EXPECT_EQ(result2, 0);
 }
 
 // ============================================================================
-// Tests for lock_acquire() with timeout_sec = 0 (exit mode)
+// Tests for logger_exit()
 // ============================================================================
 
-TEST_F(LockManagerTest, LockAcquire_NoTimeout_Success) {
-    int fd = lock_acquire(test_lock_file, 0, false);
+TEST_F(LoggerTest, LoggerExit_AfterInit_Success) {
+    logger_init();
     
-    EXPECT_GE(fd, 0);
-    EXPECT_TRUE(access(test_lock_file, F_OK) == 0);
-    
-    // Cleanup
-    lock_release(fd, test_lock_file);
+    EXPECT_NO_THROW({
+        logger_exit();
+    });
 }
 
-TEST_F(LockManagerTest, LockAcquire_NoTimeout_T2Enabled) {
-    int fd = lock_acquire(test_lock_file, 0, true);
-    
-    EXPECT_GE(fd, 0);
-    
-    // Cleanup
-    lock_release(fd, test_lock_file);
+TEST_F(LoggerTest, LoggerExit_WithoutInit_NoError) {
+    EXPECT_NO_THROW({
+        logger_exit();
+    });
 }
 
-// ============================================================================
-// Tests for lock_acquire() - Negative Cases
-// ============================================================================
-
-TEST_F(LockManagerTest, LockAcquire_NullFile_Failure) {
-    int fd = lock_acquire(NULL, 1, false);
+TEST_F(LoggerTest, LoggerExit_MultipleCalls_NoError) {
+    logger_init();
     
-    EXPECT_EQ(fd, -1);
-}
-
-TEST_F(LockManagerTest, LockAcquire_NullFileNoTimeout_Failure) {
-    int fd = lock_acquire(NULL, 0, false);
-    
-    EXPECT_EQ(fd, -1);
-}
-
-// ============================================================================
-// Tests for lock_release()
-// ============================================================================
-
-TEST_F(LockManagerTest, LockRelease_ValidFd_Success) {
-    int fd = lock_acquire(test_lock_file, 1, false);
-    EXPECT_GE(fd, 0);
-    
-    lock_release(fd, test_lock_file);
-    
-    // Lock file should be removed
-    EXPECT_FALSE(access(test_lock_file, F_OK) == 0);
-}
-
-TEST_F(LockManagerTest, LockRelease_InvalidFd_NoError) {
-    // Should handle gracefully
-    lock_release(-1, test_lock_file);
-    
-    // Should not crash
-    SUCCEED();
-}
-
-TEST_F(LockManagerTest, LockRelease_NullFile_NoError) {
-    int fd = lock_acquire(test_lock_file, 1, false);
-    EXPECT_GE(fd, 0);
-    
-    // Should handle NULL file gracefully
-    lock_release(fd, NULL);
-    
-    // Cleanup manually
-    unlink(test_lock_file);
-}
-
-// ============================================================================
-// Tests for acquire_process_lock_or_wait()
-// ============================================================================
-
-TEST_F(LockManagerTest, AcquireProcessLockOrWait_Success) {
-    int fd = acquire_process_lock_or_wait(test_lock_file, 1);
-    
-    EXPECT_GE(fd, 0);
-    EXPECT_TRUE(access(test_lock_file, F_OK) == 0);
-    
-    // Cleanup
-    release_process_lock(fd);
-    unlink(test_lock_file);
-}
-
-TEST_F(LockManagerTest, AcquireProcessLockOrWait_InvalidPath_Failure) {
-    int fd = acquire_process_lock_or_wait("/nonexistent/dir/lock.file", 1);
-    
-    EXPECT_EQ(fd, -1);
-}
-
-// ============================================================================
-// Tests for release_process_lock()
-// ============================================================================
-
-TEST_F(LockManagerTest, ReleaseProcessLock_ValidFd_Success) {
-    int fd = acquire_process_lock_or_wait(test_lock_file, 1);
-    EXPECT_GE(fd, 0);
-    
-    release_process_lock(fd);
-    
-    // Lock should be released (file still exists but unlocked)
-    EXPECT_TRUE(access(test_lock_file, F_OK) == 0);
-    
-    // Cleanup
-    unlink(test_lock_file);
-}
-
-TEST_F(LockManagerTest, ReleaseProcessLock_InvalidFd_NoError) {
-    // Should handle gracefully
-    release_process_lock(-1);
-    
-    // Should not crash
-    SUCCEED();
-}
-
-TEST_F(LockManagerTest, ReleaseProcessLock_AlreadyClosed_NoError) {
-    int fd = acquire_process_lock_or_wait(test_lock_file, 1);
-    EXPECT_GE(fd, 0);
-    
-    // Release once
-    release_process_lock(fd);
-    
-    // Release again - should handle gracefully
-    release_process_lock(fd);
-    
-    // Cleanup
-    unlink(test_lock_file);
+    EXPECT_NO_THROW({
+        logger_exit();
+        logger_exit();
+    });
 }
 
 // ============================================================================
 // Integration Tests
 // ============================================================================
 
-TEST_F(LockManagerTest, Integration_AcquireAndReleaseCycle) {
-    // Acquire
-    int fd = lock_acquire(test_lock_file, 1, false);
-    EXPECT_GE(fd, 0);
-    EXPECT_TRUE(access(test_lock_file, F_OK) == 0);
+TEST_F(LoggerTest, Integration_InitAndExit) {
+    EXPECT_EQ(logger_init(), 0);
     
-    // Release
-    lock_release(fd, test_lock_file);
-    EXPECT_FALSE(access(test_lock_file, F_OK) == 0);
+    EXPECT_NO_THROW({
+        logger_exit();
+    });
 }
 
-TEST_F(LockManagerTest, Integration_MultipleLockCycles) {
-    for (int i = 0; i < 5; i++) {
-        int fd = lock_acquire(test_lock_file, 1, false);
-        EXPECT_GE(fd, 0);
-        lock_release(fd, test_lock_file);
-    }
+TEST_F(LoggerTest, Integration_FullCycle_AllLogLevels) {
+    EXPECT_EQ(logger_init(), 0);
     
-    // Should succeed 5 times
+    // Test all log levels don't crash
+    EXPECT_NO_THROW({
+        logger_error("Test error message");
+        logger_warn("Test warning message");
+        logger_info("Test info message");
+    });
+    
+    EXPECT_NO_THROW({
+        logger_exit();
+    });
+}
+
+// ============================================================================
+// Tests for logger_error()
+// ============================================================================
+
+TEST_F(LoggerTest, LoggerError_SimpleMessage) {
+    logger_init();
+    
+    EXPECT_NO_THROW({
+        logger_error("Simple error message");
+    });
+    
+    logger_exit();
+}
+
+TEST_F(LoggerTest, LoggerError_FormattedMessage) {
+    logger_init();
+    
+    EXPECT_NO_THROW({
+        logger_error("Error code: %d, message: %s", 42, "test");
+    });
+    
+    logger_exit();
+}
+
+TEST_F(LoggerTest, LoggerError_WithoutInit_NoSegfault) {
+    // Should not crash even without init
+    EXPECT_NO_THROW({
+        logger_error("Error without init");
+    });
+}
+
+// ============================================================================
+// Tests for logger_warn()
+// ============================================================================
+
+TEST_F(LoggerTest, LoggerWarn_SimpleMessage) {
+    logger_init();
+    
+    EXPECT_NO_THROW({
+        logger_warn("Simple warning message");
+    });
+    
+    logger_exit();
+}
+
+TEST_F(LoggerTest, LoggerWarn_FormattedMessage) {
+    logger_init();
+    
+    EXPECT_NO_THROW({
+        logger_warn("Warning: %s at line %d", "file.c", 123);
+    });
+    
+    logger_exit();
+}
+
+TEST_F(LoggerTest, LoggerWarn_WithoutInit_NoSegfault) {
+    // Should not crash even without init
+    EXPECT_NO_THROW({
+        logger_warn("Warning without init");
+    });
+}
+
+// ============================================================================
+// Tests for logger_info()
+// ============================================================================
+
+TEST_F(LoggerTest, LoggerInfo_SimpleMessage) {
+    logger_init();
+    
+    EXPECT_NO_THROW({
+        logger_info("Simple info message");
+    });
+    
+    logger_exit();
+}
+
+TEST_F(LoggerTest, LoggerInfo_FormattedMessage) {
+    logger_init();
+    
+    EXPECT_NO_THROW({
+        logger_info("Info: processed %d files in %d seconds", 100, 5);
+    });
+    
+    logger_exit();
+}
+
+TEST_F(LoggerTest, LoggerInfo_WithoutInit_NoSegfault) {
+    // Should not crash even without init
+    EXPECT_NO_THROW({
+        logger_info("Info without init");
+    });
+}
+
+TEST_F(LoggerTest, LoggerInfo_LongMessage) {
+    logger_init();
+    
+    EXPECT_NO_THROW({
+        logger_info("This is a very long message that tests the buffer handling: %s %s %s %s %s",
+                   "word1", "word2", "word3", "word4", "word5");
+    });
+    
+    logger_exit();
+}
+
+TEST_F(LoggerTest, Integration_MultipleSessions) {
+    // First session
+    logger_init();
+    logger_exit();
+    
+    // Second session
+    logger_init();
+    logger_exit();
+    
     SUCCEED();
-}
-
-TEST_F(LockManagerTest, Integration_DifferentModes) {
-    // Test with timeout
-    int fd1 = lock_acquire(test_lock_file, 1, false);
-    EXPECT_GE(fd1, 0);
-    lock_release(fd1, test_lock_file);
-    
-    // Test without timeout
-    int fd2 = lock_acquire(test_lock_file, 0, false);
-    EXPECT_GE(fd2, 0);
-    lock_release(fd2, test_lock_file);
-}
-
-// ============================================================================
-// Edge Case Tests
-// ============================================================================
-
-TEST_F(LockManagerTest, EdgeCase_VeryShortWaitTime) {
-    int fd = lock_acquire(test_lock_file, 1, false);
-    
-    EXPECT_GE(fd, 0);
-    
-    lock_release(fd, test_lock_file);
-}
-
-TEST_F(LockManagerTest, EdgeCase_ZeroFd_IsInvalid) {
-    // FD 0 is stdin, should not be used as lock
-    release_process_lock(0);
-    
-    // Should handle gracefully
-    SUCCEED();
-}
-
-TEST_F(LockManagerTest, EdgeCase_LargeTimeout) {
-    // Large timeout value (won't actually wait)
-    int fd = lock_acquire(test_lock_file, 9999, false);
-    
-    EXPECT_GE(fd, 0);
-    
-    lock_release(fd, test_lock_file);
-}
-
-TEST_F(LockManagerTest, EdgeCase_NegativeTimeout) {
-    // Negative timeout should trigger exit mode
-    int fd = lock_acquire(test_lock_file, -1, false);
-    
-    EXPECT_GE(fd, 0);
-    
-    lock_release(fd, test_lock_file);
-}
-
-// ============================================================================
-// Concurrency Tests (using fork)
-// ============================================================================
-
-TEST_F(LockManagerTest, Concurrency_LockIsExclusive) {
-    int fd1 = lock_acquire(test_lock_file, 1, false);
-    EXPECT_GE(fd1, 0);
-    
-    pid_t pid = fork();
-    if (pid == 0) {
-        // Child process - try to acquire same lock with non-blocking
-        int fd2 = open(test_lock_file, O_RDWR);
-        if (fd2 >= 0) {
-            int result = flock(fd2, LOCK_EX | LOCK_NB);
-            close(fd2);
-            // Should fail to acquire (parent holds lock)
-            exit(result == 0 ? 1 : 0);
-        }
-        exit(1);
-    } else {
-        // Parent process - wait for child
-        int status;
-        waitpid(pid, &status, 0);
-        
-        // Child should have exited with 0 (lock was blocked)
-        EXPECT_EQ(WEXITSTATUS(status), 0);
-        
-        // Cleanup
-        lock_release(fd1, test_lock_file);
-    }
 }
 
 // ============================================================================

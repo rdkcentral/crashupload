@@ -139,6 +139,9 @@ archive_gtest_LDADD = \
 	-larchive \
 	-lgcov
 
+archive_gtest_CFLAGS = -DL2_TEST
+archive_gtest_CXXFLAGS = -DL2_TEST
+
 archive_gtest_LDFLAGS = \
 	-larchive \
 	-fprofile-arcs
@@ -265,14 +268,11 @@ prerequisites_gtest_LDFLAGS = \
 # logger_gtest configuration
 logger_gtest_SOURCES = \
 	logger_gtest.cpp \
-	logger_gmock.cpp \
 	../c_sourcecode/src/utils/logger.c
 
 logger_gtest_LDADD = \
 	-lgtest \
 	-lgtest_main \
-	-lgmock \
-	-lgmock_main \
 	-lpthread \
 	-lgcov
 

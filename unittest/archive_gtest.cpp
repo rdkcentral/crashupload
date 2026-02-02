@@ -56,6 +56,10 @@ extern "C" {
 #include "../c_sourcecode/common/types.h"
 #include "../c_sourcecode/common/errors.h"
 
+// Forward declarations for static functions (with L2_TEST flag)
+long get_free_space_mb(const char *path);
+void get_dirname(const char *path, char *dir, size_t dir_size);
+
 // Mock function declarations
 void set_mock_is_regular_file_behavior(int return_value);
 int get_mock_is_regular_file_call_count();
@@ -1063,6 +1067,120 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_FilesCleanedUpAfterSuccess) {
     std::cout << "Result =" << result << endl; 
     // Verify cleanup is attempted (through mock call counts)
     EXPECT_GT(get_mock_filePresentCheck_call_count(), 0);
+}
+
+// ============================================================================
+// Static Function Tests (with L2_TEST flag)
+// ============================================================================
+
+// get_dirname() tests
+TEST(ArchiveStaticTest, GetDirname_NullPath) {
+    char dir[256];
+    dir[0] = 'X';  // Set to non-zero to verify it's not modified
+    
+    get_dirname(nullptr, dir, sizeof(dir));
+    
+    // Should not crash, and buffer should remain unchanged
+    EXPECT_EQ('X', dir[0]);
+}
+
+TEST(ArchiveStaticTest, GetDirname_NullBuffer) {
+    const char* path = "/tmp/crash/file.dmp";
+    
+    get_dirname(path, nullptr, 256);
+    
+    // Should not crash
+    SUCCEED();
+}
+
+TEST(ArchiveStaticTest, GetDirname_ZeroBufferSize) {
+    char dir[256];
+    const char* path = "/tmp/crash/file.dmp";
+    
+    get_dirname(path, dir, 0);
+    
+    // Should not crash (early return on dir_size == 0)
+    SUCCEED();
+}
+
+TEST(ArchiveStaticTest, GetDirname_NormalPath) {
+    char dir[256];
+    const char* path = "/tmp/crash/file.dmp";
+    
+    get_dirname(path, dir, sizeof(dir));
+    
+    EXPECT_STREQ("/tmp/crash", dir);
+}
+
+TEST(ArchiveStaticTest, GetDirname_EmptyString) {
+    char dir[256];
+    const char* path = "";
+    
+    get_dirname(path, dir, sizeof(dir));
+    
+    // Empty path should result in "." (current directory)
+    EXPECT_STREQ(".", dir);
+}
+
+TEST(ArchiveStaticTest, GetDirname_PathWithoutSlash) {
+    char dir[256];
+    const char* path = "file.dmp";
+    
+    get_dirname(path, dir, sizeof(dir));
+    
+    // No slash means current directory
+    EXPECT_STREQ(".", dir);
+}
+
+TEST(ArchiveStaticTest, GetDirname_RootPath) {
+    char dir[256];
+    const char* path = "/file.dmp";
+    
+    get_dirname(path, dir, sizeof(dir));
+    
+    // Root directory
+    EXPECT_STREQ("", dir);  // After removing "/file.dmp", only "" remains
+}
+
+TEST(ArchiveStaticTest, GetDirname_BufferTruncation) {
+    char dir[10];  // Small buffer
+    const char* path = "/very/long/path/to/some/file.dmp";
+    
+    get_dirname(path, dir, sizeof(dir));
+    
+    // Should truncate safely and null-terminate
+    EXPECT_EQ('\0', dir[9]);  // Last char must be null
+    EXPECT_LE(strlen(dir), 9);  // Length should be at most 9 (size - 1)
+    // The path gets truncated to "/very/lon", then last slash is found at position 5
+    // giving us "/very" (5 chars)
+    EXPECT_STREQ("/very", dir);
+}
+
+// get_free_space_mb() tests
+TEST(ArchiveStaticTest, GetFreeSpaceMb_ValidPath) {
+    const char* path = "/tmp";
+    
+    long free_space = get_free_space_mb(path);
+    
+    // /tmp should have some free space (at least 1 MB in most systems)
+    EXPECT_GT(free_space, 0);
+    EXPECT_LT(free_space, 1000000000);  // Reasonable upper bound (< 1 PB)
+}
+
+TEST(ArchiveStaticTest, GetFreeSpaceMb_InvalidPath) {
+    const char* path = "/nonexistent/invalid/path/xyz";
+    
+    long free_space = get_free_space_mb(path);
+    
+    // Should return -1 on error
+    EXPECT_EQ(-1, free_space);
+}
+
+TEST(ArchiveStaticTest, GetFreeSpaceMb_NullPath) {
+    long free_space = get_free_space_mb(nullptr);
+    
+    // statvfs should fail with NULL, returning -1
+    EXPECT_EQ(-1, free_space);
 }
 
 // ============================================================================
