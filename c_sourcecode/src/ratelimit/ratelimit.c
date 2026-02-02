@@ -96,7 +96,6 @@ int is_upload_limit_reached(const char *file)
     long first_crash_time;
     time_t now;
     int line_cnt = 0;
-    const int MAX_LINES_TO_READ = 1000;
 
     if (!file)
         return ALLOW_UPLOAD;
@@ -104,7 +103,7 @@ int is_upload_limit_reached(const char *file)
     fp = fopen(file, "r");
     if (fp != NULL)
     {
-        while (fgets(buf, sizeof(buf), fp) && line_cnt < MAX_LINES_TO_READ)
+        while (fgets(buf, sizeof(buf), fp))
         {
             line_cnt++;
             if (line_cnt == 1)
@@ -113,16 +112,7 @@ int is_upload_limit_reached(const char *file)
                 first_line_data[sizeof(first_line_data) - 1] = '\0';
             }
         }
-        fclose(fp);  /* Close file after reading */
-
-        /* Check if we hit the line limit */
-        if (line_cnt >= MAX_LINES_TO_READ)
-        {
-            CRASHUPLOAD_WARN("Timestamp file has too many lines (%d+), possible DOS attack\n", line_cnt);
-            /* Delete corrupted/malicious file */
-            unlink(file);
-            return ALLOW_UPLOAD;
-        }
+        fclose(fp);
     }
     else
     {
