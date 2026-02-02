@@ -109,8 +109,8 @@ scanner_gtest_SOURCES = \
 	../c_sourcecode/src/scanner/scanner.c \
 	../c_sourcecode/src/t2Interface/telemetryinterface.c
 
-scanner_gtest_CFLAGS = -DL2_TEST
-scanner_gtest_CXXFLAGS = -DL2_TEST
+scanner_gtest_CFLAGS = -DUNIT_TEST
+scanner_gtest_CXXFLAGS = -DUNIT_TEST
 
 scanner_gtest_LDADD = \
 	-lgtest \
@@ -139,8 +139,8 @@ archive_gtest_LDADD = \
 	-larchive \
 	-lgcov
 
-archive_gtest_CFLAGS = -DL2_TEST
-archive_gtest_CXXFLAGS = -DL2_TEST
+archive_gtest_CFLAGS = -DUNIT_TEST
+archive_gtest_CXXFLAGS = -DUNIT_TEST
 
 archive_gtest_LDFLAGS = \
 	-larchive \
@@ -153,8 +153,8 @@ utils_gtest_SOURCES = \
 	../c_sourcecode/src/utils/file_utils.c \
 	../c_sourcecode/src/utils/cleanup_batch.c
 
-utils_gtest_CFLAGS = -DL2_TEST
-utils_gtest_CXXFLAGS = -DL2_TEST
+utils_gtest_CFLAGS = -DUNIT_TEST
+utils_gtest_CXXFLAGS = -DUNIT_TEST
 
 utils_gtest_LDADD = \
 	-lgtest \

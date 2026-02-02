@@ -57,7 +57,7 @@ extern "C" {
 #include "../c_sourcecode/common/errors.h"
 
 #if 0
-// Forward declarations for static functions (with L2_TEST flag)
+// Forward declarations for static functions (with UNIT_TEST flag)
 long get_free_space_mb(const char *path);
 void get_dirname(const char *path, char *dir, size_t dir_size);
 #endif
@@ -1073,7 +1073,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_FilesCleanedUpAfterSuccess) {
 
 #if 0
 // ============================================================================
-// Static Function Tests (with L2_TEST flag)
+// Static Function Tests (with UNIT_TEST flag)
 // ============================================================================
 
 // get_dirname() tests
