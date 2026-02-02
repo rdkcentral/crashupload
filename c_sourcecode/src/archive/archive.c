@@ -47,7 +47,7 @@ void set_low_priority(void)
     /* Best effort: failure is not fatal */
     (void)setpriority(PRIO_PROCESS, 0, 19);
 }
-
+#if 0
 /* FULL IMPLEMENTATION - Check available disk space */
 STATIC_TESTABLE long get_free_space_mb(const char *path) {
     struct statvfs stat;
@@ -77,6 +77,7 @@ STATIC_TESTABLE void get_dirname(const char *path, char *dir, size_t dir_size) {
         strcpy(dir, ".");
     }
 }
+#endif
 /* --------------------------------------------------------- */
 /* Add one file to archive                                   */
 /* --------------------------------------------------------- */

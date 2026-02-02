@@ -56,9 +56,11 @@ extern "C" {
 #include "../c_sourcecode/common/types.h"
 #include "../c_sourcecode/common/errors.h"
 
+#if 0
 // Forward declarations for static functions (with L2_TEST flag)
 long get_free_space_mb(const char *path);
 void get_dirname(const char *path, char *dir, size_t dir_size);
+#endif
 
 // Mock function declarations
 void set_mock_is_regular_file_behavior(int return_value);
@@ -1069,6 +1071,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_FilesCleanedUpAfterSuccess) {
     EXPECT_GT(get_mock_filePresentCheck_call_count(), 0);
 }
 
+#if 0
 // ============================================================================
 // Static Function Tests (with L2_TEST flag)
 // ============================================================================
@@ -1182,6 +1185,7 @@ TEST(ArchiveStaticTest, GetFreeSpaceMb_NullPath) {
     // statvfs should fail with NULL, returning -1
     EXPECT_EQ(-1, free_space);
 }
+#endif
 
 // ============================================================================
 // Main entry point
