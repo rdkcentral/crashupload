@@ -48,9 +48,13 @@ struct MockState {
     
     // filePresentCheck mock state
     int file_present_return_value;
+    
+    // read_RFCProperty mock state
+    int rfc_return_value;
+    char rfc_output[256];
 };
 
-static MockState g_mock_state = {0, "", 0, "", 0};
+static MockState g_mock_state = {0, "", 0, "", 0, 0, ""};
 
 // ============================================================================
 // Mock Control Functions (Called from tests)
@@ -97,6 +101,21 @@ void set_mock_filePresentCheck_behavior(int return_value) {
 }
 
 /**
+ * Set behavior for read_RFCProperty mock
+ * @param return_value Return value for the mock (1 = success, -1 = failure, 0 = not applicable)
+ * @param output_value Value to copy to output buffer (can be NULL)
+ */
+void set_mock_read_RFCProperty_behavior(int return_value, const char* output_value) {
+    g_mock_state.rfc_return_value = return_value;
+    if (output_value) {
+        strncpy(g_mock_state.rfc_output, output_value, sizeof(g_mock_state.rfc_output) - 1);
+        g_mock_state.rfc_output[sizeof(g_mock_state.rfc_output) - 1] = '\0';
+    } else {
+        g_mock_state.rfc_output[0] = '\0';
+    }
+}
+
+/**
  * Reset all mock states to defaults
  */
 void reset_all_mocks() {
@@ -105,6 +124,8 @@ void reset_all_mocks() {
     g_mock_state.device_prop_return_value = 0;
     g_mock_state.device_prop_output[0] = '\0';
     g_mock_state.file_present_return_value = 0;
+    g_mock_state.rfc_return_value = 0;
+    g_mock_state.rfc_output[0] = '\0';
 }
 
 // ============================================================================
@@ -184,6 +205,38 @@ int filePresentCheck(const char* filename) {
     
     // Return mocked behavior
     return g_mock_state.file_present_return_value;
+}
+
+/**
+ * Mock implementation of read_RFCProperty
+ * 
+ * This is an RDK RFC (Remote Feature Control) function that reads RFC parameters.
+ * The real implementation is provided by RDK RFC libraries.
+ * 
+ * @param type RFC type/category
+ * @param key RFC parameter key
+ * @param out_value Buffer to store the RFC value
+ * @param datasize Buffer length
+ * @return 1 (READ_RFC_SUCCESS) on success, -1 (READ_RFC_FAILURE) on failure, 0 (READ_RFC_NOTAPPLICABLE)
+ */
+int read_RFCProperty(const char* type, const char *key, char *out_value, size_t datasize) {
+    if (!type || !key || !out_value || datasize == 0) {
+        return -1;  // READ_RFC_FAILURE
+    }
+    
+    // Return mocked behavior
+    if (g_mock_state.rfc_return_value == 1) {  // READ_RFC_SUCCESS
+        // Success case - copy mocked output
+        if (g_mock_state.rfc_output[0] != '\0') {
+            strncpy(out_value, g_mock_state.rfc_output, datasize - 1);
+            out_value[datasize - 1] = '\0';
+        }
+    } else {
+        // Failure or not applicable - clear output
+        out_value[0] = '\0';
+    }
+    
+    return g_mock_state.rfc_return_value;
 }
 
 /**

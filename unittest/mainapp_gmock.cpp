@@ -490,6 +490,19 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
 }
 
 /**
+ * Mock: Get privacy control mode from RFC
+ */
+void get_privacy_control_mode(config_t *config) {
+    if (!config) {
+        return;
+    }
+    
+    // Default behavior: set privacy mode to SHARE (allow uploads)
+    strncpy(config->privacy_mode, "SHARE", sizeof(config->privacy_mode) - 1);
+    config->privacy_mode[sizeof(config->privacy_mode) - 1] = '\0';
+}
+
+/**
  * Mock: Platform initialization
  */
 int platform_initialize(const config_t *config, platform_config_t *platform) {

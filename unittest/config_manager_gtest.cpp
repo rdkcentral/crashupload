@@ -46,11 +46,13 @@ extern "C" {
 int mock_getIncludePropertyData(const char* param, char* value, int len);
 int mock_getDevicePropertyData(const char* param, char* value, int len);
 int mock_filePresentCheck(const char* filename);
+int mock_read_RFCProperty(const char* type, const char *key, char *out_value, size_t datasize);
 
 // External mock control functions
 void set_mock_getIncludePropertyData_behavior(int return_value, const char* output_value);
 void set_mock_getDevicePropertyData_behavior(int return_value, const char* output_value);
 void set_mock_filePresentCheck_behavior(int return_value);
+void set_mock_read_RFCProperty_behavior(int return_value, const char* output_value);
 void reset_all_mocks();
 }
 
@@ -666,6 +668,238 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_AllFieldsInitialized) {
     EXPECT_EQ(test_config.upload_mode, UPLOAD_MODE_SECURE);
     EXPECT_EQ(test_config.lock_mode, LOCK_MODE_WAIT);
     EXPECT_TRUE(test_config.t2_enabled);
+}
+
+// ============================================================================
+// Privacy Control Mode Tests
+// ============================================================================
+
+/**
+ * Test: get_privacy_control_mode with NULL config
+ * Expected: Function should handle NULL pointer gracefully without crashing
+ */
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_NullConfig) {
+    // Should not crash
+    get_privacy_control_mode(nullptr);
+    // Test passes if no crash occurs
+    SUCCEED();
+}
+
+/**
+ * Test: get_privacy_control_mode with RFC returning DO_NOT_SHARE
+ * Expected: privacy_mode should be set to "DO_NOT_SHARE"
+ */
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_DoNotShare) {
+    // Initialize config with default value
+    strcpy(test_config.privacy_mode, "SHARE");
+    
+    // Mock RFC to return DO_NOT_SHARE
+    set_mock_read_RFCProperty_behavior(1, "DO_NOT_SHARE");  // READ_RFC_SUCCESS = 1
+    
+    get_privacy_control_mode(&test_config);
+    
+    EXPECT_STREQ(test_config.privacy_mode, "DO_NOT_SHARE");
+}
+
+/**
+ * Test: get_privacy_control_mode with RFC returning SHARE
+ * Expected: privacy_mode should be set to "SHARE"
+ */
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_Share) {
+    // Initialize config with different value
+    strcpy(test_config.privacy_mode, "UNKNOWN");
+    
+    // Mock RFC to return SHARE
+    set_mock_read_RFCProperty_behavior(1, "SHARE");  // READ_RFC_SUCCESS = 1
+    
+    get_privacy_control_mode(&test_config);
+    
+    EXPECT_STREQ(test_config.privacy_mode, "SHARE");
+}
+
+/**
+ * Test: get_privacy_control_mode with RFC failure
+ * Expected: privacy_mode should keep default value "SHARE"
+ */
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_RfcFailure) {
+    // Initialize config with default value
+    strcpy(test_config.privacy_mode, "SHARE");
+    
+    // Mock RFC to return failure
+    set_mock_read_RFCProperty_behavior(-1, nullptr);  // READ_RFC_FAILURE = -1
+    
+    get_privacy_control_mode(&test_config);
+    
+    // Should keep default value
+    EXPECT_STREQ(test_config.privacy_mode, "SHARE");
+}
+
+/**
+ * Test: get_privacy_control_mode with RFC not applicable
+ * Expected: privacy_mode should keep default value "SHARE"
+ */
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_RfcNotApplicable) {
+    // Initialize config with default value
+    strcpy(test_config.privacy_mode, "SHARE");
+    
+    // Mock RFC to return not applicable (RDK-M platform)
+    set_mock_read_RFCProperty_behavior(0, nullptr);  // READ_RFC_NOTAPPLICABLE = 0
+    
+    get_privacy_control_mode(&test_config);
+    
+    // Should keep default value
+    EXPECT_STREQ(test_config.privacy_mode, "SHARE");
+}
+
+/**
+ * Test: get_privacy_control_mode with RFC returning empty string
+ * Expected: privacy_mode should keep default value "SHARE"
+ */
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_RfcEmptyValue) {
+    // Initialize config with default value
+    strcpy(test_config.privacy_mode, "SHARE");
+    
+    // Mock RFC to return empty value
+    set_mock_read_RFCProperty_behavior(-1, "");  // Failure with empty string
+    
+    get_privacy_control_mode(&test_config);
+    
+    // Should keep default value
+    EXPECT_STREQ(test_config.privacy_mode, "SHARE");
+}
+
+/**
+ * Test: get_privacy_control_mode with RFC returning unknown value
+ * Expected: privacy_mode should keep default value "SHARE"
+ */
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_RfcUnknownValue) {
+    // Initialize config with default value
+    strcpy(test_config.privacy_mode, "SHARE");
+    
+    // Mock RFC to return unknown value
+    set_mock_read_RFCProperty_behavior(1, "INVALID_VALUE");  // READ_RFC_SUCCESS with unknown value
+    
+    get_privacy_control_mode(&test_config);
+    
+    // Should keep default value
+    EXPECT_STREQ(test_config.privacy_mode, "SHARE");
+}
+
+/**
+ * Test: get_privacy_control_mode with RFC returning unexpected return code
+ * Expected: privacy_mode should keep default value "SHARE"
+ */
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_RfcUnexpectedReturnCode) {
+    // Initialize config with default value
+    strcpy(test_config.privacy_mode, "SHARE");
+    
+    // Mock RFC to return unexpected code
+    set_mock_read_RFCProperty_behavior(99, nullptr);  // Unexpected return code
+    
+    get_privacy_control_mode(&test_config);
+    
+    // Should keep default value
+    EXPECT_STREQ(test_config.privacy_mode, "SHARE");
+}
+
+/**
+ * Test: get_privacy_control_mode buffer safety with long RFC value
+ * Expected: privacy_mode should be truncated safely without buffer overflow
+ */
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_BufferSafety) {
+    // Initialize config
+    strcpy(test_config.privacy_mode, "SHARE");
+    
+    // Create a very long string (longer than buffer size)
+    char long_value[100];
+    memset(long_value, 'X', sizeof(long_value) - 1);
+    long_value[sizeof(long_value) - 1] = '\0';
+    
+    // Mock RFC to return very long value
+    set_mock_read_RFCProperty_behavior(1, long_value);
+    
+    get_privacy_control_mode(&test_config);
+    
+    // Should keep default due to unknown value, and no buffer overflow
+    EXPECT_STREQ(test_config.privacy_mode, "SHARE");
+    
+    // Verify null terminator is in place (buffer safety check)
+    EXPECT_EQ(test_config.privacy_mode[sizeof(test_config.privacy_mode) - 1], '\0');
+}
+
+/**
+ * Test: get_privacy_control_mode preserves other config fields
+ * Expected: Only privacy_mode should be modified, other fields unchanged
+ */
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_PreservesOtherFields) {
+    // Initialize config with various values
+    test_config.device_type = DEVICE_TYPE_MEDIACLIENT;
+    test_config.dump_type = DUMP_TYPE_MINIDUMP;
+    strcpy(test_config.box_type, "TEST_BOX");
+    strcpy(test_config.privacy_mode, "SHARE");
+    test_config.opt_out = false;
+    test_config.t2_enabled = true;
+    
+    // Mock RFC to return DO_NOT_SHARE
+    set_mock_read_RFCProperty_behavior(1, "DO_NOT_SHARE");
+    
+    get_privacy_control_mode(&test_config);
+    
+    // Verify privacy_mode changed
+    EXPECT_STREQ(test_config.privacy_mode, "DO_NOT_SHARE");
+    
+    // Verify other fields unchanged
+    EXPECT_EQ(test_config.device_type, DEVICE_TYPE_MEDIACLIENT);
+    EXPECT_EQ(test_config.dump_type, DUMP_TYPE_MINIDUMP);
+    EXPECT_STREQ(test_config.box_type, "TEST_BOX");
+    EXPECT_FALSE(test_config.opt_out);
+    EXPECT_TRUE(test_config.t2_enabled);
+}
+
+/**
+ * Test: get_privacy_control_mode with case sensitivity
+ * Expected: Values are case-sensitive, variations should keep default
+ */
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_CaseSensitive) {
+    // Test lowercase "share" (should not match "SHARE")
+    strcpy(test_config.privacy_mode, "SHARE");
+    set_mock_read_RFCProperty_behavior(1, "share");
+    get_privacy_control_mode(&test_config);
+    EXPECT_STREQ(test_config.privacy_mode, "SHARE");  // Keeps default due to case mismatch
+    
+    // Test mixed case "Do_Not_Share" (should not match "DO_NOT_SHARE")
+    reset_all_mocks();
+    strcpy(test_config.privacy_mode, "SHARE");
+    set_mock_read_RFCProperty_behavior(1, "Do_Not_Share");
+    get_privacy_control_mode(&test_config);
+    EXPECT_STREQ(test_config.privacy_mode, "SHARE");  // Keeps default due to case mismatch
+}
+
+/**
+ * Test: Integration test - config_init_load sets default, then get_privacy_control_mode updates
+ * Expected: Default "SHARE" from init, then updated to RFC value
+ */
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_Integration) {
+    // Setup mocks for config_init_load
+    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
+    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "mediaclient");
+    set_mock_filePresentCheck_behavior(0);  // t2 enabled
+    
+    strcpy(test_argv2, "0");  // minidump
+    
+    // Initialize config
+    int result = config_init_load(&test_config, 3, test_argv);
+    EXPECT_EQ(result, CONFIG_SUCCESS);
+    
+    // Verify default privacy mode is "SHARE"
+    EXPECT_STREQ(test_config.privacy_mode, "SHARE");
+    
+    // Now update privacy mode via RFC
+    set_mock_read_RFCProperty_behavior(1, "DO_NOT_SHARE");
+    get_privacy_control_mode(&test_config);
+    
+    // Verify privacy mode updated
+    EXPECT_STREQ(test_config.privacy_mode, "DO_NOT_SHARE");
 }
 
 // ============================================================================
