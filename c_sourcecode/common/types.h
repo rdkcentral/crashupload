@@ -104,7 +104,7 @@ typedef struct {
     char log_path[16];
     char build_type_val[8];
     bool t2_enabled;
-    bool privacy_mode;
+    char privacy_mode[16];
     bool opt_out;
     int max_dumps_per_run;
     int upload_timeout;

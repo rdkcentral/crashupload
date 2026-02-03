@@ -222,6 +222,11 @@ int config_init_load(config_t *config, int argc, char *argv[])
     config->opt_out = false;
     config->opt_out = get_opt_out_status();
     config->lock_mode = ((argc == 5) && (0 == (strncmp(argv[4], "wait_for_lock", 13)))) ? LOCK_MODE_WAIT : LOCK_MODE_EXIT;
+
+    // Initialize privacy_mode with default value
+    strncpy(config->privacy_mode, "SHARE", sizeof(config->privacy_mode) - 1);
+    config->privacy_mode[sizeof(config->privacy_mode) - 1] = '\0';
+
     return CONFIG_SUCCESS;
 }
 
@@ -234,5 +239,77 @@ void config_cleanup(config_t *config)
     if (config)
     {
         memset(config, 0, sizeof(config_t));
+    }
+}
+
+/**
+ * @brief Retrieve and apply privacy control mode from RFC configuration
+ *
+ * This function reads the privacy mode setting from the RFC (Remote Feature Control) system
+ * and updates the configuration accordingly. Privacy mode controls whether crash dump data
+ * should be uploaded to remote servers or kept locally for privacy reasons.
+ *
+ * Expected RFC Values:
+ * - "DO_NOT_SHARE": Privacy mode enabled - crash dumps will NOT be uploaded
+ * - "SHARE": Privacy mode disabled - crash dumps will be uploaded (default behavior)
+ *
+ * Behavior:
+ * - If RFC read succeeds with valid value: Updates config->privacy_mode with RFC value
+ * - If RFC read fails or returns empty: Keeps existing default value ("SHARE")
+ * - If RFC returns unknown value: Keeps existing default value and logs warning
+ *
+ * The default value "SHARE" must be set in config_init_load() before calling this function.
+ *
+ * @param config Pointer to configuration structure to update
+ *               Must not be NULL and privacy_mode must be pre-initialized
+ *
+ * @note This function is typically called after system initialization for mediaclient devices
+ * @note The privacy mode is checked at two points: during archiving and before upload
+ *
+ * @see config_init_load() for default value initialization
+ * @see RFC_PRIVACY_MODE constant for the RFC parameter key
+ *
+ */
+void get_privacy_control_mode(config_t *config)
+{
+    if (!config)
+    {
+        CRASHUPLOAD_ERROR("config is NULL\n");
+        return;
+    }
+
+    char rfcPrivacyMode[64] = {0};
+    int ret = read_RFCProperty("rfcPrivacyMode", RFC_PRIVACY_MODE, rfcPrivacyMode, sizeof(rfcPrivacyMode));
+
+    if ((ret == READ_RFC_FAILURE) || (rfcPrivacyMode[0] == '\0'))
+    {
+        CRASHUPLOAD_WARN("Read RFC failed for PrivacyMode, keeping default value: %s\n", config->privacy_mode);
+    }
+    else if (ret == READ_RFC_NOTAPPLICABLE)
+    {
+        CRASHUPLOAD_INFO("RFC PrivacyMode not applicable for this platform, keeping default: %s\n", config->privacy_mode);
+    }
+    else
+    {
+        CRASHUPLOAD_INFO("Read RFC Success for PrivacyMode, value: %s\n", rfcPrivacyMode);
+
+        // Update privacy_mode with RFC value
+        if (strcmp(rfcPrivacyMode, "DO_NOT_SHARE") == 0)
+        {
+            strncpy(config->privacy_mode, "DO_NOT_SHARE", sizeof(config->privacy_mode) - 1);
+            config->privacy_mode[sizeof(config->privacy_mode) - 1] = '\0';
+            CRASHUPLOAD_INFO("Privacy mode set to DO_NOT_SHARE - crash data will NOT be uploaded\n");
+        }
+        else if (strcmp(rfcPrivacyMode, "SHARE") == 0)
+        {
+            strncpy(config->privacy_mode, "SHARE", sizeof(config->privacy_mode) - 1);
+            config->privacy_mode[sizeof(config->privacy_mode) - 1] = '\0';
+            CRASHUPLOAD_INFO("Privacy mode set to SHARE - crash data will be uploaded\n");
+        }
+        else
+        {
+            // Unknown value, keep default
+            CRASHUPLOAD_WARN("Unknown RFC PrivacyMode value: %s, keeping default: %s\n", rfcPrivacyMode, config->privacy_mode);
+        }
     }
 }
