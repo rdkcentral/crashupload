@@ -114,7 +114,7 @@ int prerequisites_wait(config_t *config, int timeout_sec)
 {
     int dump_file_found = 0;
     char dump_extn[16] = {0};
-    CRASHUPLOAD_INFO("Inside prerequisites_wait(): device type=%u, core dump file=%s, minidumpfile=%s\n", config->device_type, config->core_path, config->minidump_path);
+    CRASHUPLOAD_INFO("Inside prerequisites_wait: device type=%u\n", config->device_type);
     /* TODO: Check network + time sync together */
     if (NULL == config)
     {

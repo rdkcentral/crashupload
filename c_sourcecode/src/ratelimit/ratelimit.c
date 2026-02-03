@@ -24,6 +24,7 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <limits.h>
 #include "ratelimit.h"
 #include "../utils/logger.h"
 
@@ -32,28 +33,50 @@ int set_time(const char *deny_file, int type)
     FILE *fp;
     time_t now;
     long deny_until;
+    const char *mode;
 
     if (!deny_file)
         return -1;
 
+    /* Validate path to prevent traversal attacks */
+    if (strstr(deny_file, "..") != NULL || deny_file[0] != '/')
+    {
+        CRASHUPLOAD_ERROR("Invalid file path (potential path traversal): %s\n", deny_file);
+        return -1;
+    }
+
     now = time(NULL);
     if (now == (time_t)-1)
         return -1;
+
+    /* Determine file mode and timestamp value based on type */
     if (type == RECOVERY_TIME)
     {
         CRASHUPLOAD_INFO("Set Recovery Time inside file:%s\n", deny_file);
-        deny_until = (long)now + RECOVERY_DELAY_SEC;
+        /* Check for integer overflow */
+        if (now > (LONG_MAX - RECOVERY_DELAY_SEC))
+        {
+            CRASHUPLOAD_ERROR("Integer overflow prevented in recovery time calculation\n");
+            deny_until = LONG_MAX;
+        }
+        else
+        {
+            deny_until = (long)now + RECOVERY_DELAY_SEC;
+        }
+        mode = "w";  /* Overwrite for deny file */
     }
     else
     {
         deny_until = (long)now;
+        /* Check if this is the timestamp file (should append) or deny file (should overwrite) */
+        mode = (strncmp(deny_file, DENY_UPLOADS_FILE, strlen(DENY_UPLOADS_FILE)) == 0) ? "w" : "a";
     }
 
-    fp = fopen(deny_file, "w");
+    fp = fopen(deny_file, mode);
     if (!fp)
         return -1;
 
-    if (fprintf(fp, "%ld", deny_until) < 0)
+    if (fprintf(fp, "%ld\n", deny_until) < 0)
     {
         fclose(fp);
         return -1;
@@ -74,6 +97,9 @@ int is_upload_limit_reached(const char *file)
     time_t now;
     int line_cnt = 0;
 
+    if (!file)
+        return ALLOW_UPLOAD;
+
     fp = fopen(file, "r");
     if (fp != NULL)
     {
@@ -86,22 +112,38 @@ int is_upload_limit_reached(const char *file)
                 first_line_data[sizeof(first_line_data) - 1] = '\0';
             }
         }
+        fclose(fp);
     }
     else
     {
-        CRASHUPLOAD_INFO("File for rate limit check not present:%s\n", file);
+        CRASHUPLOAD_INFO("File for rate limit check not present\n");
         return ret;
     }
-    /* Validate numeric content */
-    for (size_t i = 0; buf[i] != '\0' && buf[i] != '\n'; i++)
+
+    /* Validate numeric content of FIRST line */
+    for (size_t i = 0; first_line_data[i] != '\0' && first_line_data[i] != '\n' && i < sizeof(first_line_data); i++)
     {
-        if (!isdigit((unsigned char)buf[i]))
+        if (!isdigit((unsigned char)first_line_data[i]))
+        {
+            CRASHUPLOAD_WARN("Invalid timestamp format in first line\n");
             return ALLOW_UPLOAD;
+        }
     }
 
-    first_crash_time = strtol(buf, &endptr, 10);
-    if (endptr == buf)
+    errno = 0;
+    first_crash_time = strtol(first_line_data, &endptr, 10);
+    if (endptr == first_line_data)
+    {
+        CRASHUPLOAD_WARN("Failed to parse first timestamp\n");
         return ALLOW_UPLOAD;
+    }
+
+    /* Check for overflow */
+    if (errno == ERANGE || first_crash_time < 0)
+    {
+        CRASHUPLOAD_WARN("Timestamp overflow or invalid value detected\n");
+        return ALLOW_UPLOAD;
+    }
 
     now = time(NULL);
     if (now == (time_t)-1)
@@ -109,18 +151,18 @@ int is_upload_limit_reached(const char *file)
 
     if (line_cnt <= 10)
     {
-        CRASHUPLOAD_INFO("is_upload_limit_reached() not reached.%d\n", line_cnt);
+        CRASHUPLOAD_INFO("is_upload_limit_reached() not reached. Count: %d\n", line_cnt);
     }
     else
     {
         if ((now - first_crash_time) < RECOVERY_DELAY_SEC)
         {
-            CRASHUPLOAD_INFO("Not uploading the dump. Too many dumps.\n");
+            CRASHUPLOAD_INFO("Not uploading the dump. Too many dumps within %d seconds.\n", RECOVERY_DELAY_SEC);
             ret = STOP_UPLOAD;
         }
         else
         {
-            CRASHUPLOAD_INFO("is_upload_limit_reached() not reached proceed for upload\n");
+            CRASHUPLOAD_INFO("is_upload_limit_reached() time window expired, proceed for upload\n");
             unlink(file);
         }
     }
@@ -139,7 +181,7 @@ int is_recovery_time_reached(const char *deny_file)
     if (!deny_file)
         return ALLOW_UPLOAD; /* allow upload */
 
-    /* If deny file does not exist ?~F~R allow */
+    /* If deny file does not exist, allow */
     if (stat(deny_file, &st) != 0)
         return ALLOW_UPLOAD;
 
@@ -154,16 +196,24 @@ int is_recovery_time_reached(const char *deny_file)
     }
     fclose(fp);
 
-    /* Validate numeric content */
-    for (size_t i = 0; buf[i] != '\0' && buf[i] != '\n'; i++)
+    /* Validate numeric content with bounds check */
+    for (size_t i = 0; buf[i] != '\0' && buf[i] != '\n' && i < sizeof(buf); i++)
     {
         if (!isdigit((unsigned char)buf[i]))
             return ALLOW_UPLOAD;
     }
 
+    errno = 0;
     deny_until = strtol(buf, &endptr, 10);
     if (endptr == buf)
         return ALLOW_UPLOAD;
+
+    /* Check for overflow or invalid values */
+    if (errno == ERANGE || deny_until < 0)
+    {
+        CRASHUPLOAD_WARN("Deny file contains invalid timestamp, allowing upload\n");
+        return ALLOW_UPLOAD;
+    }
 
     now = time(NULL);
     if (now == (time_t)-1)
@@ -184,7 +234,7 @@ int ratelimit_check_unified(dump_type_t dump_type)
     if (status != ALLOW_UPLOAD)
     {
         CRASHUPLOAD_INFO("Shifting the recovery time forward.\n");
-        set_time(DENY_UPLOADS_FILE, CURRENT_TIME);
+        set_time(DENY_UPLOADS_FILE, RECOVERY_TIME);  /* Set future time */
         return RATELIMIT_BLOCK;
     }
     if (dump_type == DUMP_TYPE_MINIDUMP)
@@ -195,7 +245,7 @@ int ratelimit_check_unified(dump_type_t dump_type)
             CRASHUPLOAD_INFO("Upload rate limit has been reached.\n");
             // TODO: markAsCrashLoopedAndUpload $f
             CRASHUPLOAD_INFO("Setting recovery time\n");
-            set_time(DENY_UPLOADS_FILE, CURRENT_TIME);
+            set_time(DENY_UPLOADS_FILE, RECOVERY_TIME);  /* Set future time */
             status = RATELIMIT_BLOCK;
         }
     }

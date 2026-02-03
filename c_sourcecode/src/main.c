@@ -152,6 +152,7 @@ int main_test(int argc, char *argv[])
         return 1;
 #endif
     }
+    CRASHUPLOAD_INFO("System initialization successful\n");
     /* Step 2: Lock Acquisition */
     int lock_sec = (config.lock_mode == LOCK_MODE_WAIT) ? 5 : 0;
     lock_fd = lock_acquire(lock_file_path, lock_sec, config.t2_enabled);
@@ -176,6 +177,7 @@ int main_test(int argc, char *argv[])
         goto cleanup;
         // return EXIT_FAILURE;
     }
+    CRASHUPLOAD_INFO("Prerequisites check successful\n");
 #if 0    
     /* Step 3: Unified Privacy Check */
     /* TODO: Implement unified privacy check */

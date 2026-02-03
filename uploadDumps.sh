@@ -65,7 +65,7 @@ find_crashupload() {
 
 run_legacy() {
     if [ -x "$UPLOAD_SCRIPT" ]; then
-        Log "Delegating to legacy uploader: $UPLOAD_SCRIPT"
+        Log "Delegating to legacy uploader: $UPLOAD_SCRIPT $@"
         "$UPLOAD_SCRIPT" "$@"
         return $?
     fi
@@ -76,7 +76,7 @@ run_legacy() {
 run_crashupload() {
     bin="$(find_crashupload || true)"
     if [ -n "$bin" ]; then
-        Log "Delegating to crashupload binary: $bin"
+        Log "Delegating to crashupload binary: $bin $@"
         "$bin" "$@" >> $CORE_LOG 2>&1
         exit_code=$?
 

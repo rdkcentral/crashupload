@@ -107,6 +107,16 @@ int lock_acquire(const char *lock_file, int timeout_sec, bool t2_enabled)
 
 void lock_release(int fd, const char *lock_file)
 {
+    if (lock_file == NULL || lock_file[0] == '\0')
+    {
+        CRASHUPLOAD_ERROR("Invalid lock_file parameter (NULL or empty)\n");
+        if (fd >= 0)
+        {
+            release_process_lock(fd);
+        }
+        return;
+    }
+    CRASHUPLOAD_INFO("Releasing lock and removing lock file: %s\n", lock_file);
     release_process_lock(fd);
     unlink(lock_file);
 }

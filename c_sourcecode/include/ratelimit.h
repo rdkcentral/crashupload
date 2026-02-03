@@ -20,9 +20,9 @@
 
 #include "../common/types.h"
 #define RATELIMIT_BLOCK 0
-//#define RECOVERY_DELAY_SEC 600 //TODO: Un-comment this and remove below
-#define RECOVERY_DELAY_SEC 30
+#define RECOVERY_DELAY_SEC 600 /* Recovery delay: 600s (10 min) */
 #define DENY_UPLOADS_FILE "/tmp/.deny_dump_uploads_till"
+#define MINIDUMP_UPLOAD_TIMESTAMPS_FILE "/tmp/.minidump_upload_timestamps"
 #define ALLOW_UPLOAD 1
 #define STOP_UPLOAD 0
 #define RECOVERY_TIME 1
