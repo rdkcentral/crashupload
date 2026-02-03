@@ -415,7 +415,11 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
     {
         strcpy(dump_name, "coredump");
     }
-    GetCrashFirmwareVersion("/version.txt", crash_fw_version, sizeof(crash_fw_version)); // TODO: This function should change to untar and read the version.txt image name
+    
+    // Extract firmware version from the archive itself (for dumps from previous boots)
+    // or fallback to /version.txt (for current boot)
+    GetCrashFirmwareVersion(archive->archive_name, crash_fw_version, sizeof(crash_fw_version));
+    
     status = upload_file(archive->archive_name, crashportalEndpointUrl, dump_name, crash_fw_version, config->build_type_val, platform->model, md5sum, config->device_type, config->t2_enabled);
     if (0 == status)
     {

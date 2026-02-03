@@ -29,6 +29,13 @@
 #include "telemetryinterface.h"
 #include "../utils/logger.h"
 
+// For unit testing: allow static functions to be visible
+#ifdef UNIT_TEST
+#define STATIC_TESTABLE
+#else
+#define STATIC_TESTABLE static
+#endif
+
 #define MIN_FREE_SPACE_MB 50
 #define MAX_FILE_TO_TAR 7
 
@@ -40,10 +47,9 @@ void set_low_priority(void)
     /* Best effort: failure is not fatal */
     (void)setpriority(PRIO_PROCESS, 0, 19);
 }
-
 #if 0
 /* FULL IMPLEMENTATION - Check available disk space */
-static long get_free_space_mb(const char *path) {
+STATIC_TESTABLE long get_free_space_mb(const char *path) {
     struct statvfs stat;
     
     if (statvfs(path, &stat) != 0) {
@@ -56,7 +62,11 @@ static long get_free_space_mb(const char *path) {
 }
 
 /* FULL IMPLEMENTATION - Get directory from path */
-static void get_dirname(const char *path, char *dir, size_t dir_size) {
+STATIC_TESTABLE void get_dirname(const char *path, char *dir, size_t dir_size) {
+    if (!path || !dir || dir_size == 0) {
+        return;
+    }
+    
     strncpy(dir, path, dir_size - 1);
     dir[dir_size - 1] = '\0';
     

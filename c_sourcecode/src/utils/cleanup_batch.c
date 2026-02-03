@@ -30,10 +30,17 @@
 #include "../../common/errors.h"
 #include "logger.h"
 
+// For unit testing: allow static functions to be visible
+#ifdef UNIT_TEST
+#define STATIC_TESTABLE
+#else
+#define STATIC_TESTABLE static
+#endif
+
 #define PATH_MAX_LEN 512
 
 /* Safe join: dest must be PATH_MAX_LEN bytes. Returns 0 on success, -1 on error. */
-static int join_path(char dest[PATH_MAX_LEN], const char *dir, const char *name)
+STATIC_TESTABLE int cb_join_path(char dest[PATH_MAX_LEN], const char *dir, const char *name)
 {
     if (!dir || !name)
         return -1;
@@ -60,7 +67,7 @@ static int join_path(char dest[PATH_MAX_LEN], const char *dir, const char *name)
 }
 
 /* Check if directory exists and non-empty */
-static int dir_exists_and_nonempty(const char *path)
+STATIC_TESTABLE int dir_exists_and_nonempty(const char *path)
 {
     DIR *d = opendir(path);
     if (!d)
@@ -80,7 +87,7 @@ static int dir_exists_and_nonempty(const char *path)
 }
 
 /* Returns 1 if file exists and is regular file, 0 otherwise */
-static int file_exists_regular(const char *path)
+STATIC_TESTABLE int file_exists_regular(const char *path)
 {
     struct stat st;
     if (stat(path, &st) != 0)
@@ -91,7 +98,7 @@ static int file_exists_regular(const char *path)
     return S_ISREG(st.st_mode);
 }
 
-static int file_vector_init(file_vector_t *v)
+STATIC_TESTABLE int file_vector_init(file_vector_t *v)
 {
     if (!v)
         return -1;
@@ -101,7 +108,7 @@ static int file_vector_init(file_vector_t *v)
     return 0;
 }
 
-static void file_vector_free(file_vector_t *v)
+STATIC_TESTABLE void file_vector_free(file_vector_t *v)
 {
     if (!v)
         return;
@@ -114,7 +121,7 @@ static void file_vector_free(file_vector_t *v)
     v->size = v->capacity = 0;
 }
 
-static int file_vector_push(file_vector_t *v, const char *path, time_t mtime)
+STATIC_TESTABLE int file_vector_push(file_vector_t *v, const char *path, time_t mtime)
 {
     if (!v || !path)
         return -1;
@@ -136,7 +143,7 @@ static int file_vector_push(file_vector_t *v, const char *path, time_t mtime)
 }
 
 /* Sort comparator: newest first (desc by mtime), tie-break by path */
-static int cmp_mtime_desc(const void *a, const void *b)
+STATIC_TESTABLE int cmp_mtime_desc(const void *a, const void *b)
 {
     const file_info_t *fa = a;
     const file_info_t *fb = b;
@@ -169,7 +176,7 @@ int walk_dir_recursive(const char *dirpath, file_cb_t cb, void *user)
         if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
             continue;
 
-        if (join_path(full, dirpath, ent->d_name) != 0)
+        if (cb_join_path(full, dirpath, ent->d_name) != 0)
         {
             /* path too long; skip */
             continue;
@@ -421,7 +428,7 @@ int cleanup_batch(const char *working_dir,
         CRASHUPLOAD_INFO("Inside start up cleanup delete version.txt\n");
         /* delete version.txt in working_dir (best-effort) */
         char version_path[PATH_MAX_LEN];
-        if (join_path(version_path, working_dir, "version.txt") == 0)
+        if (cb_join_path(version_path, working_dir, "version.txt") == 0)
         {
             if (unlink(version_path) == 0)
             {

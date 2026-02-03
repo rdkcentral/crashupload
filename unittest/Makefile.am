@@ -23,10 +23,10 @@
 AUTOMAKE_OPTIONS = foreign subdir-objects
 
 # Test programs
-TESTS = config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest mainapp_gtest
+TESTS = config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest mainapp_gtest ratelimit_gtest lock_manager_gtest prerequisites_gtest logger_gtest
 #TESTS = config_manager_gtest platform_gtest  mainapp_gtest
 #check_PROGRAMS = config_manager_gtest platform_gtest mainapp_gtest
-check_PROGRAMS = config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest mainapp_gtest
+check_PROGRAMS = config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest mainapp_gtest ratelimit_gtest lock_manager_gtest prerequisites_gtest logger_gtest
 
 # Common include directories
 AM_CPPFLAGS = \
@@ -109,6 +109,9 @@ scanner_gtest_SOURCES = \
 	../c_sourcecode/src/scanner/scanner.c \
 	../c_sourcecode/src/t2Interface/telemetryinterface.c
 
+scanner_gtest_CFLAGS = -DUNIT_TEST
+scanner_gtest_CXXFLAGS = -DUNIT_TEST
+
 scanner_gtest_LDADD = \
 	-lgtest \
 	-lgtest_main \
@@ -136,6 +139,9 @@ archive_gtest_LDADD = \
 	-larchive \
 	-lgcov
 
+archive_gtest_CFLAGS = -DUNIT_TEST
+archive_gtest_CXXFLAGS = -DUNIT_TEST
+
 archive_gtest_LDFLAGS = \
 	-larchive \
 	-fprofile-arcs
@@ -147,16 +153,21 @@ utils_gtest_SOURCES = \
 	../c_sourcecode/src/utils/file_utils.c \
 	../c_sourcecode/src/utils/cleanup_batch.c
 
+utils_gtest_CFLAGS = -DUNIT_TEST
+utils_gtest_CXXFLAGS = -DUNIT_TEST
+
 utils_gtest_LDADD = \
 	-lgtest \
 	-lgtest_main \
 	-lgmock \
 	-lgmock_main \
 	-lpthread \
+	-larchive \
 	-lcrypto \
 	-lgcov
 
 utils_gtest_LDFLAGS = \
+	-larchive \
 	-lcrypto \
 	-fprofile-arcs
 
@@ -201,6 +212,71 @@ mainapp_gtest_LDADD = \
 	-lgcov
 
 mainapp_gtest_LDFLAGS = \
+	-fprofile-arcs
+
+# ratelimit_gtest configuration
+ratelimit_gtest_SOURCES = \
+	ratelimit_gtest.cpp \
+	ratelimit_gmock.cpp \
+	../c_sourcecode/src/ratelimit/ratelimit.c
+
+ratelimit_gtest_LDADD = \
+	-lgtest \
+	-lgtest_main \
+	-lgmock \
+	-lgmock_main \
+	-lpthread \
+	-lgcov
+
+ratelimit_gtest_LDFLAGS = \
+	-fprofile-arcs
+
+# lock_manager_gtest configuration
+lock_manager_gtest_SOURCES = \
+	lock_manager_gtest.cpp \
+	lock_manager_gmock.cpp \
+	../c_sourcecode/src/utils/lock_manager.c
+
+lock_manager_gtest_LDADD = \
+	-lgtest \
+	-lgtest_main \
+	-lgmock \
+	-lgmock_main \
+	-lpthread \
+	-lgcov
+
+lock_manager_gtest_LDFLAGS = \
+	-fprofile-arcs
+
+# prerequisites_gtest configuration
+prerequisites_gtest_SOURCES = \
+	prerequisites_gtest.cpp \
+	prerequisites_gmock.cpp \
+	../c_sourcecode/src/utils/prerequisites.c
+
+prerequisites_gtest_LDADD = \
+	-lgtest \
+	-lgtest_main \
+	-lgmock \
+	-lgmock_main \
+	-lpthread \
+	-lgcov
+
+prerequisites_gtest_LDFLAGS = \
+	-fprofile-arcs
+
+# logger_gtest configuration
+logger_gtest_SOURCES = \
+	logger_gtest.cpp \
+	../c_sourcecode/src/utils/logger.c
+
+logger_gtest_LDADD = \
+	-lgtest \
+	-lgtest_main \
+	-lpthread \
+	-lgcov
+
+logger_gtest_LDFLAGS = \
 	-fprofile-arcs
 
 # Coverage targets

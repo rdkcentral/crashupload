@@ -44,7 +44,7 @@ UNITTEST_DIR="$SCRIPT_DIR/unittest"
 SRC_DIR="$SCRIPT_DIR/c_sourcecode/src"
 
 # Test binaries to run (space-separated list)
-TEST_BINARIES="config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest mainapp_gtest"
+TEST_BINARIES="config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest mainapp_gtest ratelimit_gtest lock_manager_gtest prerequisites_gtest logger_gtest"
 
 # Test results tracking (using temp file instead of associative array)
 TEST_RESULTS_FILE="/tmp/crashupload_test_results_$$.tmp"
