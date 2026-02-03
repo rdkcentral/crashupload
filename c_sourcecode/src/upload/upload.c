@@ -431,6 +431,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         CRASHUPLOAD_INFO("Execution Status: %d, S3 Amazon Upload of Success\n", status);
         CRASHUPLOAD_INFO("Removing file %s\n", archive->archive_name);
         unlink(archive->archive_name);
+
         /* Record timestamp only for successful minidump uploads */
         if (config->dump_type == DUMP_TYPE_MINIDUMP)
         {

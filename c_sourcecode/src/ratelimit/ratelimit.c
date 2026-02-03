@@ -52,6 +52,7 @@ int set_time(const char *deny_file, int type)
     /* Determine file mode and timestamp value based on type */
     if (type == RECOVERY_TIME)
     {
+        CRASHUPLOAD_INFO("Set Recovery Time inside file:%s\n", deny_file);
         /* Check for integer overflow */
         if (now > (LONG_MAX - RECOVERY_DELAY_SEC))
         {
@@ -118,7 +119,7 @@ int is_upload_limit_reached(const char *file)
         CRASHUPLOAD_INFO("File for rate limit check not present\n");
         return ret;
     }
-    
+
     /* Validate numeric content of FIRST line */
     for (size_t i = 0; first_line_data[i] != '\0' && first_line_data[i] != '\n' && i < sizeof(first_line_data); i++)
     {
