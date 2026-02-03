@@ -75,7 +75,6 @@ typedef enum
 #define RFC_CRASHUPLOAD_S3URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.S3SigningUrl"
 #define RFC_CRASH_PORTAL_ENDPOINT_URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CrashportalEndpoint.URL"
 #define RFC_PRIVACY_MODE "Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode"
-#define RFC_TELEMETRY_OPTOUT "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryOptOut.Enable"
 
 #if defined(RFC_API_ENABLED)
 int read_RFCProperty(char *type, const char *key, char *data, size_t datasize);

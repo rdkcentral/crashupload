@@ -29,6 +29,7 @@
 #include "../common/constants.h"
 #include "../common/errors.h"
 #include "init/system_init.h"
+#include "config/config_manager.h"
 #include "utils/prerequisites.h"
 #include "utils/lock_manager.h"
 #include "scanner/scanner.h"
@@ -182,7 +183,7 @@ int main_test(int argc, char *argv[])
     /* Privacy Control Check */
     if (config.device_type == DEVICE_TYPE_MEDIACLIENT)
     {
-        CRASHUPLOAD_INFO("Check Privacy Control value");
+        CRASHUPLOAD_INFO("Check Privacy Control value\n");
         get_privacy_control_mode(&config);
     }
 

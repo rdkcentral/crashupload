@@ -289,7 +289,7 @@ void get_privacy_control_mode(config_t *config)
     {
         CRASHUPLOAD_INFO("RFC PrivacyMode not applicable for this platform, keeping default: %s\n", config->privacy_mode);
     }
-    else
+    else if (ret == READ_RFC_SUCCESS)
     {
         CRASHUPLOAD_INFO("Read RFC Success for PrivacyMode, value: %s\n", rfcPrivacyMode);
 
@@ -311,5 +311,10 @@ void get_privacy_control_mode(config_t *config)
             // Unknown value, keep default
             CRASHUPLOAD_WARN("Unknown RFC PrivacyMode value: %s, keeping default: %s\n", rfcPrivacyMode, config->privacy_mode);
         }
+    }
+    else
+    {
+        // Unexpected return code
+        CRASHUPLOAD_WARN("Unexpected RFC return code: %d, keeping default: %s\n", ret, config->privacy_mode);
     }
 }
