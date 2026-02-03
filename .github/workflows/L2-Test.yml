@@ -1,0 +1,68 @@
+name: L2 Functional Tests
+
+on:
+  pull_request:
+    branches: [ develop, main ]
+
+env:
+  AUTOMATICS_UNAME: ${{ secrets.AUTOMATICS_UNAME }}
+  AUTOMATICS_PASSCODE: ${{ secrets.AUTOMATICS_PASSCODE }}
+
+jobs:
+  execute-L2-tests-on-pr:
+    name: Execute L2 functional test suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull native-platform docker image
+        run: |
+          docker pull ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
+
+      - name: Start native-platform container
+        run: |
+          docker run -d --name native-platform -v ${{ github.workspace }}:/mnt/L2_CONTAINER_SHARED_VOLUME ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
+
+      - name: Build crashupload and run L2 tests
+        run: |
+          docker exec -i native-platform /bin/bash -c "cd /mnt/L2_CONTAINER_SHARED_VOLUME/ && chmod +x cov_build.sh run_l2.sh && sh cov_build.sh && export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/lib/aarch64-linux-gnu:/usr/local/lib: && sh run_l2.sh"
+
+      - name: Copy L2 test results to runner
+        run: |
+          docker cp native-platform:/tmp/l2_test_report /tmp/L2_TEST_RESULTS
+          echo "L2 test results:"
+          ls -l /tmp/L2_TEST_RESULTS
+
+  upload-test-results:
+    name: Upload L2 test results to automatic test result management system
+    needs: execute-L2-tests-on-pr
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rdkcentral/docker-rdk-ci:latest
+      volumes:
+        - /tmp/L2_TEST_RESULTS:/tmp/L2_TEST_RESULTS
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Upload results
+        if: github.repository_owner == 'rdkcentral'
+        run: |
+          echo "Contents in workspace directory:"
+          ls -l
+          echo "==============================="
+          echo "Contents in /tmp/L2_TEST_RESULTS:"
+          ls -l /tmp/L2_TEST_RESULTS
+          echo "==============================="
+          git config --global --add safe.directory `pwd`
+          gtest-json-result-push.py /tmp/L2_TEST_RESULTS https://rdkeorchestrationservice.apps.cloud.comcast.net/rdke_orchestration_api/push_unit_test_results `pwd`
