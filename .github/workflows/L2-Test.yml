@@ -28,13 +28,38 @@ jobs:
         run: |
           docker pull ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
 
+      - name: Pull mockxconf docker image
+        run: |
+          docker pull ghcr.io/rdkcentral/docker-device-mgt-service-test/mockxconf:latest
+
+      - name: Start mockxconf container
+        run: |
+          docker run -d --name mockxconf \
+            -p 50050:50050 -p 50051:50051 -p 50052:50052 -p 50053:50053 \
+            -p 50056:50056 -p 50057:50057 -p 50058:50058 \
+            -p 50059:50059 -p 50060:50060 \
+            -v ${{ github.workspace }}:/mnt/L2_CONTAINER_SHARED_VOLUME \
+            ghcr.io/rdkcentral/docker-device-mgt-service-test/mockxconf:latest
+
+      - name: Deploy and start crashUpload.js mock server
+        run: |
+          sleep 5 && \
+          docker cp ${{ github.workspace }}/test/crashUpload.js mockxconf:/usr/local/bin/crashUpload.js && \
+          docker exec mockxconf chmod +x /usr/local/bin/crashUpload.js && \
+          docker exec -d mockxconf node /usr/local/bin/crashUpload.js && \
+          sleep 3 && \
+          docker exec mockxconf ps aux | grep crashUpload || echo "Warning: crashUpload.js process not found"
+
       - name: Start native-platform container
         run: |
-          docker run -d --name native-platform -v ${{ github.workspace }}:/mnt/L2_CONTAINER_SHARED_VOLUME ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
+          docker run -d --name native-platform \
+            --link mockxconf \
+            -v ${{ github.workspace }}:/mnt/L2_CONTAINER_SHARED_VOLUME \
+            ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
 
       - name: Build crashupload and run L2 tests
         run: |
-          docker exec -i native-platform /bin/bash -c "cd /mnt/L2_CONTAINER_SHARED_VOLUME/ && chmod +x cov_build.sh run_l2.sh && sh cov_build.sh && export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/lib/aarch64-linux-gnu:/usr/local/lib: && sh run_l2.sh"
+          docker exec -i native-platform /bin/bash -c "cd /mnt/L2_CONTAINER_SHARED_VOLUME/ && chmod +x test/cov_build.sh test/run_l2.sh && sh test/cov_build.sh && export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/lib/aarch64-linux-gnu:/usr/local/lib: && sh test/run_l2.sh"
 
       - name: Copy L2 test results to runner
         run: |

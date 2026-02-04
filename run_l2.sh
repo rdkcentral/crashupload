@@ -67,6 +67,9 @@ export CRASHUPLOAD_BINARY
 # Run functional tests with JSON reports
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/lock_and_exit.json" "$TEST_DIR/test_lock_and_exit.py"
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/lock_and_wait.json" "$TEST_DIR/test_lock_and_wait.py"
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/minidump_happy_path.json" "$TEST_DIR/test_minidump_happy_path.py"
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/coredump_happy_path.json" "$TEST_DIR/test_coredump_happy_path.py"
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/startup_cleanup.json" "$TEST_DIR/test_startup_cleanup.py"
 
 # Cleanup
 rm -f /tmp/.uploadMinidumps
