@@ -46,9 +46,10 @@ jobs:
           sleep 5 && \
           docker cp ${{ github.workspace }}/test/crashUpload.js mockxconf:/usr/local/bin/crashUpload.js && \
           docker exec mockxconf chmod +x /usr/local/bin/crashUpload.js && \
-          docker exec -d mockxconf node /usr/local/bin/crashUpload.js && \
-          sleep 3 && \
-          docker exec mockxconf ps aux | grep crashUpload || echo "Warning: crashUpload.js process not found"
+          docker exec -d mockxconf sh -c "cd /usr/local/bin && node crashUpload.js > /tmp/crashUpload.log 2>&1" && \
+          sleep 5 && \
+          docker exec mockxconf ps aux | grep -E "node.*crashUpload" && \
+          echo "✓ crashUpload.js is running" || (echo "✗ crashUpload.js failed to start" && docker exec mockxconf cat /tmp/crashUpload.log && exit 1)
 
       - name: Start native-platform container
         run: |
