@@ -544,7 +544,7 @@ int main() {
         assert os.path.exists(dump_file), "Test minidump should exist"
         
         # Step 2: Execute crashupload
-        result = self.run_crashupload(dump_type="0", upload_flag="secure", lock_mode="")
+        result = self.run_crashupload(dump_type="0", upload_flag="secure")
         
         # Step 3: Check the output for error messages
         # Note: Known issue in test binary - getDevicePropertyData() buffer size validation
