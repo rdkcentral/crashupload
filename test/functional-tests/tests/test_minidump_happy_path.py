@@ -616,7 +616,7 @@ int main() {
         
         print("\n========== TEST PASSED: Minidump Upload Success ==========")
     
-    @pytest.mark.order(2)
+    @pytest.mark.order(3)
     def test_minidump_metadata_fields(self):
         """
         Test: Verify correct metadata sent to mock server
@@ -681,7 +681,7 @@ int main() {
         
         print("\n========== TEST COMPLETED: Minidump Metadata Fields ==========")
     
-    @pytest.mark.order(3)
+    @pytest.mark.order(4)
     def test_file_cleanup_after_successful_upload(self):
         """
         Test: Verify original dump and archive cleaned up after successful upload
