@@ -24,13 +24,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull native-platform docker image
-        run: |
-          docker pull ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
-
-      - name: Pull mockxconf docker image
+      - name: Pull docker images
         run: |
           docker pull ghcr.io/rdkcentral/docker-device-mgt-service-test/mockxconf:latest
+          docker pull ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
 
       - name: Start mockxconf container
         run: |
@@ -43,13 +40,33 @@ jobs:
 
       - name: Deploy and start crashUpload.js mock server
         run: |
-          sleep 5 && \
-          docker cp ${{ github.workspace }}/test/crashUpload.js mockxconf:/usr/local/bin/crashUpload.js && \
-          docker exec mockxconf chmod +x /usr/local/bin/crashUpload.js && \
-          docker exec -d mockxconf sh -c "cd /usr/local/bin && node crashUpload.js > /tmp/crashUpload.log 2>&1" && \
-          sleep 5 && \
-          docker exec mockxconf ps aux | grep -E "node.*crashUpload" && \
-          echo "✓ crashUpload.js is running" || (echo "✗ crashUpload.js failed to start" && docker exec mockxconf cat /tmp/crashUpload.log && exit 1)
+          echo "Waiting for mockxconf container to be ready..."
+          sleep 5
+          
+          echo "Copying crashUpload.js to container..."
+          docker cp ${{ github.workspace }}/test/crashUpload.js mockxconf:/usr/local/bin/crashUpload.js
+          
+          echo "Making crashUpload.js executable..."
+          docker exec mockxconf chmod +x /usr/local/bin/crashUpload.js
+          
+          echo "Starting crashUpload.js server..."
+          docker exec -d mockxconf sh -c "cd /usr/local/bin && node crashUpload.js > /tmp/crashUpload.log 2>&1"
+          
+          echo "Waiting for crashUpload.js to start..."
+          sleep 5
+          
+          echo "Verifying crashUpload.js process..."
+          docker exec mockxconf ps aux | grep -E "node.*crashUpload"
+          echo "✓ crashUpload.js process is running"
+          
+          echo "Checking if ports are listening..."
+          docker exec mockxconf netstat -tuln | grep -E ":(50059|50060)" || echo "Warning: Ports may not be listening yet"
+          
+          echo "Testing connectivity from native-platform..."
+          docker exec mockxconf curl -k -I https://localhost:50059/admin/crashUpload || echo "Warning: Server may not be ready yet"
+          
+          echo "Waiting additional time for server to be fully ready..."
+          sleep 10
 
       - name: Start native-platform container
         run: |
