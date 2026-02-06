@@ -83,7 +83,9 @@ class TestMinidumpUploadHappyPath:
             "/opt/secure/minidumps",
             "/opt/logs",
             "/tmp/.uploadMinidumps",
-            "/tmp/.minidump_upload_timestamps",            \"/tmp/.on_startup_dumps_cleaned_up_0\",  # Startup cleanup flag for minidump            "/mnt/L2_CONTAINER_SHARED_VOLUME/uploaded_crashes"
+            "/tmp/.minidump_upload_timestamps",
+            "/tmp/.on_startup_dumps_cleaned_up_0",  # Startup cleanup flag for minidump
+            "/mnt/L2_CONTAINER_SHARED_VOLUME/uploaded_crashes"
         ]
         
         for path in paths_to_clean:
