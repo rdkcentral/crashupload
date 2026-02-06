@@ -63,8 +63,8 @@ crashupload_SOURCES = \
     t2Interface/telemetryinterface.c \
     t2Interface/telemetryinterface.h
 
-crashupload_LDADD = -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread -lcrypto -larchive -luploadutil -ltelemetry_msgsender -lt2utils
-crashupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) -lcrypto -larchive -luploadutil -ltelemetry_msgsender -lt2utils
+crashupload_LDADD = -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread -lcrypto -larchive -luploadutil -lrfcapi -ltelemetry_msgsender -lt2utils
+crashupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) -lcrypto -larchive -luploadutil -lrfcapi -ltelemetry_msgsender -lt2utils
 
 # Include common headers
 crashupload_SOURCES += \
