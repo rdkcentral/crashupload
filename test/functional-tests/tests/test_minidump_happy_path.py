@@ -81,6 +81,7 @@ class TestMinidumpUploadHappyPath:
         """Clean up test files and directories"""
         paths_to_clean = [
             "/opt/secure/minidumps",
+            "/opt/secure/corefiles",  # Extender minidumps go here
             "/opt/logs",
             "/tmp/.uploadMinidumps",
             "/tmp/.minidump_upload_timestamps",
@@ -109,6 +110,7 @@ class TestMinidumpUploadHappyPath:
         """Create required directories"""
         directories = [
             "/opt/secure/minidumps",
+            "/opt/secure/corefiles",  # Extender minidumps go here
             "/opt/logs",
             "/mnt/L2_CONTAINER_SHARED_VOLUME/uploaded_crashes"
         ]
@@ -183,7 +185,9 @@ Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CrashPortalEndURL=https://mockxco
     
     def create_test_minidump(self, filename="test_crash.dmp", size_kb=10):
         """Create a test minidump file"""
-        minidump_path = Path("/opt/secure/minidumps") / filename
+        # IMPORTANT: For device_type=extender, prerequisites checks core_path for .dmp files
+        # So we must create minidumps in /opt/secure/corefiles (not /opt/secure/minidumps)
+        minidump_path = Path("/opt/secure/corefiles") / filename
         
         # Create a realistic minidump with header
         content = b'MDMP'  # Minidump signature
@@ -232,12 +236,26 @@ Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CrashPortalEndURL=https://mockxco
         return result
     
     def verify_archive_created(self):
-        """Check if archive (.tgz) was created"""
-        minidump_dir = Path("/opt/secure/minidumps")
-        archives = list(minidump_dir.glob("*.tgz"))
+        """
+        Check if archive (.tgz) was created
         
-        print(f"Archives found: {[str(a) for a in archives]}")
-        return len(archives) > 0, archives
+        Archives may be in:
+        1. /opt/secure/minidumps (standard minidump directory)
+        2. /opt/secure/corefiles (for extender device minidumps)
+        """
+        minidump_dir = Path("/opt/secure/minidumps")
+        corefiles_dir = Path("/opt/secure/corefiles")
+        
+        minidump_archives = list(minidump_dir.glob("*.tgz"))
+        corefiles_archives = list(corefiles_dir.glob("*.tgz"))
+        
+        all_archives = minidump_archives + corefiles_archives
+        
+        print(f"Archives in /opt/secure/minidumps: {[str(a) for a in minidump_archives]}")
+        print(f"Archives in /opt/secure/corefiles: {[str(a) for a in corefiles_archives]}")
+        print(f"Total archives found: {len(all_archives)}")
+        
+        return len(all_archives) > 0, all_archives
     
     def verify_upload_to_mock_server(self):
         """Verify file was uploaded to mock server"""
@@ -716,9 +734,12 @@ int main() {
         time.sleep(3)
         
         # Check if original dump still exists (should be removed or archived)
+        # For extender devices, files are in /opt/secure/corefiles
         minidump_dir = Path("/opt/secure/minidumps")
-        remaining_dumps = list(minidump_dir.glob("*.dmp"))
-        remaining_archives = list(minidump_dir.glob("*.tgz"))
+        corefiles_dir = Path("/opt/secure/corefiles")
+        
+        remaining_dumps = list(minidump_dir.glob("*.dmp")) + list(corefiles_dir.glob("*.dmp"))
+        remaining_archives = list(minidump_dir.glob("*.tgz")) + list(corefiles_dir.glob("*.tgz"))
         
         print(f"Remaining dumps: {[str(d) for d in remaining_dumps]}")
         print(f"Remaining archives: {[str(a) for a in remaining_archives]}")
