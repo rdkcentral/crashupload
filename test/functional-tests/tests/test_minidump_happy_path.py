@@ -83,8 +83,7 @@ class TestMinidumpUploadHappyPath:
             "/opt/secure/minidumps",
             "/opt/logs",
             "/tmp/.uploadMinidumps",
-            "/tmp/.minidump_upload_timestamps",
-            "/mnt/L2_CONTAINER_SHARED_VOLUME/uploaded_crashes"
+            "/tmp/.minidump_upload_timestamps",            \"/tmp/.on_startup_dumps_cleaned_up_0\",  # Startup cleanup flag for minidump            "/mnt/L2_CONTAINER_SHARED_VOLUME/uploaded_crashes"
         ]
         
         for path in paths_to_clean:
@@ -115,6 +114,14 @@ class TestMinidumpUploadHappyPath:
         for directory in directories:
             Path(directory).mkdir(parents=True, exist_ok=True)
             print(f"Created directory: {directory}")
+        
+        # CRITICAL: Create startup cleanup flag BEFORE creating test files
+        # This prevents cleanup_batch() from hanging during startup cleanup
+        # Flag format: /tmp/.on_startup_dumps_cleaned_up_{dump_type}
+        # dump_type=0 for minidump, dump_type=1 for coredump
+        startup_flag = "/tmp/.on_startup_dumps_cleaned_up_0"
+        Path(startup_flag).touch()
+        print(f"Created startup cleanup flag: {startup_flag}")
     
     def setup_configuration_files(self):
         """Create device.properties and include.properties"""
@@ -184,6 +191,12 @@ Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CrashPortalEndURL=https://mockxco
         
         print(f"Created test minidump: {minidump_path} ({size_kb}KB)")
         assert minidump_path.exists()
+        
+        # CRITICAL: Give file system time to settle and ensure size stability
+        # The scanner checks for size stability over 2 consecutive 1-second intervals
+        # Without this delay, the binary may wait indefinitely for size stabilization
+        time.sleep(3)
+        
         return str(minidump_path)
     
     def run_crashupload(self, dump_type="0", upload_flag="secure", lock_mode=""):
