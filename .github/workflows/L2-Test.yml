@@ -24,56 +24,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull docker images
+      - name: Pull native-platform docker image
         run: |
-          docker pull ghcr.io/rdkcentral/docker-device-mgt-service-test/mockxconf:latest
           docker pull ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
-
-      - name: Start mockxconf container
-        run: |
-          docker run -d --name mockxconf \
-            -p 50050:50050 -p 50051:50051 -p 50052:50052 -p 50053:50053 \
-            -p 50056:50056 -p 50057:50057 -p 50058:50058 \
-            -p 50059:50059 -p 50060:50060 \
-            -v ${{ github.workspace }}:/mnt/L2_CONTAINER_SHARED_VOLUME \
-            ghcr.io/rdkcentral/docker-device-mgt-service-test/mockxconf:latest
-
-      - name: Deploy and start crashUpload.js mock server
-        run: |
-          echo "Waiting for mockxconf container to be ready..."
-          sleep 5
-          
-          echo "Copying crashUpload.js to container..."
-          docker cp ${{ github.workspace }}/test/crashUpload.js mockxconf:/usr/local/bin/crashUpload.js
-          
-          echo "Making crashUpload.js executable..."
-          docker exec mockxconf chmod +x /usr/local/bin/crashUpload.js
-          
-          echo "Starting crashUpload.js server..."
-          docker exec -d mockxconf sh -c "cd /usr/local/bin && node crashUpload.js > /tmp/crashUpload.log 2>&1"
-          
-          echo "Waiting for crashUpload.js to start..."
-          sleep 5
-          
-          echo "Verifying crashUpload.js process..."
-          docker exec mockxconf ps aux | grep -E "node.*crashUpload"
-          echo "✓ crashUpload.js process is running"
-          
-          echo "Checking if ports are listening..."
-          docker exec mockxconf netstat -tuln | grep -E ":(50059|50060)" || echo "Warning: Ports may not be listening yet"
-          
-          echo "Testing connectivity from native-platform..."
-          docker exec mockxconf curl -k -I https://localhost:50059/admin/crashUpload || echo "Warning: Server may not be ready yet"
-          
-          echo "Waiting additional time for server to be fully ready..."
-          sleep 10
 
       - name: Start native-platform container
         run: |
-          docker run -d --name native-platform \
-            --link mockxconf \
-            -v ${{ github.workspace }}:/mnt/L2_CONTAINER_SHARED_VOLUME \
-            ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
+          docker run -d --name native-platform -v ${{ github.workspace }}:/mnt/L2_CONTAINER_SHARED_VOLUME ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
 
       - name: Build crashupload and run L2 tests
         run: |
