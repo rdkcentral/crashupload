@@ -130,7 +130,9 @@ class TestMinidumpUploadHappyPath:
         
         # Create /etc/device.properties
         # Note: Do NOT use quotes - the parser reads values as-is
-        device_props = """DEVICE_TYPE=mediaclient
+        # IMPORTANT: Use DEVICE_TYPE=extender instead of mediaclient
+        # to avoid 480-second upload deferral check that causes test timeouts
+        device_props = """DEVICE_TYPE=extender
 BOX_TYPE=XG1v4
 BUILD_TYPE=dev
 MODEL_NUM=XG1v4
