@@ -267,11 +267,12 @@ sequenceDiagram
     Shell->>Binary: Execute: crashupload<br/>/minidumps/chrome_*.dmp 0
     
     Note over Binary,Portal: Initialization Phase
+    Binary->>Binary: Get Device metadata & configs
     Binary->>Binary: 1. Acquire lock (/tmp/minidump.lock)
     Binary->>RFC: 2. Read S3SignedUrl config<br/>getRFCParameter("S3SignedUrl")
     RFC-->>Binary: <Crash Portal URL>
     Binary->>Binary: 3. Check prerequisites<br/>(network, time sync)
-    Binary->>Binary: 4. Privacy check<br/>(opt-out, privacy mode)
+    Binary->>Shell: 4. Privacy check<br/>(opt-out, privacy mode)
     
     Note over Binary,Portal: Archive Phase
     Binary->>Binary: 5. Scan dump file<br/>Extract metadata
@@ -280,7 +281,7 @@ sequenceDiagram
     
     Note over Portal,S3: Upload Phase
     Binary->>Portal: 8. GET /sign?env=dev&model=ABC123&<br/>version=12345&dump=chrome_*.dmp
-    Portal-->>Binary: Pre-signed S3 URL<br/>(expires in 1 hour)
+    Portal-->>Binary: Pre-signed S3 URL
     
     Binary->>S3: 9. PUT /bucket/ABC123/12345/MAC/<br/>build-12345_MAC_*.tgz<br/>(TLS 1.2 + mTLS)
     S3-->>Binary: HTTP 200 OK
@@ -317,8 +318,8 @@ graph TB
         end
 
         subgraph Runtime_Binaries["Runtime Binaries"]
-            InotifyBin["Path file<br/>~15KB C binary"]
-            CrashBin["/usr/bin/crashupload<br/>~35-45KB C++ binary"]
+            InotifyBin["Path file<br/> C binary"]
+            CrashBin["/usr/bin/crashupload<br/>C binary"]
         end
 
         subgraph Scripts["Shell Scripts"]
@@ -500,7 +501,7 @@ MAC_ADDRESS=00:00:00:00:00:00      # Device MAC
 ### 9.1 Repository Structure
 ```
 crashupload/
-├── c_sourcecode/           # C/C++ implementation
+├── c_sourcecode/           # C implementation
 │   ├── common/             # Type definitions, constants, errors
 │   ├── include/            # Public header files
 │   └── src/                # Source code (main, modules)
@@ -555,4 +556,3 @@ pytest tests/
 
 **License**: Apache License 2.0  
 **Copyright**: © 2025-2026 RDK Management  
-
