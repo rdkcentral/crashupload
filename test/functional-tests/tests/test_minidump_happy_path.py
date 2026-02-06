@@ -82,6 +82,7 @@ class TestMinidumpUploadHappyPath:
         paths_to_clean = [
             "/opt/secure/minidumps",
             "/opt/secure/corefiles",  # Extender minidumps go here
+            "/minidumps",  # Extender archives go here
             "/opt/logs",
             "/tmp/.uploadMinidumps",
             "/tmp/.minidump_upload_timestamps",
@@ -111,6 +112,7 @@ class TestMinidumpUploadHappyPath:
         directories = [
             "/opt/secure/minidumps",
             "/opt/secure/corefiles",  # Extender minidumps go here
+            "/minidumps",  # Extender working_dir_path (for archives)
             "/opt/logs",
             "/mnt/L2_CONTAINER_SHARED_VOLUME/uploaded_crashes"
         ]
@@ -241,18 +243,22 @@ Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CrashPortalEndURL=https://mockxco
         
         Archives may be in:
         1. /opt/secure/minidumps (standard minidump directory)
-        2. /opt/secure/corefiles (for extender device minidumps)
+        2. /opt/secure/corefiles (for extender device dump location)
+        3. /minidumps (extender working_dir_path where archives are created)
         """
         minidump_dir = Path("/opt/secure/minidumps")
         corefiles_dir = Path("/opt/secure/corefiles")
+        working_dir = Path("/minidumps")
         
         minidump_archives = list(minidump_dir.glob("*.tgz"))
         corefiles_archives = list(corefiles_dir.glob("*.tgz"))
+        working_archives = list(working_dir.glob("*.tgz"))
         
-        all_archives = minidump_archives + corefiles_archives
+        all_archives = minidump_archives + corefiles_archives + working_archives
         
         print(f"Archives in /opt/secure/minidumps: {[str(a) for a in minidump_archives]}")
         print(f"Archives in /opt/secure/corefiles: {[str(a) for a in corefiles_archives]}")
+        print(f"Archives in /minidumps: {[str(a) for a in working_archives]}")
         print(f"Total archives found: {len(all_archives)}")
         
         return len(all_archives) > 0, all_archives
@@ -581,6 +587,19 @@ int main() {
         # Step 2: Execute crashupload
         result = self.run_crashupload(dump_type="0", upload_flag="secure")
         
+        # Debug: Check what crashupload actually saw
+        print(f"\n=== DEBUG INFO ===")
+        print(f"Exit code: {result.returncode}")
+        print(f"File still exists after run: {os.path.exists(dump_file)}")
+        
+        # List all files in the directory
+        import glob
+        core_files = glob.glob("/opt/secure/corefiles/*")
+        minidump_files = glob.glob("/opt/secure/minidumps/*")
+        print(f"Files in /opt/secure/corefiles: {core_files}")
+        print(f"Files in /opt/secure/minidumps: {minidump_files}")
+        print(f"==================\n")
+        
         # Step 3: Check the output for error messages
         # Note: Known issue in test binary - getDevicePropertyData() buffer size validation
         # is too strict (>= instead of >), causing 1024-byte buffer to fail.
@@ -734,12 +753,13 @@ int main() {
         time.sleep(3)
         
         # Check if original dump still exists (should be removed or archived)
-        # For extender devices, files are in /opt/secure/corefiles
+        # For extender devices, files are in /opt/secure/corefiles, archives in /minidumps
         minidump_dir = Path("/opt/secure/minidumps")
         corefiles_dir = Path("/opt/secure/corefiles")
+        working_dir = Path("/minidumps")
         
         remaining_dumps = list(minidump_dir.glob("*.dmp")) + list(corefiles_dir.glob("*.dmp"))
-        remaining_archives = list(minidump_dir.glob("*.tgz")) + list(corefiles_dir.glob("*.tgz"))
+        remaining_archives = list(minidump_dir.glob("*.tgz")) + list(corefiles_dir.glob("*.tgz")) + list(working_dir.glob("*.tgz"))
         
         print(f"Remaining dumps: {[str(d) for d in remaining_dumps]}")
         print(f"Remaining archives: {[str(a) for a in remaining_archives]}")
