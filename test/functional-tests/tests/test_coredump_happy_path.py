@@ -133,9 +133,10 @@ class TestCoredumpUploadHappyPath:
         
         # Create /etc/device.properties
         # Note: Do NOT use quotes - the parser reads values as-is
-        # IMPORTANT: Use DEVICE_TYPE=extender instead of mediaclient
-        # to avoid 480-second upload deferral check that causes test timeouts
-        device_props = """DEVICE_TYPE=extender
+        # IMPORTANT: Use DEVICE_TYPE=mediaclient (ONLY device type with full upload support)
+        # The 480-second boot deferral is bypassed when binary is built with --l2-test flag
+        # which uses /opt/uptime instead of /proc/uptime (created by run_l2.sh)
+        device_props = """DEVICE_TYPE=mediaclient
 BOX_TYPE=XG1v4
 BUILD_TYPE=dev
 MODEL_NUM=XG1v4
@@ -201,7 +202,7 @@ Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CrashPortalEndURL=https://mockxco
         If no file with "_core" is found, prerequisites_wait() returns NO_DUMPS_FOUND
         and the binary exits immediately without scanning.
         
-        When running with "secure" flag, files are placed in /opt/secure/corefiles
+        For mediaclient with "secure" flag, files are placed in /opt/secure/corefiles
         """
         coredump_path = Path("/opt/secure/corefiles") / filename
         

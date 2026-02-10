@@ -81,8 +81,7 @@ class TestMinidumpUploadHappyPath:
         """Clean up test files and directories"""
         paths_to_clean = [
             "/opt/secure/minidumps",
-            "/opt/secure/corefiles",  # Extender minidumps go here
-            "/minidumps",  # Extender archives go here
+            "/opt/secure/corefiles",
             "/opt/logs",
             "/tmp/.uploadMinidumps",
             "/tmp/.minidump_upload_timestamps",
@@ -111,8 +110,7 @@ class TestMinidumpUploadHappyPath:
         """Create required directories"""
         directories = [
             "/opt/secure/minidumps",
-            "/opt/secure/corefiles",  # Extender minidumps go here
-            "/minidumps",  # Extender working_dir_path (for archives)
+            "/opt/secure/corefiles",
             "/opt/logs",
             "/mnt/L2_CONTAINER_SHARED_VOLUME/uploaded_crashes"
         ]
@@ -134,9 +132,10 @@ class TestMinidumpUploadHappyPath:
         
         # Create /etc/device.properties
         # Note: Do NOT use quotes - the parser reads values as-is
-        # IMPORTANT: Use DEVICE_TYPE=extender instead of mediaclient
-        # to avoid 480-second upload deferral check that causes test timeouts
-        device_props = """DEVICE_TYPE=extender
+        # IMPORTANT: Use DEVICE_TYPE=mediaclient (ONLY device type with full upload support)
+        # The 480-second boot deferral is bypassed when binary is built with --l2-test flag
+        # which uses /opt/uptime instead of /proc/uptime (created by run_l2.sh)
+        device_props = """DEVICE_TYPE=mediaclient
 BOX_TYPE=XG1v4
 BUILD_TYPE=dev
 MODEL_NUM=XG1v4
@@ -187,46 +186,35 @@ Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CrashPortalEndURL=https://mockxco
     
     def create_test_minidump(self, filename="test_crash.dmp", size_kb=10):
         """Create a test minidump file"""
-        # IMPORTANT: For device_type=extender with secure flag:
-        # - Prerequisites checks core_path (/opt/secure/corefiles) for .dmp presence
-        # - Scanner processes files from working_dir_path (/minidumps)
-        # So we must create files in /minidumps (where processing happens)
-        # AND create a dummy file in /opt/secure/corefiles (to pass prerequisites)
+        # IMPORTANT: For device_type=mediaclient with secure flag:
+        # - Prerequisites checks minidump_path (/opt/secure/minidumps) for .dmp presence
+        # - Scanner processes files from working_dir_path (/opt/secure/minidumps)
+        # So we create files in /opt/secure/minidumps (where processing happens)
         
-        minidump_path = Path("/minidumps") / filename
-        prereq_path = Path("/opt/secure/corefiles") / "dummy.dmp"
+        minidump_path = Path("/opt/secure/minidumps") / filename
         
         # Create a realistic minidump with header
         content = b'MDMP'  # Minidump signature
         content += b'\x93\xa7\x00\x00'  # Version
         content += b'\x00' * (size_kb * 1024 - len(content))  # Padding
         
-        # Create main minidump file in /minidumps (where scanner processes)
+        # Create minidump file in /opt/secure/minidumps (where scanner processes)
         with open(minidump_path, 'wb') as f:
             f.write(content)
             f.flush()
             os.fsync(f.fileno())  # Force write to disk
         
-        # Create dummy file in /opt/secure/corefiles (to pass prerequisites check)
-        with open(prereq_path, 'wb') as f:
-            f.write(content[:1024])  # Small file, just needs to exist
-            f.flush()
-            os.fsync(f.fileno())  # Force write to disk
-        
         print(f"Created test minidump: {minidump_path} ({size_kb}KB)")
-        print(f"Created prerequisites dummy: {prereq_path}")
         
-        # Verify files exist and are readable
+        # Verify file exists and is readable
         assert minidump_path.exists(), f"Minidump file not found: {minidump_path}"
-        assert prereq_path.exists(), f"Prereq file not found: {prereq_path}"
         assert minidump_path.stat().st_size == size_kb * 1024, f"Minidump size mismatch"
-        assert prereq_path.stat().st_size == 1024, f"Prereq size mismatch"
         
         # Verify files are readable
         with open(minidump_path, 'rb') as f:
             assert f.read(4) == b'MDMP', "Minidump signature verification failed"
         
-        print(f"✓ Files verified: {minidump_path.stat().st_size} bytes, {prereq_path.stat().st_size} bytes")
+        print(f"✓ File verified: {minidump_path.stat().st_size} bytes")
         
         # CRITICAL: Give file system time to settle and ensure size stability
         # The scanner checks for size stability over 2 consecutive 1-second intervals
@@ -272,27 +260,16 @@ Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CrashPortalEndURL=https://mockxco
         Check if archive (.tgz) was created
         
         Archives may be in:
-        1. /opt/secure/minidumps (standard minidump directory)
-        2. /opt/secure/corefiles (for extender device dump location)
-        3. /minidumps (extender working_dir_path where archives are created)
+        For mediaclient device type with secure flag:
+        Archives are created in /opt/secure/minidumps (working_dir_path)
         """
         minidump_dir = Path("/opt/secure/minidumps")
-        corefiles_dir = Path("/opt/secure/corefiles")
-        working_dir = Path("/minidumps")
+        archives = list(minidump_dir.glob("*.tgz"))
         
-        minidump_archives = list(minidump_dir.glob("*.tgz"))
-        corefiles_archives = list(corefiles_dir.glob("*.tgz"))
-        working_archives = list(working_dir.glob("*.tgz"))
+        print(f"Archives in /opt/secure/minidumps: {[str(a) for a in archives]}")
+        print(f"Total archives found: {len(archives)}")
         
-        all_archives = minidump_archives + corefiles_archives + working_archives
-        
-        print(f"Archives in /opt/secure/minidumps: {[str(a) for a in minidump_archives]}")
-        print(f"Archives in /opt/secure/corefiles: {[str(a) for a in corefiles_archives]}")
-        print(f"Archives in /minidumps: {[str(a) for a in working_archives]}")
-        print(f"Total archives found: {len(all_archives)}")
-        
-        return len(all_archives) > 0, all_archives
-    
+        return len(archives) > 0, archives 
     def verify_upload_to_mock_server(self):
         """Verify file was uploaded to mock server"""
         upload_dir = Path("/mnt/L2_CONTAINER_SHARED_VOLUME/uploaded_crashes")
@@ -614,10 +591,7 @@ int main() {
         dump_file = self.create_test_minidump("test_crash_001.dmp", size_kb=10)
         assert os.path.exists(dump_file), "Test minidump should exist"
         
-        # Double-check files are visible before running crashupload
-        prereq_file = "/opt/secure/corefiles/dummy.dmp"
-        assert os.path.exists(prereq_file), f"Prerequisites file not found: {prereq_file}"
-        print(f"✓ Prerequisite file exists: {prereq_file} ({os.path.getsize(prereq_file)} bytes)")
+        # Double-check file is visible before running crashupload
         print(f"✓ Test minidump exists: {dump_file} ({os.path.getsize(dump_file)} bytes)")
         
         # Step 2: Execute crashupload
@@ -628,14 +602,12 @@ int main() {
         print(f"Exit code: {result.returncode}")
         print(f"File still exists after run: {os.path.exists(dump_file)}")
         
-        # List all files in the directory
+        # List all files in the directories
         import glob
-        core_files = glob.glob("/opt/secure/corefiles/*")
         minidump_files = glob.glob("/opt/secure/minidumps/*")
-        working_files = glob.glob("/minidumps/*")
-        print(f"Files in /opt/secure/corefiles: {core_files}")
+        core_files = glob.glob("/opt/secure/corefiles/*")
         print(f"Files in /opt/secure/minidumps: {minidump_files}")
-        print(f"Files in /minidumps (working dir): {working_files}")
+        print(f"Files in /opt/secure/corefiles: {core_files}")
         print(f"==================\n")
         
         # Step 3: Check the output for error messages
@@ -924,10 +896,18 @@ int main() {
         # Note: In debug builds, files might not be removed
         logs = self.check_logs()
         
-        if "Removing" in logs or "unlink" in logs:
-            print("✓ Cleanup attempted")
+        # Verify cleanup occurred (or was deferred for debugging)
+        if len(remaining_dumps) == 0:
+            print("✓ Original dump files cleaned up")
+        else:
+            print("⚠ Some dump files remain (may be debug build)")
         
-        print("\n========== TEST COMPLETED: File Cleanup ==========")
+        if len(remaining_archives) == 0:
+            print("✓ Archive files cleaned up")
+        else:
+            print("⚠ Some archive files remain (may be debug build)")
+        
+        print("\n========== TEST COMPLETED: File Cleanup After Upload ==========")
 
 
 if __name__ == "__main__":

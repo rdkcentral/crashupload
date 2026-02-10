@@ -30,6 +30,7 @@ export INSTALL_DIR=${ROOT}/local
 
 # Command-line flags
 CLEAN_ONLY=false
+L2_TEST_MODE=false
 
 # Parse command-line arguments
 for arg in "$@"; do
@@ -37,12 +38,16 @@ for arg in "$@"; do
         --clean)
             CLEAN_ONLY=true
             ;;
+        --l2-test)
+            L2_TEST_MODE=true
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  (none)      Build crashupload binary (default)"
             echo "  --clean     Clean all build artifacts from c_sourcecode and exit"
+            echo "  --l2-test   Build with L2_TEST flag (uses /opt/uptime for testing)"
             echo "  --help, -h  Show this help message"
             echo ""
             exit 0
@@ -195,12 +200,19 @@ cd c_sourcecode
 echo "[1/3] Running autoreconf to generate build files..."
 autoreconf -i
 
+# Prepare CFLAGS with optional L2_TEST flag
+BASE_CFLAGS="-DRDK_LOGGER -I/usr/local/include -include rdkcertselector.h -Wall -Werror -O2"
+if [ "$L2_TEST_MODE" = true ]; then
+    echo "L2 TEST MODE: Building with -DL2_TEST flag (will use /opt/uptime instead of /proc/uptime)"
+    BASE_CFLAGS="$BASE_CFLAGS -DL2_TEST"
+fi
+
 # Configure build
 echo "[2/3] Configuring build..."
 ./configure \
     --enable-rdkcertselector \
     --prefix="${INSTALL_DIR}" \
-    CFLAGS="-DRDK_LOGGER -I/usr/local/include -include rdkcertselector.h -Wall -Werror -O2" \
+    CFLAGS="$BASE_CFLAGS" \
     LDFLAGS="-L/usr/local/lib" \
     PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
 
