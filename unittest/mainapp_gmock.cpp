@@ -26,6 +26,7 @@
  * 
  * Functions mocked:
  * - config_init_load() - Configuration initialization and loading
+ * - get_privacy_control_mode() - Get privacy control mode
  * - platform_initialize() - Platform initialization
  * - filePresentCheck() - File presence check
  * - lock_acquire() - Lock acquisition
@@ -78,6 +79,10 @@ struct MainAppMockState {
     // config_init_load
     int config_init_load_return_value;
     bool config_init_load_custom_behavior;
+    
+    // get_privacy_control_mode
+    bool get_privacy_control_mode_return_value;
+    bool get_privacy_control_mode_custom_behavior;
     
     // platform_initialize
     int platform_initialize_return_value;
@@ -162,6 +167,10 @@ struct MainAppMockState {
 static MainAppMockState g_mainapp_mock_state = {
     0,          // config_init_load returns success
     false,      // no custom behavior
+    
+    true,       // get_privacy_control_mode returns success
+    false,      // no custom behavior
+    
     0,          // platform_initialize returns success
     false,      // no custom behavior
     -1,         // filePresentCheck returns file not present by default
@@ -219,6 +228,14 @@ extern "C" {
 void set_mock_config_init_load_behavior(int return_value) {
     g_mainapp_mock_state.config_init_load_return_value = return_value;
     g_mainapp_mock_state.config_init_load_custom_behavior = true;
+}
+
+/**
+ * Set behavior for get_privacy_control_mode mock
+ */
+void set_mock_get_privacy_control_mode_behavior(bool return_value) {
+    g_mainapp_mock_state.get_privacy_control_mode_return_value = return_value;
+    g_mainapp_mock_state.get_privacy_control_mode_custom_behavior = true;
 }
 
 /**
@@ -393,6 +410,9 @@ void reset_mainapp_mocks() {
     g_mainapp_mock_state.config_init_load_return_value = 0;
     g_mainapp_mock_state.config_init_load_custom_behavior = false;
     
+    g_mainapp_mock_state.get_privacy_control_mode_return_value = true;
+    g_mainapp_mock_state.get_privacy_control_mode_custom_behavior = false;
+    
     g_mainapp_mock_state.platform_initialize_return_value = 0;
     g_mainapp_mock_state.platform_initialize_custom_behavior = false;
     
@@ -487,6 +507,25 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
     }
     
     return 0;
+}
+
+/**
+ * Mock: Get privacy control mode
+ */
+bool get_privacy_control_mode(config_t *config) {
+    if (!config) {
+        return false;
+    }
+    
+    // Default behavior: set privacy mode to SHARE
+    strncpy(config->privacy_mode, "SHARE", sizeof(config->privacy_mode) - 1);
+    config->privacy_mode[sizeof(config->privacy_mode) - 1] = '\0';
+    
+    if (g_mainapp_mock_state.get_privacy_control_mode_custom_behavior) {
+        return g_mainapp_mock_state.get_privacy_control_mode_return_value;
+    }
+    
+    return true;
 }
 
 /**

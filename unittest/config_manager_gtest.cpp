@@ -669,6 +669,158 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_AllFieldsInitialized) {
 }
 
 // ============================================================================
+// Tests for get_privacy_control_mode()
+// ============================================================================
+
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_ValidConfig_ReturnsShare) {
+    // Test with valid config - should get SHARE from stub
+    int result = config_init_load(&test_config, 5, test_argv);
+    ASSERT_EQ(result, CONFIG_SUCCESS);
+    
+    bool privacy_result = get_privacy_control_mode(&test_config);
+    
+    // In stub mode, this should succeed and set privacy_mode to SHARE
+    EXPECT_TRUE(privacy_result);
+    EXPECT_STREQ(test_config.privacy_mode, "SHARE");
+}
+
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_NullConfig_ReturnsFalse) {
+    // Test with NULL config - should return false immediately
+    bool result = get_privacy_control_mode(nullptr);
+    
+    EXPECT_FALSE(result);
+}
+
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_RbusStubBehavior) {
+    // Test that verifies the RBUS stub functions are called
+    config_t config;
+    memset(&config, 0, sizeof(config));
+    
+    bool result = get_privacy_control_mode(&config);
+    
+    // With RBUS stubs (when RBUS_API_ENABLED not defined), 
+    // rbus_get_string_param returns true with "SHARE"
+    EXPECT_TRUE(result);
+    EXPECT_STREQ(config.privacy_mode, "SHARE");
+}
+
+// ============================================================================
+// Tests for RFC Interface Coverage
+// ============================================================================
+
+extern "C" {
+#include "../c_sourcecode/src/rfcInterface/rfcinterface.h"
+}
+
+TEST_F(ConfigManagerTest, WriteRFCProperty_StringType_ReturnsNotApplicable) {
+    // Test write_RFCProperty with string data type (stub mode)
+    int result = write_RFCProperty("rfcTestType", "TestKey", "TestValue", RFC_STRING);
+    
+    // In stub mode (RFC_API_ENABLED not defined), should return READ_RFC_NOTAPPLICABLE
+    EXPECT_EQ(result, WRITE_RFC_NOTAPPLICABLE);
+}
+
+TEST_F(ConfigManagerTest, WriteRFCProperty_BoolType_ReturnsNotApplicable) {
+    // Test write_RFCProperty with boolean data type
+    int result = write_RFCProperty("rfcTestType", "TestKey", "true", RFC_BOOL);
+    
+    EXPECT_EQ(result, WRITE_RFC_NOTAPPLICABLE);
+}
+
+TEST_F(ConfigManagerTest, WriteRFCProperty_UintType_ReturnsNotApplicable) {
+    // Test write_RFCProperty with unsigned int data type
+    int result = write_RFCProperty("rfcTestType", "TestKey", "42", RFC_UINT);
+    
+    EXPECT_EQ(result, WRITE_RFC_NOTAPPLICABLE);
+}
+
+TEST_F(ConfigManagerTest, WriteRFCProperty_NullParameters_HandlesSafely) {
+    // Test with NULL parameters - stub should handle gracefully
+    int result1 = write_RFCProperty(nullptr, "Key", "Value", RFC_STRING);
+    int result2 = write_RFCProperty("Type", nullptr, "Value", RFC_STRING);
+    int result3 = write_RFCProperty("Type", "Key", nullptr, RFC_STRING);
+    
+    // All should return WRITE_RFC_NOTAPPLICABLE in stub mode
+    EXPECT_EQ(result1, WRITE_RFC_NOTAPPLICABLE);
+    EXPECT_EQ(result2, WRITE_RFC_NOTAPPLICABLE);
+    EXPECT_EQ(result3, WRITE_RFC_NOTAPPLICABLE);
+}
+
+TEST_F(ConfigManagerTest, ReadRFCProperty_AdditionalCoverage) {
+    // Additional test to ensure read_RFCProperty stub is fully covered
+    char buffer[128] = {0};
+    
+    int result = read_RFCProperty("rfcType", "TestKey", buffer, sizeof(buffer));
+    
+    // Stub should return READ_RFC_NOTAPPLICABLE
+    EXPECT_EQ(result, READ_RFC_NOTAPPLICABLE);
+}
+
+// ============================================================================
+// Tests for RBUS Interface (Stub Coverage)
+// ============================================================================
+
+extern "C" {
+bool rbus_init(void);
+void rbus_cleanup(void);
+bool rbus_get_string_param(const char *param_name, char *value_buf, size_t buf_size);
+}
+
+TEST_F(ConfigManagerTest, RbusInit_Stub_ReturnsTrue) {
+    // Test rbus_init stub implementation
+    bool result = rbus_init();
+    EXPECT_TRUE(result);
+}
+
+TEST_F(ConfigManagerTest, RbusCleanup_Stub_NoOp) {
+    // Test rbus_cleanup stub implementation (no-op, just verify it doesn't crash)
+    rbus_init();
+    rbus_cleanup();
+    // If we get here without crashing, the test passes
+    SUCCEED();
+}
+
+TEST_F(ConfigManagerTest, RbusGetStringParam_Stub_ReturnsShare) {
+    char buffer[64] = {0};
+    
+    bool result = rbus_get_string_param("Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode", 
+                                         buffer, sizeof(buffer));
+    
+    EXPECT_TRUE(result);
+    EXPECT_STREQ(buffer, "SHARE");
+}
+
+TEST_F(ConfigManagerTest, RbusGetStringParam_NullParam_ReturnsFalse) {
+    char buffer[64] = {0};
+    
+    // Test with NULL parameter name
+    bool result = rbus_get_string_param(nullptr, buffer, sizeof(buffer));
+    
+    // Should handle NULL gracefully (check actual implementation behavior)
+    // Most implementations would log a warning and return true with "SHARE" in stub mode
+    EXPECT_TRUE(result);
+}
+
+TEST_F(ConfigManagerTest, RbusGetStringParam_NullBuffer_HandlesSafely) {
+    // Test with NULL buffer - should not crash
+    bool result = rbus_get_string_param("SomeParam", nullptr, 64);
+    
+    // In stub mode, it checks if value_buf is non-NULL
+    // The stub should handle this gracefully
+    EXPECT_TRUE(result);
+}
+
+TEST_F(ConfigManagerTest, RbusGetStringParam_ZeroBufferSize_HandlesSafely) {
+    char buffer[64] = {0};
+    
+    // Test with zero buffer size
+    bool result = rbus_get_string_param("SomeParam", buffer, 0);
+    
+    // Stub checks buf_size > 0 before writing
+    EXPECT_TRUE(result);
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 

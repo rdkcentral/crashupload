@@ -58,6 +58,8 @@ crashupload_SOURCES = \
     upload/upload.c \
     rfcInterface/rfcinterface.c \
     rfcInterface/rfcinterface.h \
+    rbusInterface/rbus_interface.c \
+    rbusInterface/rbus_interface.h \
     utils/logger.c \
     utils/logger.h \
     t2Interface/telemetryinterface.c \

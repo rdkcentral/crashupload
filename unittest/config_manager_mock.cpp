@@ -198,15 +198,7 @@ int filePresentCheck(const char* filename) {
  * @param msg Format string and variadic arguments
  */
 void crashupload_log(unsigned int level, const char *file, int line, const char *msg, ...) {
-    // Mock implementation - do nothing or optionally print for debugging
-    // Uncomment the following lines if you want to see log output during tests:
-    // va_list args;
-    // va_start(args, msg);
-    // printf("[TEST LOG] [%s:%d] ", file, line);
-    // vprintf(msg, args);
-    // printf("\n");
-    // va_end(args);
-    
+    // Mock implementation - do nothing
     (void)level;
     (void)file;
     (void)line;

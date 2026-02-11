@@ -23,6 +23,7 @@
 #include "../../common/errors.h"
 #include "../utils/logger.h"
 #include "../rfcInterface/rfcinterface.h"
+#include "../rbusInterface/rbus_interface.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -30,6 +31,7 @@
 #include <stdbool.h>
 
 #define OPTOUT_FILE "/opt/tmtryoptout"
+#define RFC_PRIVACY_MODE "Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode"
 
 bool get_opt_out_status(void)
 {
@@ -222,6 +224,8 @@ int config_init_load(config_t *config, int argc, char *argv[])
     config->opt_out = false;
     config->opt_out = get_opt_out_status();
     config->lock_mode = ((argc == 5) && (0 == (strncmp(argv[4], "wait_for_lock", 13)))) ? LOCK_MODE_WAIT : LOCK_MODE_EXIT;
+    strncpy(config->privacy_mode, "SHARE", sizeof(config->privacy_mode) - 1);
+    config->privacy_mode[sizeof(config->privacy_mode) - 1] = '\0';
     return CONFIG_SUCCESS;
 }
 
@@ -235,4 +239,64 @@ void config_cleanup(config_t *config)
     {
         memset(config, 0, sizeof(config_t));
     }
+}
+
+/*
+return false -> config is empty or rbus failure
+return true -> privacy mode is set in config
+*/
+bool get_privacy_control_mode(config_t *config)
+{
+    bool retStatus = false;
+    if (!config)
+    {
+        return retStatus;
+    }
+
+    bool rbusInit = false;
+    if(!rbus_init())
+    {
+        CRASHUPLOAD_ERROR("RBUS initialization failed\n");
+        return retStatus;
+    }
+    CRASHUPLOAD_INFO("RBUS initialized successfully\n");
+    rbusInit = true;
+
+    char rbus_privacy_mode[32] = {0};
+    // temp value rbus_privacy_mode
+    if (rbus_get_string_param(RFC_PRIVACY_MODE, rbus_privacy_mode, sizeof(rbus_privacy_mode)))
+    {       
+        if (strncasecmp(rbus_privacy_mode, "SHARE", 5) == 0)
+        {
+            CRASHUPLOAD_INFO("Privacy mode is SHARE\n");
+        }
+        else if (strncasecmp(rbus_privacy_mode, "DO_NOT_SHARE", 12) == 0)
+        {
+            CRASHUPLOAD_INFO("Privacy mode is DO_NOT_SHARE\n");
+        }
+        else
+        {
+            CRASHUPLOAD_INFO("Privacy mode from RBUS is invalid:%s, defaulting to SHARE\n", rbus_privacy_mode);
+            strncpy(rbus_privacy_mode, "SHARE", sizeof(rbus_privacy_mode) - 1);
+            rbus_privacy_mode[sizeof(rbus_privacy_mode) - 1] = '\0';
+        }
+        // safe copy temp value to config
+        CRASHUPLOAD_INFO("Privacy mode from RBUS: %s\n", rbus_privacy_mode);
+        strncpy(config->privacy_mode, rbus_privacy_mode, sizeof(config->privacy_mode) - 1);
+        config->privacy_mode[sizeof(config->privacy_mode) - 1] = '\0';
+        retStatus = true;
+    }
+    else
+    {
+        CRASHUPLOAD_ERROR("Failed to get privacy mode from RBUS, defaulting to SHARE\n");
+        strncpy(config->privacy_mode, "SHARE", sizeof(config->privacy_mode) - 1);
+        config->privacy_mode[sizeof(config->privacy_mode) - 1] = '\0';
+    }
+    
+    if (rbusInit)
+    {
+        rbus_cleanup();
+        CRASHUPLOAD_INFO("RBUS connection closed\n");
+    }
+    return retStatus;
 }

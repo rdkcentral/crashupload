@@ -29,6 +29,7 @@
 #include "../common/constants.h"
 #include "../common/errors.h"
 #include "init/system_init.h"
+#include "config/config_manager.h"
 #include "utils/prerequisites.h"
 #include "utils/lock_manager.h"
 #include "scanner/scanner.h"
@@ -178,14 +179,14 @@ int main_test(int argc, char *argv[])
         // return EXIT_FAILURE;
     }
     CRASHUPLOAD_INFO("Prerequisites check successful\n");
-#if 0    
-    /* Step 3: Unified Privacy Check */
-    /* TODO: Implement unified privacy check */
-    if (privacy_uploads_blocked(&config)) {
-        logger_info("Uploads blocked by privacy settings");
-        return EXIT_SUCCESS;  /* Not an error */
+
+    /* Privacy Control Check */
+    if (config.device_type == DEVICE_TYPE_MEDIACLIENT)
+    {
+        get_privacy_control_mode(&config) ? CRASHUPLOAD_INFO("Privacy control mode retrieved successfully\n") : CRASHUPLOAD_WARN("Failed to retrieve privacy control mode\n");
+        CRASHUPLOAD_INFO("Privacy mode set to: %s\n", config.privacy_mode);
     }
-#endif
+
     if (config.dump_type == DUMP_TYPE_MINIDUMP)
     {
         strcpy(dump_extn_pattern, "*.dmp*");
@@ -260,6 +261,11 @@ int main_test(int argc, char *argv[])
         {
             CRASHUPLOAD_ERROR("file_get_mtime_formatted() return fail\n");
         }
+        if (strncmp(config.privacy_mode, "DO_NOT_SHARE", sizeof("DO_NOT_SHARE")) == 0)
+        {
+            CRASHUPLOAD_INFO("Privacy mode is DO_NOT_SHARE, skip processing dump file %s\n", (dumps + i)->path);
+            continue;
+        }
         get_crash_timestamp_utc(crashts, sizeof(crashts));
         CRASHUPLOAD_INFO("crashts=%s\n", crashts);
         tmp = strrchr((dumps + i)->path, '/');
@@ -333,6 +339,12 @@ int main_test(int argc, char *argv[])
             logger_error("Archive creation failed for %s", dumps[i].path);
             continue;
         }
+    }
+    if (strncmp(config.privacy_mode, "DO_NOT_SHARE", sizeof("DO_NOT_SHARE")) == 0)
+    {
+        CRASHUPLOAD_INFO("Privacy mode is DO_NOT_SHARE, skip upload process\n");
+        ret = 0;
+        goto cleanup;
     }
     if (true == is_box_rebooting(config.t2_enabled))
     {
