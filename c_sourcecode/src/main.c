@@ -102,6 +102,7 @@ int main_test(int argc, char *argv[])
     char trim_dump_name[1024] = {0};
     char dump_file_name[512] = {0};
     char *tmp = NULL;
+    bool do_not_share_cleanup = false;
     bool is_process_dmp_file = false;
     archive_info_t *archive = NULL;
     char time_stamp_file_name[64] = {0};
@@ -183,8 +184,8 @@ int main_test(int argc, char *argv[])
     /* Privacy Control Check */
     if (config.device_type == DEVICE_TYPE_MEDIACLIENT)
     {
-        get_privacy_control_mode(&config) ? CRASHUPLOAD_INFO("Privacy control mode retrieved successfully\n") : CRASHUPLOAD_WARN("Failed to retrieve privacy control mode\n");
-        CRASHUPLOAD_INFO("Privacy mode set to: %s\n", config.privacy_mode);
+        config.privacy_mode = get_privacy_control_mode();
+        CRASHUPLOAD_INFO("Privacy mode value: %s\n", config.privacy_mode ? "SHARE" : "DO_NOT_SHARE");
     }
 
     if (config.dump_type == DUMP_TYPE_MINIDUMP)
@@ -203,7 +204,7 @@ int main_test(int argc, char *argv[])
         CRASHUPLOAD_ERROR("Invalid Dump Type\n");
     }
 
-    cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES);
+    cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES, do_not_share_cleanup);
 
     /* Step 5: Process Dumps */
     /* TODO: Implement dump processing loop */
@@ -261,7 +262,8 @@ int main_test(int argc, char *argv[])
         {
             CRASHUPLOAD_ERROR("file_get_mtime_formatted() return fail\n");
         }
-        if (strncmp(config.privacy_mode, "DO_NOT_SHARE", sizeof("DO_NOT_SHARE")) == 0)
+
+        if (config.privacy_mode == DO_NOT_SHARE)
         {
             CRASHUPLOAD_INFO("Privacy mode is DO_NOT_SHARE, skip processing dump file %s\n", (dumps + i)->path);
             continue;
@@ -340,10 +342,11 @@ int main_test(int argc, char *argv[])
             continue;
         }
     }
-    if (strncmp(config.privacy_mode, "DO_NOT_SHARE", sizeof("DO_NOT_SHARE")) == 0)
+    if (config.privacy_mode == DO_NOT_SHARE)
     {
-        CRASHUPLOAD_INFO("Privacy mode is DO_NOT_SHARE, skip upload process\n");
+        CRASHUPLOAD_INFO("Privacy mode is DO_NOT_SHARE, skip upload process & cleanup unprocessed dumps\n");
         ret = 0;
+        do_not_share_cleanup = true;
         goto cleanup;
     }
     if (true == is_box_rebooting(config.t2_enabled))
@@ -373,7 +376,7 @@ int main_test(int argc, char *argv[])
         }
     }
 cleanup:
-    cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES);
+    cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES, do_not_share_cleanup);
     if (lock_fd >= 0)
     {
         lock_release(lock_fd, lock_file_path);

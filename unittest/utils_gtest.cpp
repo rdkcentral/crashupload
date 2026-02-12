@@ -1126,7 +1126,7 @@ TEST_F(UtilsTest, CleanupBatch_ValidDirectory_Success) {
     CreateTestFile(file2, "test data 2");
     
     int ret = cleanup_batch(test_dir, "*.dmp", 
-                           "/tmp/test_onstart", "0", 10);
+                           "/tmp/test_onstart", "0", 10, false);
     
     EXPECT_EQ(ret, 0);
 }
@@ -1135,14 +1135,14 @@ TEST_F(UtilsTest, CleanupBatch_EmptyDirectory_Success) {
     CreateTestDirectory(test_dir);
     
     int ret = cleanup_batch(test_dir, "*.dmp", 
-                           "/tmp/test_onstart", "0", 10);
+                           "/tmp/test_onstart", "0", 10, false);
     
     EXPECT_EQ(ret, 0);
 }
 
 TEST_F(UtilsTest, CleanupBatch_DirectoryNotExist_ReturnsSuccess) {
     int ret = cleanup_batch("/tmp/nonexistent_dir", "*.dmp", 
-                           "/tmp/test_onstart", "0", 10);
+                           "/tmp/test_onstart", "0", 10, false);
     
     EXPECT_EQ(ret, 0);  // Returns 0 if directory doesn't exist
 }
@@ -1153,7 +1153,7 @@ TEST_F(UtilsTest, CleanupBatch_DirectoryNotExist_ReturnsSuccess) {
 
 TEST_F(UtilsTest, CleanupBatch_NullWorkingDir_Failure) {
     int ret = cleanup_batch(NULL, "*.dmp", 
-                           "/tmp/test_onstart", "0", 10);
+                           "/tmp/test_onstart", "0", 10, false);
     
     EXPECT_EQ(ret, -1);
 }

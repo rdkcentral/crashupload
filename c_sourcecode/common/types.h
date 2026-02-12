@@ -67,6 +67,11 @@ typedef enum {
 } upload_mode_t;
 
 typedef enum {
+    DO_NOT_SHARE,
+    SHARE
+} privacy_control_t;
+
+typedef enum {
     LOCK_MODE_EXIT,
     LOCK_MODE_WAIT
 } lock_mode_t;
@@ -104,7 +109,7 @@ typedef struct {
     char log_path[16];
     char build_type_val[8];
     bool t2_enabled;
-    char privacy_mode[32];
+    privacy_control_t privacy_mode; // DO_NOT_SHARE (0) or SHARE (1)
     bool opt_out;
     int max_dumps_per_run;
     int upload_timeout;

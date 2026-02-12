@@ -673,35 +673,36 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_AllFieldsInitialized) {
 // ============================================================================
 
 TEST_F(ConfigManagerTest, GetPrivacyControlMode_ValidConfig_ReturnsShare) {
+    // Set up required mocks for config_init_load
+    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
+    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "mediaclient");
+    set_mock_filePresentCheck_behavior(1);
+    
     // Test with valid config - should get SHARE from stub
     int result = config_init_load(&test_config, 5, test_argv);
     ASSERT_EQ(result, CONFIG_SUCCESS);
     
-    bool privacy_result = get_privacy_control_mode(&test_config);
+    privacy_control_t privacy_result = get_privacy_control_mode();
     
-    // In stub mode, this should succeed and set privacy_mode to SHARE
-    EXPECT_TRUE(privacy_result);
-    EXPECT_STREQ(test_config.privacy_mode, "SHARE");
+    // In stub mode, this should return SHARE
+    EXPECT_EQ(privacy_result, SHARE);
 }
 
-TEST_F(ConfigManagerTest, GetPrivacyControlMode_NullConfig_ReturnsFalse) {
-    // Test with NULL config - should return false immediately
-    bool result = get_privacy_control_mode(nullptr);
+TEST_F(ConfigManagerTest, GetPrivacyControlMode_ReturnsValidEnum) {
+    // Test that function returns valid privacy_control_t enum value
+    privacy_control_t result = get_privacy_control_mode();
     
-    EXPECT_FALSE(result);
+    // Result should be either SHARE or DO_NOT_SHARE
+    EXPECT_TRUE(result == SHARE || result == DO_NOT_SHARE);
 }
 
 TEST_F(ConfigManagerTest, GetPrivacyControlMode_RbusStubBehavior) {
     // Test that verifies the RBUS stub functions are called
-    config_t config;
-    memset(&config, 0, sizeof(config));
-    
-    bool result = get_privacy_control_mode(&config);
+    privacy_control_t result = get_privacy_control_mode();
     
     // With RBUS stubs (when RBUS_API_ENABLED not defined), 
     // rbus_get_string_param returns true with "SHARE"
-    EXPECT_TRUE(result);
-    EXPECT_STREQ(config.privacy_mode, "SHARE");
+    EXPECT_EQ(result, SHARE);
 }
 
 // ============================================================================

@@ -81,7 +81,7 @@ struct MainAppMockState {
     bool config_init_load_custom_behavior;
     
     // get_privacy_control_mode
-    bool get_privacy_control_mode_return_value;
+    privacy_control_t get_privacy_control_mode_return_value;
     bool get_privacy_control_mode_custom_behavior;
     
     // platform_initialize
@@ -168,7 +168,7 @@ static MainAppMockState g_mainapp_mock_state = {
     0,          // config_init_load returns success
     false,      // no custom behavior
     
-    true,       // get_privacy_control_mode returns success
+    SHARE,      // get_privacy_control_mode returns SHARE
     false,      // no custom behavior
     
     0,          // platform_initialize returns success
@@ -233,7 +233,7 @@ void set_mock_config_init_load_behavior(int return_value) {
 /**
  * Set behavior for get_privacy_control_mode mock
  */
-void set_mock_get_privacy_control_mode_behavior(bool return_value) {
+void set_mock_get_privacy_control_mode_behavior(privacy_control_t return_value) {
     g_mainapp_mock_state.get_privacy_control_mode_return_value = return_value;
     g_mainapp_mock_state.get_privacy_control_mode_custom_behavior = true;
 }
@@ -410,7 +410,7 @@ void reset_mainapp_mocks() {
     g_mainapp_mock_state.config_init_load_return_value = 0;
     g_mainapp_mock_state.config_init_load_custom_behavior = false;
     
-    g_mainapp_mock_state.get_privacy_control_mode_return_value = true;
+    g_mainapp_mock_state.get_privacy_control_mode_return_value = SHARE;
     g_mainapp_mock_state.get_privacy_control_mode_custom_behavior = false;
     
     g_mainapp_mock_state.platform_initialize_return_value = 0;
@@ -512,20 +512,13 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
 /**
  * Mock: Get privacy control mode
  */
-bool get_privacy_control_mode(config_t *config) {
-    if (!config) {
-        return false;
-    }
-    
-    // Default behavior: set privacy mode to SHARE
-    strncpy(config->privacy_mode, "SHARE", sizeof(config->privacy_mode) - 1);
-    config->privacy_mode[sizeof(config->privacy_mode) - 1] = '\0';
-    
+privacy_control_t get_privacy_control_mode(void) {
+    // Default behavior: return SHARE
     if (g_mainapp_mock_state.get_privacy_control_mode_custom_behavior) {
         return g_mainapp_mock_state.get_privacy_control_mode_return_value;
     }
     
-    return true;
+    return SHARE;
 }
 
 /**
@@ -626,12 +619,14 @@ bool privacy_uploads_blocked(const config_t *config) {
  * Mock: Cleanup batch
  */
 int cleanup_batch(const char *working_dir, const char *pattern, 
-                  const char *cleanup_base, char *dump_type, int max_files) {
+                  const char *cleanup_base, const char *dump_type, 
+                  size_t max_files, bool do_not_share_cleanup) {
     (void)working_dir;
     (void)pattern;
     (void)cleanup_base;
     (void)dump_type;
     (void)max_files;
+    (void)do_not_share_cleanup;
     
     g_mainapp_mock_state.cleanup_batch_call_count++;
     return g_mainapp_mock_state.cleanup_batch_return_value;

@@ -33,7 +33,7 @@ bool get_opt_out_status(void);
  */
 int config_init_load(config_t *config, int argc, char *argv[]);
 
-bool get_privacy_control_mode(config_t *config);
+privacy_control_t get_privacy_control_mode(void);
 
 void config_cleanup(config_t *config);
 #endif
