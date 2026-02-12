@@ -172,7 +172,7 @@ int main_test(int argc, char *argv[])
     /* TODO: Implement combined network + time check */
     if (prerequisites_wait(&config, PREREQUISITE_TIMEOUT_SEC) != PREREQUISITES_SUCCESS)
     {
-        CRASHUPLOAD_ERROR("Prerequisites check failed\n");
+        CRASHUPLOAD_INFO("Prerequisites check failed\n");
         // lock_release(lock_fd, lock_file_path);
         goto cleanup;
         // return EXIT_FAILURE;

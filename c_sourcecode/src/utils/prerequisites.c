@@ -87,7 +87,7 @@ int directory_has_pattern(const char *dir, const char *pattern)
     DIR *dp = opendir(dir);
     if (!dp)
     {
-        CRASHUPLOAD_ERROR("%s dir not open\n", dir);
+        CRASHUPLOAD_INFO("%s dir not open\n", dir);
         return -1;
     }
 
@@ -144,7 +144,7 @@ int prerequisites_wait(config_t *config, int timeout_sec)
     }
     if (1 != dump_file_found)
     {
-        CRASHUPLOAD_INFO("dump file or core file not found. So exit\n");
+        CRASHUPLOAD_INFO("dump file or core file not found. Exiting\n");
         return NO_DUMPS_FOUND;
     }
     if ((config->device_type == DEVICE_TYPE_MEDIACLIENT) && (config->opt_out == true))
