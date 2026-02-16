@@ -27,6 +27,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
@@ -240,10 +241,12 @@ void config_cleanup(config_t *config)
     }
 }
 
-/*
-return false -> config is empty or rbus failure
-return true -> privacy mode is set in config
-*/
+/**
+ * Get the privacy control mode from RBUS
+ * 
+ * @return privacy_control_t - Returns SHARE (default) or DO_NOT_SHARE
+ *         Always returns a usable value; defaults to SHARE on RBUS failure or invalid values
+ */
 privacy_control_t get_privacy_control_mode(void)
 {
     privacy_control_t ret_privacyMode = SHARE; // default to SHARE
