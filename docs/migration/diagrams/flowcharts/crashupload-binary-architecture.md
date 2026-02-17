@@ -534,7 +534,8 @@ sudo make install
 
 # Run unit tests
 cd unittest
-make test
+./configure
+make check
 
 # Run functional tests
 cd test/functional-tests
