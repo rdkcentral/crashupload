@@ -308,7 +308,7 @@ graph TB
 
     subgraph RDK_Device["🖥️ RDK Device (Embedded Linux)"]
         subgraph SystemD_Services["systemd Services"]
-            PathUnit["coredump-upload.path<br/>(Watches /opt/cores/)"]
+            PathUnit["coredump-upload.path<br/>(Watches /minidumps/)"]
             CoreService["coredump-upload.service"]
             MiniService["minidump-on-bootup-upload.service"]
             Timer["minidump-on-bootup-upload.timer<br/>(Runs every 5min)"]
