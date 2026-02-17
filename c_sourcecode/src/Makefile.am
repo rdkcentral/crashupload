@@ -58,13 +58,15 @@ crashupload_SOURCES = \
     upload/upload.c \
     rfcInterface/rfcinterface.c \
     rfcInterface/rfcinterface.h \
+    rbusInterface/rbus_interface.c \
+    rbusInterface/rbus_interface.h \
     utils/logger.c \
     utils/logger.h \
     t2Interface/telemetryinterface.c \
     t2Interface/telemetryinterface.h
 
-crashupload_LDADD = -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread -lcrypto -larchive -luploadutil -lrfcapi -ltelemetry_msgsender -lt2utils
-crashupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) -lcrypto -larchive -luploadutil -lrfcapi -ltelemetry_msgsender -lt2utils
+crashupload_LDADD = -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread -lcrypto -larchive -luploadutil -lrfcapi -ltelemetry_msgsender -lt2utils -lrbus
+crashupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) -lcrypto -larchive -luploadutil -lrfcapi -ltelemetry_msgsender -lt2utils -lrbus
 
 # Include common headers
 crashupload_SOURCES += \

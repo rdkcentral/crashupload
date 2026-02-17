@@ -26,6 +26,7 @@
  * 
  * Functions mocked:
  * - config_init_load() - Configuration initialization and loading
+ * - get_privacy_control_mode() - Get privacy control mode
  * - platform_initialize() - Platform initialization
  * - filePresentCheck() - File presence check
  * - lock_acquire() - Lock acquisition
@@ -78,6 +79,10 @@ struct MainAppMockState {
     // config_init_load
     int config_init_load_return_value;
     bool config_init_load_custom_behavior;
+    
+    // get_privacy_control_mode
+    privacy_control_t get_privacy_control_mode_return_value;
+    bool get_privacy_control_mode_custom_behavior;
     
     // platform_initialize
     int platform_initialize_return_value;
@@ -162,6 +167,10 @@ struct MainAppMockState {
 static MainAppMockState g_mainapp_mock_state = {
     0,          // config_init_load returns success
     false,      // no custom behavior
+    
+    SHARE,      // get_privacy_control_mode returns SHARE
+    false,      // no custom behavior
+    
     0,          // platform_initialize returns success
     false,      // no custom behavior
     -1,         // filePresentCheck returns file not present by default
@@ -219,6 +228,14 @@ extern "C" {
 void set_mock_config_init_load_behavior(int return_value) {
     g_mainapp_mock_state.config_init_load_return_value = return_value;
     g_mainapp_mock_state.config_init_load_custom_behavior = true;
+}
+
+/**
+ * Set behavior for get_privacy_control_mode mock
+ */
+void set_mock_get_privacy_control_mode_behavior(privacy_control_t return_value) {
+    g_mainapp_mock_state.get_privacy_control_mode_return_value = return_value;
+    g_mainapp_mock_state.get_privacy_control_mode_custom_behavior = true;
 }
 
 /**
@@ -393,6 +410,9 @@ void reset_mainapp_mocks() {
     g_mainapp_mock_state.config_init_load_return_value = 0;
     g_mainapp_mock_state.config_init_load_custom_behavior = false;
     
+    g_mainapp_mock_state.get_privacy_control_mode_return_value = SHARE;
+    g_mainapp_mock_state.get_privacy_control_mode_custom_behavior = false;
+    
     g_mainapp_mock_state.platform_initialize_return_value = 0;
     g_mainapp_mock_state.platform_initialize_custom_behavior = false;
     
@@ -487,6 +507,18 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
     }
     
     return 0;
+}
+
+/**
+ * Mock: Get privacy control mode
+ */
+privacy_control_t get_privacy_control_mode(void) {
+    // Default behavior: return SHARE
+    if (g_mainapp_mock_state.get_privacy_control_mode_custom_behavior) {
+        return g_mainapp_mock_state.get_privacy_control_mode_return_value;
+    }
+    
+    return SHARE;
 }
 
 /**
@@ -587,12 +619,14 @@ bool privacy_uploads_blocked(const config_t *config) {
  * Mock: Cleanup batch
  */
 int cleanup_batch(const char *working_dir, const char *pattern, 
-                  const char *cleanup_base, char *dump_type, int max_files) {
+                  const char *cleanup_base, const char *dump_type, 
+                  size_t max_files, bool do_not_share_cleanup) {
     (void)working_dir;
     (void)pattern;
     (void)cleanup_base;
     (void)dump_type;
     (void)max_files;
+    (void)do_not_share_cleanup;
     
     g_mainapp_mock_state.cleanup_batch_call_count++;
     return g_mainapp_mock_state.cleanup_batch_return_value;
