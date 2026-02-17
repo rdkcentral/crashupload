@@ -174,7 +174,7 @@ graph TD
 #### Infrastructure
 - **systemd** - Service management
   - `coredump-upload.service` - Coredump upload service
-  - `coredump-upload.path` - Path-based activation (watches `/opt/cores/`)
+  - `coredump-upload.path` - Path-based activation (watches `/minidumps/`)
   - `minidump-on-bootup-upload.service` - Minidump upload service
   - `minidump-on-bootup-upload.timer` - Timer-based activation (5min intervals)
 - **inotify** - Filesystem event monitoring
