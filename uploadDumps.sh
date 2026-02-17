@@ -103,7 +103,7 @@ run_crashupload() {
 
 case "$DEVICE_TYPE" in
     mediaclient)
-        if [ -f /tmp/.c_crashupload ]; then
+        if [ -f /tmp/.legacy_crashuploader ]; then
             run_legacy "$@"
         else
             run_crashupload "$@"
