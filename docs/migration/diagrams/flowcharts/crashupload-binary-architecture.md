@@ -384,7 +384,7 @@ graph TB
 
     %% File I/O
     InotifyBin -->|"watches"| MinidumpDir
-    PathUnit -->|"watches"| CoreDir
+    PathUnit -->|"watches"| MinidumpDir
     CrashBin -->|"reads"| MinidumpDir
     CrashBin -->|"reads"| CoreDir
     CrashBin -->|"writes"| Logs
