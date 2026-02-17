@@ -52,7 +52,8 @@ int cleanup_batch(const char *working_dir,
                       const char *dumps_extn_pattern,
                       const char *on_startup_flag_base,
                       const char *dump_flag,
-                      size_t max_core_files);
+                      size_t max_core_files,
+                      bool do_not_share_cleanup);
 
 void remove_pending_dumps(const char *working_dir,
                           const char *dumps_extn_pattern);
