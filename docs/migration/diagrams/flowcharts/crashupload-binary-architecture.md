@@ -423,7 +423,7 @@ graph TB
 | **uploadDumps.sh** | Shell Script | `/lib/rdk/` | Orchestrator, detects binary vs legacy |
 | **runDumpUpload.sh** | Shell Script | `/lib/rdk/` | Legacy fallback implementation |
 | **coredump-upload.service** | systemd Unit | `/etc/systemd/system/` | Service definition for coredump uploads |
-| **coredump-upload.path** | systemd Path Unit | `/etc/systemd/system/` | Path-based activation for `/opt/cores/` |
+| **coredump-upload.path** | systemd Path Unit | `/etc/systemd/system/` | Path-based activation for `/minidumps/` |
 | **minidump-on-bootup-upload.service** | systemd Unit | `/etc/systemd/system/` | Service for periodic minidump checks |
 | **minidump-on-bootup-upload.timer** | systemd Timer | `/etc/systemd/system/` | Timer (5min after boot, then every 5min) |
 
