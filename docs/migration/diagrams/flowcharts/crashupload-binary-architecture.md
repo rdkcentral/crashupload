@@ -269,7 +269,7 @@ sequenceDiagram
     Binary->>RFC: 2. Read S3SignedUrl config<br/>getRFCParameter("S3SignedUrl")
     RFC-->>Binary: <Crash Portal URL>
     Binary->>Binary: 3. Check prerequisites<br/>(network, time sync)
-    Binary->>Shell: 4. Privacy check<br/>(opt-out, privacy mode)
+    Binary->>Binary: 4. Privacy check<br/>(opt-out, privacy mode)
     
     Note over Binary,Portal: Archive Phase
     Binary->>Binary: 5. Scan dump file<br/>Extract metadata
