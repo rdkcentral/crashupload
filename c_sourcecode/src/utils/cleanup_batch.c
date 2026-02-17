@@ -406,7 +406,8 @@ int cleanup_batch(const char *working_dir,
                   const char *dumps_extn_pattern,
                   const char *on_startup_flag_base,
                   const char *dump_flag,
-                  size_t max_core_files)
+                  size_t max_core_files,
+                  bool do_not_share_cleanup)
 {
     if (!working_dir)
         return -1;
@@ -421,6 +422,14 @@ int cleanup_batch(const char *working_dir,
     CRASHUPLOAD_INFO("Cleanup %s directory\n", working_dir);
     /* 1) Find and delete files by wildcard '*_mac*_dat*' older than 2 days */
     delete_files_matching_pattern_older_than(working_dir, "*_mac*_dat*", 2);
+
+    if (do_not_share_cleanup)
+    {
+        CRASHUPLOAD_INFO("Privacy mode is DO_NOT_SHARE, cleanup old-dumps\n");
+        delete_files_matching_pattern(working_dir, dumps_extn_pattern);
+        /* Optional: Also clean any leftover archives from previous runs if needed */
+        /* delete_files_matching_pattern(working_dir, "*.tgz"); */
+    }
 
     /* 2) If /opt/.upload_on_startup does not exist, run on-startup cleanup */
     if (!file_exists_regular("/opt/.upload_on_startup"))

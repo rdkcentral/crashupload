@@ -29,6 +29,7 @@
 #include "../common/constants.h"
 #include "../common/errors.h"
 #include "init/system_init.h"
+#include "config/config_manager.h"
 #include "utils/prerequisites.h"
 #include "utils/lock_manager.h"
 #include "scanner/scanner.h"
@@ -101,6 +102,7 @@ int main_test(int argc, char *argv[])
     char trim_dump_name[1024] = {0};
     char dump_file_name[512] = {0};
     char *tmp = NULL;
+    bool do_not_share_cleanup = false;
     bool is_process_dmp_file = false;
     archive_info_t *archive = NULL;
     char time_stamp_file_name[64] = {0};
@@ -178,14 +180,14 @@ int main_test(int argc, char *argv[])
         // return EXIT_FAILURE;
     }
     CRASHUPLOAD_INFO("Prerequisites check successful\n");
-#if 0    
-    /* Step 3: Unified Privacy Check */
-    /* TODO: Implement unified privacy check */
-    if (privacy_uploads_blocked(&config)) {
-        logger_info("Uploads blocked by privacy settings");
-        return EXIT_SUCCESS;  /* Not an error */
+
+    /* Privacy Control Check */
+    if (config.device_type == DEVICE_TYPE_MEDIACLIENT)
+    {
+        config.privacy_mode = get_privacy_control_mode();
+        CRASHUPLOAD_INFO("Privacy mode value: %s\n", config.privacy_mode ? "SHARE" : "DO_NOT_SHARE");
     }
-#endif
+
     if (config.dump_type == DUMP_TYPE_MINIDUMP)
     {
         strcpy(dump_extn_pattern, "*.dmp*");
@@ -202,7 +204,7 @@ int main_test(int argc, char *argv[])
         CRASHUPLOAD_ERROR("Invalid Dump Type\n");
     }
 
-    cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES);
+    cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES, do_not_share_cleanup);
 
     /* Step 5: Process Dumps */
     /* TODO: Implement dump processing loop */
@@ -259,6 +261,12 @@ int main_test(int argc, char *argv[])
         else
         {
             CRASHUPLOAD_ERROR("file_get_mtime_formatted() return fail\n");
+        }
+
+        if (config.privacy_mode == DO_NOT_SHARE)
+        {
+            CRASHUPLOAD_INFO("Privacy mode is DO_NOT_SHARE, skip processing dump file %s\n", (dumps + i)->path);
+            continue;
         }
         get_crash_timestamp_utc(crashts, sizeof(crashts));
         CRASHUPLOAD_INFO("crashts=%s\n", crashts);
@@ -334,6 +342,13 @@ int main_test(int argc, char *argv[])
             continue;
         }
     }
+    if (config.privacy_mode == DO_NOT_SHARE)
+    {
+        CRASHUPLOAD_INFO("Privacy mode is DO_NOT_SHARE, skip upload process & cleanup unprocessed dumps\n");
+        ret = 0;
+        do_not_share_cleanup = true;
+        goto cleanup;
+    }
     if (true == is_box_rebooting(config.t2_enabled))
     {
         CRASHUPLOAD_INFO("Box is rebooting, skip upload process\n");
@@ -361,7 +376,7 @@ int main_test(int argc, char *argv[])
         }
     }
 cleanup:
-    cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES);
+    cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES, do_not_share_cleanup);
     if (lock_fd >= 0)
     {
         lock_release(lock_fd, lock_file_path);
