@@ -552,4 +552,4 @@ pytest tests/
 ---
 
 **License**: Apache License 2.0  
-**Copyright**: © 2025-2026 RDK Management  
+**Copyright**: © 2026 RDK Management  
