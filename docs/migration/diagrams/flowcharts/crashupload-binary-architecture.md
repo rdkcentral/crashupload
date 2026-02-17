@@ -365,7 +365,7 @@ graph TB
     end
 
     %% Service activation flow
-    PathUnit -->|"inotify event<br/>on *.core"| CoreService
+    PathUnit -->|"inotify event<br/>on /minidumps/*.dmp"| CoreService
     Timer -->|"timer expires<br/>every 5min"| MiniService
     CoreService -->|"executes"| UploadSh
     MiniService -->|"executes"| InotifyBin
