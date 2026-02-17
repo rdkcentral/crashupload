@@ -232,12 +232,9 @@ typedef struct {
 #### Archive Information
 ```c
 typedef struct {
-    char archive_path[1024];
+    char archive_path[512];
     char archive_name[512];
-    char dump_name[512];
-    char md5sum[33];
-    long archive_size;
-    time_t created_time;
+    bool created_in_tmp;
 } archive_info_t;
 ```
 
