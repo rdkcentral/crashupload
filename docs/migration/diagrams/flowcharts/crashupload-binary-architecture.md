@@ -63,7 +63,7 @@ The **Crashupload** component is a crash management and reporting system for RDK
 #### Non-Functional Requirements
 - **1**: Minimal binary size
 - **2**: Use TLS 1.2 for uploads, support mTLS authentication
-- **3**: Compiled C/C++ code for better maintainability
+- **3**: Compiled C/C++ code for better performance and maintainability compared to shell scripts
 - **4**: Logging all events and operations
 
 ---
