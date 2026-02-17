@@ -72,7 +72,8 @@ config_manager_gtest_SOURCES = \
 	config_manager_gtest.cpp \
 	config_manager_mock.cpp \
 	../c_sourcecode/src/config/config_manager.c \
-	../c_sourcecode/src/rfcInterface/rfcinterface.c
+	../c_sourcecode/src/rfcInterface/rfcinterface.c \
+	../c_sourcecode/src/rbusInterface/rbus_interface.c
 
 config_manager_gtest_LDADD = \
 	-lgtest \
