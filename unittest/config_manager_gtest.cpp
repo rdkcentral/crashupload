@@ -822,6 +822,35 @@ TEST_F(ConfigManagerTest, RbusGetStringParam_ZeroBufferSize_HandlesSafely) {
 }
 
 // ============================================================================
+// Tests for config_cleanup()
+// ============================================================================
+
+TEST_F(ConfigManagerTest, ConfigCleanup_ValidConfig_ZerosFields) {
+    // First populate config with real data
+    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
+    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "mediaclient");
+    set_mock_filePresentCheck_behavior(1);
+    config_init_load(&test_config, 5, test_argv);
+
+    // config should have non-zero fields now
+    EXPECT_NE(test_config.device_type, 0);
+
+    // Cleanup should zero everything
+    config_cleanup(&test_config);
+
+    // Verify fields are zeroed
+    config_t zeroed;
+    memset(&zeroed, 0, sizeof(config_t));
+    EXPECT_EQ(memcmp(&test_config, &zeroed, sizeof(config_t)), 0);
+}
+
+TEST_F(ConfigManagerTest, ConfigCleanup_NullConfig_HandlesGracefully) {
+    // Should not crash on NULL input (the `if (config)` guard prevents it)
+    config_cleanup(nullptr);
+    SUCCEED();
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 

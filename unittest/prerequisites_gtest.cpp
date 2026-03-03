@@ -186,10 +186,10 @@ TEST_F(PrerequisitesTest, DeferUpload_ExtenderDevice_NoDelay) {
 
 // NOTE: Skipping NULL config test - implementation accesses config->device_type 
 // before NULL check, causing segfault. This is a known bug to be fixed separately.
-// TEST_F(PrerequisitesTest, PrerequisitesWait_NullConfig_Error) {
-//     int ret = prerequisites_wait(NULL, 30);
-//     EXPECT_EQ(ret, -1);
-// }
+TEST_F(PrerequisitesTest, PrerequisitesWait_NullConfig_Error) {
+    int ret = prerequisites_wait(NULL, 30);
+    EXPECT_EQ(ret, -1);
+}
 
 // ============================================================================
 // Tests for prerequisites_wait() - BROADBAND Device

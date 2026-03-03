@@ -36,115 +36,11 @@
  * Target: >90% line coverage, >95% function coverage
  */
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-#include <cstring>
-#include <cstdlib>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
-#include <signal.h>
+#include "mainapp_test_fixture.h"
 
 // Define GTEST_ENABLE before including main.c
 //#define GTEST_ENABLE
-
-extern "C" {
-#include "../c_sourcecode/src/init/system_init.h"
-#include "../c_sourcecode/common/types.h"
-#include "../c_sourcecode/common/errors.h"
-#include "../c_sourcecode/common/constants.h"
-//#include "../c_sourcecode/src/main.c"
-int main_test(int argc, char *argv[]);
-void handle_signal(int no, siginfo_t* info, void* uc);
-// Mock control functions
-void set_mock_config_init_load_behavior(int return_value);
-void set_mock_platform_initialize_behavior(int return_value);
-void set_mock_file_present_check_behavior(int return_value);
-void set_mock_lock_acquire_behavior(int return_value);
-void set_mock_prerequisites_wait_behavior(int return_value);
-void set_mock_privacy_uploads_blocked_behavior(bool return_value);
-void set_mock_scanner_find_dumps_behavior(int return_value, int output_count);
-void set_mock_process_file_entry_behavior(int return_value);
-void set_mock_file_get_mtime_formatted_behavior(int return_value, const char* output);
-void set_mock_get_crash_timestamp_utc_behavior(int return_value, const char* output);
-void set_mock_check_process_dmp_file_behavior(bool return_value);
-void set_mock_extract_pname_behavior(const char* return_value);
-void set_mock_trim_process_name_in_path_behavior(int return_value, const char* output);
-void set_mock_archive_create_smart_behavior(int return_value);
-void set_mock_is_box_rebooting_behavior(bool return_value);
-void set_mock_ratelimit_check_unified_behavior(int return_value);
-void set_mock_upload_process_behavior(int return_value);
-int get_logger_error_call_count();
-int get_logger_info_call_count();
-int get_logger_warn_call_count();
-int get_cleanup_batch_call_count();
-void reset_mainapp_mocks();
-}
-extern int lock_dir_prefix;
-
-using ::testing::_;
-using ::testing::Return;
-
-// ============================================================================
-// Test Fixture
-// ============================================================================
-
-class MainAppTest : public ::testing::Test {
-protected:
-    const char* test_dir = "/tmp/mainapp_test";
-    const char* test_lock_file_minidump = "/tmp/.uploadMinidumps";
-    const char* test_lock_file_coredump = "/tmp/.uploadCoredumps";
-    
-    void SetUp() override {
-        // Reset all mocks before each test
-        reset_mainapp_mocks();
-        
-        // Create test directories
-        system("mkdir -p /tmp/mainapp_test");
-        system("mkdir -p /tmp/test_dumps");
-        
-        // Clean up lock files
-        unlink(test_lock_file_minidump);
-        unlink(test_lock_file_coredump);
-    }
-    
-    void TearDown() override {
-        // Clean up after each test
-        cleanup_test_files();
-        reset_mainapp_mocks();
-        
-        // Clean up lock files
-        unlink(test_lock_file_minidump);
-        unlink(test_lock_file_coredump);
-    }
-    
-    // Helper function to create test files
-    void create_test_file(const char* path, size_t size = 1024) {
-        FILE* fp = fopen(path, "w");
-        if (fp) {
-            for (size_t i = 0; i < size; i++) {
-                fputc('A', fp);
-            }
-            fclose(fp);
-        }
-    }
-    
-    // Helper function to remove test files
-    void cleanup_test_files() {
-        system("rm -rf /tmp/mainapp_test");
-        system("rm -rf /tmp/test_dumps");
-    }
-    
-    // Helper to check if file exists
-    bool file_exists(const char* path) {
-        struct stat st;
-        return (stat(path, &st) == 0);
-    }
-};
+// (declarations and fixture now live in mainapp_test_fixture.h)
 
 // ============================================================================
 // system_initialize Tests - Parameter Validation
@@ -1029,9 +925,177 @@ TEST_F(MainAppTest, MainTest_VeryLongPath) {
     //testing::internal::GetCapturedStdout();
 }
 
+// (Privacy-mode, TGZ, and coredump tests moved to mainapp_extra_gtest.cpp)
+
 // ============================================================================
 // Integration Tests
 // ============================================================================
+
+// placeholder – real integration test follows
+#if 0
+TEST_F(MainAppTest, MainTest_DoNotSharePrivacyMode_SkipsUploadsAndSetsCleanup) {
+    // config_init_load mock sets device_type = DEVICE_TYPE_MEDIACLIENT by default,
+    // so get_privacy_control_mode() IS called in main.c, and we force it to DO_NOT_SHARE.
+    // Covers:
+    //   - `if (config.device_type == DEVICE_TYPE_MEDIACLIENT)` → get_privacy_control_mode()
+    //   - `if (config.privacy_mode == DO_NOT_SHARE) { continue; }` inside dump loop
+    //   - `if (config.privacy_mode == DO_NOT_SHARE) { do_not_share_cleanup = true; goto cleanup; }` after loop
+    char* argv[] = {(char*)"crashupload", (char*)"/tmp/test", (char*)"0"};
+
+    set_mock_config_init_load_behavior(0);
+    set_mock_platform_initialize_behavior(0);
+    set_mock_file_present_check_behavior(-1);
+    set_mock_lock_acquire_behavior(10);
+    set_mock_prerequisites_wait_behavior(0);
+    set_mock_get_privacy_control_mode_behavior(DO_NOT_SHARE);
+    set_mock_scanner_find_dumps_behavior(1, 1); // 1 dump found → loop executes
+    set_mock_process_file_entry_behavior(0);
+    set_mock_file_get_mtime_formatted_behavior(0, "2026-01-07-10-30-45");
+
+    EXPECT_EQ(main_test(3, argv), 0);
+}
+
+TEST_F(MainAppTest, MainTest_SharePrivacyMode_ProceedsToUpload) {
+    // Verify SHARE privacy mode (default) reaches upload loop -
+    // ensures the MEDIACLIENT privacy check branch is exercised for SHARE too.
+    char* argv[] = {(char*)"crashupload", (char*)"/tmp/test", (char*)"0"};
+
+    set_mock_config_init_load_behavior(0);
+    set_mock_platform_initialize_behavior(0);
+    set_mock_file_present_check_behavior(-1);
+    set_mock_lock_acquire_behavior(10);
+    set_mock_prerequisites_wait_behavior(0);
+    set_mock_get_privacy_control_mode_behavior(SHARE);
+    set_mock_scanner_find_dumps_behavior(1, 1);
+    set_mock_process_file_entry_behavior(0);
+    set_mock_file_get_mtime_formatted_behavior(0, "2026-01-07-10-30-45");
+    set_mock_get_crash_timestamp_utc_behavior(0, "20260107_103045");
+    set_mock_check_process_dmp_file_behavior(false);
+    set_mock_archive_create_smart_behavior(0);
+    set_mock_is_box_rebooting_behavior(false);
+    set_mock_ratelimit_check_unified_behavior(0);
+    set_mock_upload_process_behavior(0);
+
+    EXPECT_EQ(main_test(3, argv), 0);
+}
+
+// ============================================================================
+// main_test Tests - TGZ / COREDUMP path coverage
+// ============================================================================
+
+TEST_F(MainAppTest, MainTest_TgzDump_SkipsArchivingAndUploads) {
+    // Covers: `if (len > 4 && strcmp(path + len - 4, ".tgz") == 0)` → snprintf + continue
+    // The archive_name is set directly to the .tgz path; archive_create_smart is NOT called.
+    char* argv[] = {(char*)"crashupload", (char*)"/tmp/test", (char*)"0"};
+
+    set_mock_config_init_load_behavior(0);
+    set_mock_platform_initialize_behavior(0);
+    set_mock_file_present_check_behavior(-1);
+    set_mock_lock_acquire_behavior(10);
+    set_mock_prerequisites_wait_behavior(0);
+    set_mock_get_privacy_control_mode_behavior(SHARE);
+    set_mock_scanner_tgz_behavior(1);          // returns /tmp/test_dump_0.tgz
+    set_mock_process_file_entry_behavior(0);
+    set_mock_is_box_rebooting_behavior(false);
+    set_mock_ratelimit_check_unified_behavior(0);
+    set_mock_upload_process_behavior(0);
+
+    EXPECT_EQ(main_test(3, argv), 0);
+}
+
+TEST_F(MainAppTest, MainTest_CoredumpType_SetsExtensionPattern) {
+    // Covers: `else if (config.dump_type == DUMP_TYPE_COREDUMP)` branch that sets
+    // dump_extn_pattern = "*core.prog*.gz*" and timestamp file "/tmp/.coredump_upload_timestamps".
+    // No dumps found so we go to cleanup immediately after setting the pattern.
+    char* argv[] = {(char*)"crashupload", (char*)"/tmp/test", (char*)"1"};
+
+    set_mock_config_init_load_behavior(0);
+    set_mock_platform_initialize_behavior(0);
+    set_mock_file_present_check_behavior(-1);
+    set_mock_lock_acquire_behavior(10);
+    set_mock_prerequisites_wait_behavior(0);
+    set_mock_get_privacy_control_mode_behavior(SHARE);
+    set_mock_config_coredump_behavior();           // DUMP_TYPE_COREDUMP
+    set_mock_scanner_find_dumps_behavior(0, 0);   // no dumps → goto cleanup
+
+    EXPECT_EQ(main_test(3, argv), 0);
+}
+
+TEST_F(MainAppTest, MainTest_CoredumpMpeosDump_UsesMtimeDateInName) {
+    // Covers: `if (NULL != (strstr((dumps+i)->path, "mpeos-main")))` TRUE branch
+    // which uses mtime_date instead of crashts for new_dump_name construction.
+    char* argv[] = {(char*)"crashupload", (char*)"/tmp/test", (char*)"1"};
+
+    set_mock_config_init_load_behavior(0);
+    set_mock_platform_initialize_behavior(0);
+    set_mock_file_present_check_behavior(-1);
+    set_mock_lock_acquire_behavior(10);
+    set_mock_prerequisites_wait_behavior(0);
+    set_mock_get_privacy_control_mode_behavior(SHARE);
+    set_mock_config_coredump_behavior();           // DUMP_TYPE_COREDUMP
+    set_mock_scanner_mpeos_behavior(1);            // path contains "mpeos-main"
+    set_mock_process_file_entry_behavior(0);
+    set_mock_file_get_mtime_formatted_behavior(0, "2026-01-07-10-30-45");
+    set_mock_get_crash_timestamp_utc_behavior(0, "20260107_103045");
+    set_mock_check_process_dmp_file_behavior(false);
+    set_mock_archive_create_smart_behavior(0);
+    set_mock_is_box_rebooting_behavior(false);
+    set_mock_ratelimit_check_unified_behavior(0);
+    set_mock_upload_process_behavior(0);
+
+    EXPECT_EQ(main_test(3, argv), 0);
+}
+
+TEST_F(MainAppTest, MainTest_CoredumpNonMpeos_UsesCrashtsInName) {
+    // Covers: `if (NULL != strstr(path, "mpeos-main"))` FALSE branch (regular coredump)
+    // which uses crashts for new_dump_name construction.
+    char* argv[] = {(char*)"crashupload", (char*)"/tmp/test", (char*)"1"};
+
+    set_mock_config_init_load_behavior(0);
+    set_mock_platform_initialize_behavior(0);
+    set_mock_file_present_check_behavior(-1);
+    set_mock_lock_acquire_behavior(10);
+    set_mock_prerequisites_wait_behavior(0);
+    set_mock_get_privacy_control_mode_behavior(SHARE);
+    set_mock_config_coredump_behavior();           // DUMP_TYPE_COREDUMP
+    set_mock_scanner_find_dumps_behavior(1, 1);   // regular .dmp path (no mpeos-main)
+    set_mock_process_file_entry_behavior(0);
+    set_mock_file_get_mtime_formatted_behavior(0, "2026-01-07-10-30-45");
+    set_mock_get_crash_timestamp_utc_behavior(0, "20260107_103045");
+    set_mock_check_process_dmp_file_behavior(false);
+    set_mock_archive_create_smart_behavior(0);
+    set_mock_is_box_rebooting_behavior(false);
+    set_mock_ratelimit_check_unified_behavior(0);
+    set_mock_upload_process_behavior(0);
+
+    EXPECT_EQ(main_test(3, argv), 0);
+}
+
+TEST_F(MainAppTest, MainTest_ArchiveNameHasCore_TelemetryLogged) {
+    // Covers: `if (strstr(archive[i].archive_name, "_core"))` TRUE branch
+    // in the upload loop, which logs "Coredump File".
+    char* argv[] = {(char*)"crashupload", (char*)"/tmp/test", (char*)"0"};
+
+    set_mock_config_init_load_behavior(0);
+    set_mock_platform_initialize_behavior(0);
+    set_mock_file_present_check_behavior(-1);
+    set_mock_lock_acquire_behavior(10);
+    set_mock_prerequisites_wait_behavior(0);
+    set_mock_get_privacy_control_mode_behavior(SHARE);
+    set_mock_scanner_find_dumps_behavior(1, 1);
+    set_mock_process_file_entry_behavior(0);
+    set_mock_file_get_mtime_formatted_behavior(0, "2026-01-07-10-30-45");
+    set_mock_get_crash_timestamp_utc_behavior(0, "20260107_103045");
+    set_mock_check_process_dmp_file_behavior(false);
+    set_mock_archive_core_behavior();             // archive_name gets "_core" in it
+    set_mock_archive_create_smart_behavior(0);
+    set_mock_is_box_rebooting_behavior(false);
+    set_mock_ratelimit_check_unified_behavior(0);
+    set_mock_upload_process_behavior(0);
+
+    EXPECT_EQ(main_test(3, argv), 0);
+}
+#endif
 
 TEST_F(MainAppTest, Integration_CompleteWorkflowSuccess) {
     char* argv[] = {(char*)"crashupload", (char*)"/tmp/test", (char*)"0"};

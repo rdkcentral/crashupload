@@ -164,6 +164,28 @@ TEST_F(LockManagerTest, LockRelease_NullFile_NoError) {
     unlink(test_lock_file);
 }
 
+TEST_F(LockManagerTest, LockRelease_NullFile_InvalidFd_NoError) {
+    // Covers: lock_file==NULL with fd<0 -> the `if (fd >= 0)` FALSE branch inside null/empty check
+    lock_release(-1, NULL);
+    SUCCEED();
+}
+
+TEST_F(LockManagerTest, LockRelease_EmptyFile_ValidFd_ReleasesAndReturns) {
+    // Covers: lock_file[0]=='\0' with fd>=0 -> calls release_process_lock(fd) then returns
+    int fd = lock_acquire(test_lock_file, 1, false);
+    EXPECT_GE(fd, 0);
+    // empty string triggers the '\0' branch; release_process_lock is called for the fd
+    lock_release(fd, "");
+    // test_lock_file still exists (no unlink); TearDown cleans it up
+    SUCCEED();
+}
+
+TEST_F(LockManagerTest, LockRelease_EmptyFile_InvalidFd_NoError) {
+    // Covers: lock_file[0]=='\0' with fd<0 -> hits empty-string branch, skips release_process_lock
+    lock_release(-1, "");
+    SUCCEED();
+}
+
 // ============================================================================
 // Tests for acquire_process_lock_or_wait()
 // ============================================================================

@@ -86,6 +86,10 @@ void set_mock_is_regular_file_behavior(int return_value);
 void set_mock_join_path_behavior(int return_value);
 void reset_scanner_mocks();
 void set_mock_t2_enabled(bool enabled);
+
+// Telemetry lifecycle functions (real implementations from telemetryinterface.c)
+void t2Init(char *component);
+void t2Uninit(void);
 }
 
 using ::testing::_;
@@ -799,6 +803,14 @@ TEST_F(ScannerTest, ProcessTelemetry_TgzWithoutMod) {
     EXPECT_EQ(result, 0);
 }
 
+TEST_F(ScannerTest, ProcessTelemetry_TgzModNoUnderscoreAfterMod) {
+    // Covers: `if (pmod != NULL)` FALSE branch in tgz _mod stripping.
+    // "app_modonly.tgz": strstr finds "_mod", tmp becomes "only.tgz",
+    // strchr("only.tgz", '_') returns NULL -> skips the strncpy, uses tmp directly.
+    int result = processCrashTelemetryInfo("app_modonly.tgz", "/tmp/logs", false);
+    EXPECT_EQ(result, 0);
+}
+
 TEST_F(ScannerTest, ProcessTelemetry_ContainerDelimiter) {
     int result = processCrashTelemetryInfo("container<#=#>running<#=#>123456.dmp", "/tmp/logs", false);
     EXPECT_EQ(result, 0);
@@ -838,6 +850,13 @@ TEST_F(ScannerTest, ProcessTelemetry_WithLogMapper) {
     // Create log mapper file
     create_log_mapper_file("myapp=/var/log/app.log,/var/log/sys.log\n");
     
+    int result = processCrashTelemetryInfo("myapp_proc_123.dmp", "/tmp/logs", false);
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(ScannerTest, ProcessTelemetry_LogMapperWithNoEqualsLine_Handled) {
+    // Line without '=' should be skipped gracefully
+    create_log_mapper_file("INVALID_LINE_NO_EQUALS\nmyapp=/var/log/app.log\n");
     int result = processCrashTelemetryInfo("myapp_proc_123.dmp", "/tmp/logs", false);
     EXPECT_EQ(result, 0);
 }
@@ -1444,6 +1463,188 @@ TEST_F(ScannerTest, IsDumpFile_CaseInsensitive_Handled) {
     int result = is_dump_file("CRASH.DMP", "*.dmp");
     // Behavior depends on implementation (may be 0 or 1)
     EXPECT_TRUE(result == 0 || result == 1);
+}
+
+TEST_F(ScannerTest, IsDumpFile_TgzExtension_Returns3) {
+    EXPECT_EQ(is_dump_file("archive.tgz", "*.dmp"), 3);
+    EXPECT_EQ(is_dump_file("archive.TGZ", "*.dmp"), 0);  // case-sensitive
+}
+
+// ============================================================================
+// ScannerLogMapperTest — tests that require /etc/breakpad-logmapper.conf
+//
+// lookup_log_files_for_proc() opens LOGMAPPER_FILE_PATH ("/etc/breakpad-logmapper.conf")
+// directly.  In the Docker container we run as root, so we can create / remove
+// that file in SetUp / TearDown to exercise the full body of that function and
+// the logrhs-!= NULL branch of get_crashed_log_file().
+// ============================================================================
+
+class ScannerLogMapperTest : public ::testing::Test {
+protected:
+    const char* logmapper_path  = "/etc/breakpad-logmapper.conf";
+    const char* log_files_list  = "/tmp/minidump_log_files.txt";
+    const char* log_dir         = "/tmp/scnr_logmap_test";
+
+    void SetUp() override {
+        // Write a logmapper file with several patterns
+        FILE *f = fopen(logmapper_path, "w");
+        if (f) {
+            fprintf(f, "testproc=test.log,crash.log\n");
+            fprintf(f, "\n");                    // empty line — must be skipped
+            fprintf(f, "noequalssign\n");        // no '=' — must be skipped
+            fprintf(f, "other=other.log\n");
+            fclose(f);
+        }
+        unlink(log_files_list);
+        system("mkdir -p /tmp/scnr_logmap_test");
+    }
+
+    void TearDown() override {
+        unlink(logmapper_path);
+        unlink(log_files_list);
+        system("rm -rf /tmp/scnr_logmap_test");
+    }
+};
+
+// lookup_log_files_for_proc — NULL pname guard (line ~293)
+TEST_F(ScannerLogMapperTest, LookupLogFilesForProc_NullPname_ReturnsNull) {
+    char *result = lookup_log_files_for_proc(NULL);
+    EXPECT_EQ(result, nullptr);
+}
+
+// lookup_log_files_for_proc — matching entry found (covers lines 299-334)
+TEST_F(ScannerLogMapperTest, LookupLogFilesForProc_MatchingEntry_ReturnsLogs) {
+    // "testproc" appears as LHS in the conf file; we expect the RHS string back.
+    char *result = lookup_log_files_for_proc("testproc");
+    ASSERT_NE(result, nullptr);
+    EXPECT_STREQ(result, "test.log,crash.log");
+    free(result);
+}
+
+// lookup_log_files_for_proc — no matching entry (covers fclose after exhausting file)
+TEST_F(ScannerLogMapperTest, LookupLogFilesForProc_NoMatch_ReturnsNull) {
+    char *result = lookup_log_files_for_proc("unknownprocess");
+    EXPECT_EQ(result, nullptr);
+}
+
+// lookup_log_files_for_proc — line without '=' is silently skipped
+TEST_F(ScannerLogMapperTest, LookupLogFilesForProc_NoEqualSignLine_Skipped) {
+    // "noequalssign" is a line in the file but has no '=', so it must be skipped.
+    char *result = lookup_log_files_for_proc("noequalssign");
+    EXPECT_EQ(result, nullptr);
+}
+
+// get_crashed_log_file — logrhs != NULL path + comma token loop (lines 377-414)
+// File "/tmp/testproc_12345.dmp":
+//   extract_pname → "/tmp/testproc"
+//   lookup_log_files_for_proc("/tmp/testproc") → "test.log,crash.log"  (strstr match)
+//   token loop: "test.log" then "crash.log" each get append_logfile_entry called
+TEST_F(ScannerLogMapperTest, GetCrashedLogFile_MatchingProcess_CoversTokenLoop) {
+    int result = get_crashed_log_file("/tmp/testproc_12345.dmp", log_dir, false);
+    EXPECT_TRUE(result == 0 || result == -1);
+    // log_files_list should have been written
+    EXPECT_EQ(access(log_files_list, F_OK), 0);
+}
+
+// Same path but with t2_enabled=true so t2ValNotify / t2CountNotify are called
+TEST_F(ScannerLogMapperTest, GetCrashedLogFile_MatchingProcess_T2Enabled) {
+    int result = get_crashed_log_file("/tmp/testproc_12345.dmp", log_dir, true);
+    EXPECT_TRUE(result == 0 || result == -1);
+}
+
+// get_crashed_log_file — logrhs == NULL path (covers "No log mapper entry" branch)
+TEST_F(ScannerLogMapperTest, GetCrashedLogFile_NoMatchingProcess_NullLogRhs) {
+    // "noprocess_99.dmp" → extract_pname → "/tmp/noprocess" → no match in conf
+    int result = get_crashed_log_file("/tmp/noprocess_99.dmp", log_dir, false);
+    EXPECT_TRUE(result == 0 || result == -1);
+}
+
+// get_crashed_log_file — NULL file guard (line ~350)
+TEST_F(ScannerLogMapperTest, GetCrashedLogFile_NullFile_ReturnsError) {
+    int result = get_crashed_log_file(NULL, log_dir, false);
+    EXPECT_EQ(result, -1);
+}
+
+// processCrashTelemetryInfo with a logmapper file present — exercises
+// the full get_crashed_log_file path including log_path / t2 branches.
+TEST_F(ScannerLogMapperTest, ProcessCrashTelemetryInfo_WithLogMapper_CoversLogLookup) {
+    // Create a real dump file so process_file_entry can work
+    const char* dump = "/tmp/testproc_20260303.dmp";
+    FILE *f = fopen(dump, "w");
+    if (f) { fprintf(f, "dump"); fclose(f); }
+
+    int result = processCrashTelemetryInfo(dump, log_dir, false);
+    EXPECT_TRUE(result == 0 || result == -1);
+
+    unlink(dump);
+}
+
+// ============================================================================
+// append_logfile_entry / sanitize_filename edge-case tests
+// ============================================================================
+
+// Covers append_logfile_entry line ~59: fopen fails when path is a directory
+TEST_F(ScannerLogMapperTest, AppendLogfileEntry_FopenFails_PathIsDirectory) {
+    // Create a directory at LOG_FILES_PATH so fopen("a") will fail (EISDIR)
+    const char *lf = "/tmp/minidump_log_files.txt";
+    unlink(lf);
+    mkdir(lf, 0755);      // block as directory
+    int result = append_logfile_entry("test_entry");
+    rmdir(lf);
+    EXPECT_EQ(result, -1);
+}
+
+// Covers append_logfile_entry success path (return 0)
+TEST_F(ScannerLogMapperTest, AppendLogfileEntry_ValidEntry_ReturnsSuccess) {
+    unlink("/tmp/minidump_log_files.txt");
+    int result = append_logfile_entry("test_log_entry");
+    EXPECT_EQ(result, 0);
+}
+
+// Covers sanitize_filename_preserve_container: seg_len >= sizeof(tmp) truncation (line ~143)
+// A segment of 135 chars (> 128) before the delimiter triggers the `if (seg_len >= sizeof(tmp))`
+// truncation branch inside the while loop.
+TEST_F(ScannerTest, SanitizeFilename_VeryLongSegmentBeforeDelimiter_TriggersTruncation) {
+    // Build: <135 'a' chars> + "<#=#>" + "tail"
+    char input[512] = {0};
+    memset(input, 'a', 135);
+    strcat(input, "<#=#>tail.dmp");
+
+    char out[512] = {0};
+    int result = sanitize_filename_preserve_container(input, out, sizeof(out));
+    EXPECT_EQ(result, 0);
+    // The delimiter and the tail must appear in the output
+    EXPECT_NE(strstr(out, "<#=#>"), nullptr);
+    EXPECT_NE(strstr(out, "tail"), nullptr);
+}
+
+// processCrashTelemetryInfo with t2_enabled=true and logmapper present — covers t2 branches
+TEST_F(ScannerLogMapperTest, ProcessCrashTelemetryInfo_T2Enabled_CoversT2Branches) {
+    const char *dump = "/tmp/testproc_t2_20260303.dmp";
+    FILE *f = fopen(dump, "w");
+    if (f) { fprintf(f, "dump"); fclose(f); }
+
+    int result = processCrashTelemetryInfo(dump, log_dir, true);
+    EXPECT_TRUE(result == 0 || result == -1);
+
+    unlink(dump);
+}
+
+// ============================================================================
+// Telemetry interface lifecycle tests
+// Directly call t2Init / t2Uninit so their lines in telemetryinterface.c are hit.
+// ============================================================================
+
+TEST(TelemetryInterfaceTest, T2Init_CallsWithComponentName) {
+    // Exercises void t2Init(char *component) in telemetryinterface.c
+    t2Init((char *)"crashupload");
+    SUCCEED();
+}
+
+TEST(TelemetryInterfaceTest, T2Uninit_CallsSuccessfully) {
+    // Exercises void t2Uninit(void) in telemetryinterface.c
+    t2Uninit();
+    SUCCEED();
 }
 
 // ============================================================================

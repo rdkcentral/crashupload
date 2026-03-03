@@ -114,13 +114,13 @@ int prerequisites_wait(config_t *config, int timeout_sec)
 {
     int dump_file_found = 0;
     char dump_extn[16] = {0};
-    CRASHUPLOAD_INFO("Inside prerequisites_wait: device type=%u\n", config->device_type);
     /* TODO: Check network + time sync together */
     if (NULL == config)
     {
         CRASHUPLOAD_ERROR("Invalid parameter or NULL parameter\n");
         return -1;
     }
+    CRASHUPLOAD_INFO("Inside prerequisites_wait: device type=%u\n", config->device_type);
     if ((config->device_type == DEVICE_TYPE_BROADBAND) || (config->device_type == DEVICE_TYPE_EXTENDER))
     {
         dump_file_found = directory_has_pattern(config->core_path, ".dmp");
