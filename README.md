@@ -186,12 +186,12 @@ cat test-suite.log
 Current code coverage metrics from GTest suite:
 
 ```
-Lines......: 83.4% (1753 of 2102 lines)
-Functions..: 97.8% (87 of 89 functions)
-Branches...: 77.9% (1003 of 1288 branches)
+Lines......: 90.5% (1903 of 2102 lines)
+Functions..: 100.0% (89 of 89 functions)
+Branches...: 84.3% (1086 of 1288 branches)
 ```
 
-**Coverage Target**: Maintain >80% line coverage, >95% function coverage
+**Coverage Target**: Maintain >90% line coverage, 100% function coverage, >80% branches coverage
 
 ### L2 Functional Tests
 

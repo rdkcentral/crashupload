@@ -856,16 +856,23 @@ TEST_F(ConfigManagerTest, ConfigCleanup_NullConfig_HandlesGracefully) {
 // Tests for config_init_load() - NULL config (item 3)
 // ============================================================================
 
-TEST_F(ConfigManagerTest, Verify_IntentionalFailure_GH) {
-    EXPECT_EQ(1, 2) << "Sample failure: 1 != 2";
-}
-
 TEST_F(ConfigManagerTest, ConfigInitLoad_NullConfig_Failure) {
     // Passing nullptr as config must hit the early-exit guard and return -1.
     // No mock setup needed – the NULL check fires before any mock is called.
     int result = config_init_load(nullptr, 5, test_argv);
     EXPECT_EQ(result, -1);
 }
+
+#if 0
+/*
+* ============================================================================
+* Intentional Failure Test (for CI verification)
+* ============================================================================
+*/
+TEST_F(ConfigManagerTest, CI_Verify_IntentionalFailure) {
+    EXPECT_EQ(1, 2) << "Intentional failure: 1 != 2";
+}
+#endif
 
 // ============================================================================
 // Main
