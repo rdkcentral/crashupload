@@ -52,6 +52,8 @@ void set_mock_getIncludePropertyData_behavior(int return_value, const char* outp
 void set_mock_getDevicePropertyData_behavior(int return_value, const char* output_value);
 void set_mock_filePresentCheck_behavior(int return_value);
 void reset_all_mocks();
+// RFC stub control
+void set_rfc_stub_behavior(int ret, const char *out);
 }
 
 using ::testing::_;
@@ -848,6 +850,17 @@ TEST_F(ConfigManagerTest, ConfigCleanup_NullConfig_HandlesGracefully) {
     // Should not crash on NULL input (the `if (config)` guard prevents it)
     config_cleanup(nullptr);
     SUCCEED();
+}
+
+// ============================================================================
+// Tests for config_init_load() - NULL config (item 3)
+// ============================================================================
+
+TEST_F(ConfigManagerTest, ConfigInitLoad_NullConfig_Failure) {
+    // Passing nullptr as config must hit the early-exit guard and return -1.
+    // No mock setup needed – the NULL check fires before any mock is called.
+    int result = config_init_load(nullptr, 5, test_argv);
+    EXPECT_EQ(result, -1);
 }
 
 // ============================================================================

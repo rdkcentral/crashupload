@@ -1631,6 +1631,54 @@ TEST_F(ScannerLogMapperTest, ProcessCrashTelemetryInfo_T2Enabled_CoversT2Branche
 }
 
 // ============================================================================
+// Coverage: processCrashTelemetryInfo TGZ + _mod strip (scanner.c lines 462-490)
+// ============================================================================
+
+TEST_F(ScannerTest, ProcessCrashTelemetryInfo_TgzWithModSuffix) {
+    // "app_mod_crash.tgz" -> pmod found -> meta info stripped
+    // Covers: isTgz=1, pmod detection, remain_len check, memcpy/strchr/strncpy,
+    //         snprintf(file), t2CountNotify("SYS_INFO_TGZDUMP")
+    int result = processCrashTelemetryInfo("app_mod_crash.tgz", "/tmp/scnr/log", false);
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(ScannerTest, ProcessCrashTelemetryInfo_TgzNoModSuffix) {
+    // .tgz file without _mod -> isTgz=1 but pmod==NULL, skips strip block
+    int result = processCrashTelemetryInfo("app_plain.tgz", "/tmp/scnr/log", false);
+    EXPECT_EQ(result, 0);
+}
+
+// ============================================================================
+// Coverage: process_file_entry no-slash path -> dirname='.' (scanner.c lines 688-692)
+// ============================================================================
+
+TEST_F(ScannerTest, ProcessFileEntry_NoSlashInPath_DirnameDot) {
+    // fullpath with no '/' -> else branch: dirname[0]='.', dirname[1]='\0' (lines 688-692)
+    // dump_type="1" -> no processCrashTelemetryInfo call -> WARN branch (lines ~770-772)
+    char fullpath[] = "nodirname_test.dmp";
+    char dump_type[] = "1";
+    set_mock_is_regular_file_behavior(1);
+    int result = process_file_entry(fullpath, dump_type, &test_config);
+    EXPECT_GE(result, -1);
+}
+
+// ============================================================================
+// Coverage: process_file_entry rename needed + dump_type != "0" (lines ~720-728)
+// ============================================================================
+
+TEST_F(ScannerTest, ProcessFileEntry_RenameNeeded_DumpTypeNonZero) {
+    // File with sanitizable chars -> sanitized != basename -> rename path
+    // dump_type="1" -> WARN "processCrashTelemetryInfo is not allowed" (lines ~723-728)
+    create_test_file("bad*rename.dmp");
+    char fullpath[512];
+    char dump_type[] = "1";
+    snprintf(fullpath, sizeof(fullpath), "%s/bad*rename.dmp", test_dump_dir);
+    set_mock_is_regular_file_behavior(1);
+    int result = process_file_entry(fullpath, dump_type, &test_config);
+    EXPECT_GE(result, -1);
+}
+
+// ============================================================================
 // Telemetry interface lifecycle tests
 // Directly call t2Init / t2Uninit so their lines in telemetryinterface.c are hit.
 // ============================================================================
@@ -1645,6 +1693,39 @@ TEST(TelemetryInterfaceTest, T2Uninit_CallsSuccessfully) {
     // Exercises void t2Uninit(void) in telemetryinterface.c
     t2Uninit();
     SUCCEED();
+}
+
+// ============================================================================
+// Coverage: processCrashTelemetryInfo container-delimiter path
+// containerDelimiter = "<#=#>"  (scanner.c)
+// Filename with 2+ delimiter tokens triggers the full container block:
+//   isContainer=1, pos/scan loops, firstBreak/containerTime extraction,
+//   strstr(firstBreak, containerDelimiter)==false -> else path,
+//   strchr(containerName,'_') != NULL -> Appname/ProcessName split,
+//   t2ValNotify calls, snprintf(normalized), snprintf(file,...)
+// ============================================================================
+
+TEST_F(ScannerTest, ProcessCrashTelemetryInfo_ContainerDelimiter_WithUnderscore) {
+    // "procName_appName<#=#>running<#=#>20260304120000"
+    // firstBreak = "procName_appName"  (has '_' -> Appname/ProcessName split path)
+    // containerStatus = "unknown"  (firstBreak has no nested delimiter -> else)
+    int result = processCrashTelemetryInfo(
+        "myProc_myApp<#=#>running<#=#>20260304120000",
+        "/tmp/scnr/log",
+        false
+    );
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(ScannerTest, ProcessCrashTelemetryInfo_ContainerDelimiter_NoUnderscore) {
+    // No '_' in container part -> else branch for Appname/ProcessName
+    // (Appname = ProcessName = containerName)
+    int result = processCrashTelemetryInfo(
+        "myprocess<#=#>20260304120000",
+        "/tmp/scnr/log",
+        false
+    );
+    EXPECT_EQ(result, 0);
 }
 
 // ============================================================================

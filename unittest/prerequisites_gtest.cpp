@@ -402,6 +402,21 @@ TEST_F(PrerequisitesTest, EdgeCase_EmptyPattern) {
 // }
 
 // ============================================================================
+// Tests for defer_upload_if_needed() - MEDIACLIENT device
+// ============================================================================
+
+// When the container uptime is > 480 s the function reads /proc/uptime and
+// returns immediately without sleeping.  This covers the MEDIACLIENT branch
+// of defer_upload_if_needed() (fopen, fscanf, fclose, uptime >= 480 path).
+TEST_F(PrerequisitesTest, DeferUpload_MediaClient_HighUptime_NoWait) {
+    // The Docker container has been alive well over 8 minutes by the time
+    // coverage tests run, so uptime_val >= FOUR_EIGHTY_SECS and the sleep
+    // block is skipped.  The test simply verifies no crash/hang occurs.
+    defer_upload_if_needed(DEVICE_TYPE_MEDIACLIENT);
+    SUCCEED();
+}
+
+// ============================================================================
 // Main entry point
 // ============================================================================
 

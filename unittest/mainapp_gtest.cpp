@@ -144,6 +144,32 @@ TEST_F(MainAppTest, SystemInitialize_PlatformInitializeFailure) {
     // Should still succeed as function doesn't check return value
 }
 
+TEST_F(MainAppTest, SystemInitialize_FileNotPresent_OpenFails) {
+    // Creates a directory at /tmp/test_core.log (the path the config_init_load mock sets).
+    // filePresentCheck returns non-zero -> code enters "create file" block.
+    // open(directory, O_WRONLY|O_CREAT|O_TRUNC) fails with EISDIR.
+    // Covers: system_init.c lines 56-57 (fd < 0 -> CRASHUPLOAD_ERROR -> return -1)
+    char* argv[] = {(char*)"crashupload", (char*)"/tmp/test", (char*)"0"};
+    config_t config;
+    platform_config_t platform;
+
+    // Ensure /tmp/test_core.log is a directory so open() fails
+    unlink("/tmp/test_core.log");
+    mkdir("/tmp/test_core.log", 0755);
+
+    set_mock_config_init_load_behavior(0);
+    set_mock_platform_initialize_behavior(0);
+    set_mock_file_present_check_behavior(-1); // non-zero -> enters "create file" block
+
+    int result = system_initialize(3, argv, &config, &platform);
+
+    // open() on a directory fails -> system_initialize returns -1
+    EXPECT_EQ(result, -1);
+
+    // Cleanup
+    rmdir("/tmp/test_core.log");
+}
+
 // ============================================================================
 // main_test Tests - Parameter Validation
 // ============================================================================

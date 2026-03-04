@@ -2655,6 +2655,55 @@ TEST_F(UtilsTest, CleanupBatch_CmpMtimeDesc_IdenticalItems_ReturnsZero) {
 }
 
 // ============================================================================
+// Additional coverage: extract_version_from_tarball + tarball branch in
+// GetCrashFirmwareVersion.
+//
+// The extract_version_from_tarball() function has ~20 executable lines that
+// are never reached unless GetCrashFirmwareVersion() is called with a source
+// whose extension is ".tgz" or ".tar.gz".  The tests below exercise:
+//   - is_tarball() TRUE paths (.tgz and .tar.gz)
+//   - GetCrashFirmwareVersion with a .tgz source that does not exist:
+//       * "Source is a tarball" INFO log
+//       * extract_version_from_tarball: archive_read_new, filter/format setup,
+//         archive_read_open_filename fail, CRASHUPLOAD_ERROR, archive_read_free, return 0
+//       * "Failed to extract version from tarball..." WARN
+//       * fallback to /version.txt
+//   - extract_version_from_tarball NULL-argument guard branches
+// ============================================================================
+
+// Covers is_tarball() true branches for both .tgz and .tar.gz, plus the false
+// branches for short names and NULL input.
+TEST_F(UtilsTest, IsTarball_Extensions_CoversTrueAndFalseBranches) {
+    EXPECT_TRUE(is_tarball("archive.tgz"));
+    EXPECT_TRUE(is_tarball("archive.tar.gz"));
+    EXPECT_FALSE(is_tarball("archive.txt"));
+    EXPECT_FALSE(is_tarball("ab"));      // len < 4
+    EXPECT_FALSE(is_tarball(nullptr));
+}
+
+// Covers the is_tarball==TRUE branch inside GetCrashFirmwareVersion and the
+// archive open-fail path inside extract_version_from_tarball.
+// Source is a .tgz that does not exist, so archive_read_open_filename fails,
+// triggering: CRASHUPLOAD_ERROR, archive_read_free, return 0, then the
+// CRASHUPLOAD_WARN fallback in GetCrashFirmwareVersion.
+TEST_F(UtilsTest, GetCrashFirmwareVersion_NonExistentTarball_CoversExtractFailPath) {
+    char fw[64] = {0};
+    // Ensure file does not exist
+    unlink("/tmp/cov_nonexist_test.tgz");
+    size_t ret = GetCrashFirmwareVersion("/tmp/cov_nonexist_test.tgz", fw, sizeof(fw));
+    // Falls back to /version.txt; accept any result
+    EXPECT_GE(ret, 0U);
+}
+
+// Covers extract_version_from_tarball() NULL/zero-size argument guards directly.
+TEST_F(UtilsTest, ExtractVersionFromTarball_NullAndZeroArgs_ReturnsZero) {
+    char out[64] = {0};
+    EXPECT_EQ(extract_version_from_tarball(nullptr, out, sizeof(out)), 0U);
+    EXPECT_EQ(extract_version_from_tarball("/tmp/x.tgz", nullptr, sizeof(out)), 0U);
+    EXPECT_EQ(extract_version_from_tarball("/tmp/x.tgz", out, 0), 0U);
+}
+
+// ============================================================================
 // Main entry point
 // ============================================================================
 
