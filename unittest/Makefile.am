@@ -199,10 +199,10 @@ upload_gtest_LDFLAGS = \
 # mainapp_gtest configuration
 mainapp_gtest_SOURCES = \
 	mainapp_gtest.cpp \
+	mainapp_extra_gtest.cpp \
 	mainapp_gmock.cpp \
 	../c_sourcecode/src/main.c \
-	../c_sourcecode/src/init/system_init.c \
-	../c_sourcecode/src/t2Interface/telemetryinterface.c
+	../c_sourcecode/src/init/system_init.c
 
 mainapp_gtest_LDADD = \
 	-lgtest \

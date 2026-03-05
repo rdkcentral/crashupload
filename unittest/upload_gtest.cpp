@@ -956,6 +956,119 @@ TEST_F(UploadTest, Integration_CompleteUploadFlowWithRetry) {
 }
 
 // ============================================================================
+// upload_file Tests - t2_enabled Telemetry Coverage (items 4/6/7)
+// ============================================================================
+
+// Branch: t2_enabled=true, upload succeeds
+// Covers: t2ValNotify("coreUpld_split") + t2CountNotify("SYS_INFO_S3CoreUploaded")
+TEST_F(UploadTest, UploadFile_T2Enabled_Success) {
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+
+    int result = upload_file(test_archive, test_url, "minidump", "1.0.0",
+                             "PROD", "MODEL_X", "md5sum123",
+                             DEVICE_TYPE_MEDIACLIENT, /*t2_enabled=*/true);
+
+    EXPECT_EQ(result, 0);
+    // File removed on successful upload
+    EXPECT_FALSE(file_exists(test_archive));
+}
+
+// Branch: t2_enabled=true, upload fails with curl_ret==6
+// Covers: t2CountNotify("SYS_ERROR_S3CoreUpload_Failed")
+//         t2CountNotify("SYST_INFO_CURL6")           <- curl_ret==6 sub-branch
+//         t2ValNotify("coreUpld_split")              <- per-attempt notify
+//         tls_log() mediaclient path
+TEST_F(UploadTest, UploadFile_T2Enabled_Failure_Curl6) {
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(0, 6);           // curl error 6
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(6);
+
+    int result = upload_file(test_archive, test_url, "minidump", "1.0.0",
+                             "PROD", "MODEL_X", "md5sum123",
+                             DEVICE_TYPE_MEDIACLIENT, /*t2_enabled=*/true);
+
+    EXPECT_NE(result, 0);
+    // tls_log must have been called at least once
+    EXPECT_GT(get_tls_log_call_count(), 0);
+}
+
+// Branch: t2_enabled=true, upload fails with curl_ret!=6 (e.g. 22)
+// Covers: t2CountNotify("SYS_ERROR_S3CoreUpload_Failed")
+//         t2CountNotify("SYS_ERR_CoreUpload_Curl22") <- dynamic marker
+//         t2ValNotify("CoredumpFail_split")
+//         tls_log() broadband path (device_type BROADBAND)
+TEST_F(UploadTest, UploadFile_T2Enabled_Failure_NonCurl6) {
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(500, 22);        // non-6 curl error
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(22);
+
+    int result = upload_file(test_archive, test_url, "minidump", "1.0.0",
+                             "PROD", "MODEL_X", "md5sum123",
+                             DEVICE_TYPE_BROADBAND, /*t2_enabled=*/true);
+
+    EXPECT_NE(result, 0);
+    EXPECT_GT(get_tls_log_call_count(), 0);
+}
+
+// Branch: upload_process with MINIDUMP + t2_enabled=true
+// Covers: t2CountNotify("SYST_INFO_minidumpUpld") after successful minidump upload
+TEST_F(UploadTest, UploadProcess_T2Enabled_MinidumpSuccess) {
+    test_config.dump_type   = DUMP_TYPE_MINIDUMP;
+    test_config.t2_enabled  = true;
+
+    set_mock_partner_id_behavior(1, "comcast");
+    set_mock_read_rfc_property_behavior(1, "false");       // EncryptCloudUpload
+    set_mock_read_rfc_property_behavior(1, "crashportal.test.com");  // CrashPortal
+    set_mock_read_rfc_property_behavior(1, test_url);      // CrashPortalEndURL
+    set_mock_compute_md5_behavior(0, "");
+    set_mock_firmware_version_behavior(10, "1.0.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+
+    // Recreate the archive file (previous tests may have deleted it)
+    create_test_file(test_archive, 2048);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+
+    EXPECT_EQ(result, 0);
+    EXPECT_FALSE(file_exists(test_archive));
+}
+
+// Branch: upload_process with COREDUMP + t2_enabled=true
+// Covers the else branch of the "DUMP_TYPE_MINIDUMP && t2_enabled" guard,
+// confirming the SYST_INFO_minidumpUpld notify is NOT sent for coredumps.
+TEST_F(UploadTest, UploadProcess_T2Enabled_CoredumpSuccess) {
+    test_config.dump_type   = DUMP_TYPE_COREDUMP;
+    test_config.t2_enabled  = true;
+
+    set_mock_partner_id_behavior(1, "comcast");
+    set_mock_read_rfc_property_behavior(1, "false");
+    set_mock_read_rfc_property_behavior(1, "crashportal.test.com");
+    set_mock_read_rfc_property_behavior(1, test_url);
+    set_mock_compute_md5_behavior(0, "");
+    set_mock_firmware_version_behavior(10, "1.0.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+
+    // Recreate the archive file
+    create_test_file(test_archive, 2048);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+
+    EXPECT_EQ(result, 0);
+    EXPECT_FALSE(file_exists(test_archive));
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 

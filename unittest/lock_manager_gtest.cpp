@@ -164,6 +164,28 @@ TEST_F(LockManagerTest, LockRelease_NullFile_NoError) {
     unlink(test_lock_file);
 }
 
+TEST_F(LockManagerTest, LockRelease_NullFile_InvalidFd_NoError) {
+    // Covers: lock_file==NULL with fd<0 -> the `if (fd >= 0)` FALSE branch inside null/empty check
+    lock_release(-1, NULL);
+    SUCCEED();
+}
+
+TEST_F(LockManagerTest, LockRelease_EmptyFile_ValidFd_ReleasesAndReturns) {
+    // Covers: lock_file[0]=='\0' with fd>=0 -> calls release_process_lock(fd) then returns
+    int fd = lock_acquire(test_lock_file, 1, false);
+    EXPECT_GE(fd, 0);
+    // empty string triggers the '\0' branch; release_process_lock is called for the fd
+    lock_release(fd, "");
+    // test_lock_file still exists (no unlink); TearDown cleans it up
+    SUCCEED();
+}
+
+TEST_F(LockManagerTest, LockRelease_EmptyFile_InvalidFd_NoError) {
+    // Covers: lock_file[0]=='\0' with fd<0 -> hits empty-string branch, skips release_process_lock
+    lock_release(-1, "");
+    SUCCEED();
+}
+
 // ============================================================================
 // Tests for acquire_process_lock_or_wait()
 // ============================================================================
@@ -330,6 +352,40 @@ TEST_F(LockManagerTest, Concurrency_LockIsExclusive) {
         // Cleanup
         lock_release(fd1, test_lock_file);
     }
+}
+
+// ============================================================================
+// Coverage: acquire_process_lock_or_exit flock-fail path (lock_manager.c lines 38-44)
+// ============================================================================
+
+TEST_F(LockManagerTest, AcquireProcessLockOrExit_WhenLockHeld_ChildExitsZero) {
+    // Parent holds LOCK_EX on the test lock file.
+    // Child calls lock_acquire(timeout=0, t2_enabled=true) which calls
+    // acquire_process_lock_or_exit() -> flock(LOCK_EX|LOCK_NB) fails because
+    // parent holds the lock -> logs, calls t2CountNotify (t2_enabled=true), exit(0).
+    // Covers: lock_manager.c lines 38-44
+    int fd = open(test_lock_file, O_CREAT | O_RDWR, 0644);
+    ASSERT_GE(fd, 0);
+    ASSERT_EQ(flock(fd, LOCK_EX), 0);
+
+    pid_t pid = fork();
+    ASSERT_GE(pid, 0);
+    if (pid == 0) {
+        // Child: attempt non-blocking exclusive lock - will fail
+        // lock_acquire(timeout=0) -> acquire_process_lock_or_exit -> exit(0)
+        lock_acquire(test_lock_file, 0, true);
+        // Should never reach here
+        _exit(99);
+    }
+    // Parent: wait for child
+    int status = 0;
+    waitpid(pid, &status, 0);
+    EXPECT_TRUE(WIFEXITED(status));
+    EXPECT_EQ(WEXITSTATUS(status), 0); // exit(0) from acquire_process_lock_or_exit
+
+    flock(fd, LOCK_UN);
+    close(fd);
+    unlink(test_lock_file);
 }
 
 // ============================================================================

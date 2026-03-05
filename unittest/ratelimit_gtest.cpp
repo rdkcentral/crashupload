@@ -405,6 +405,42 @@ TEST_F(RateLimitTest, EdgeCase_NegativeTimestamp) {
 }
 
 // ============================================================================
+// Additional tests targeting specific uncovered lines
+// ============================================================================
+
+// Lines 44-45 in ratelimit.c: path-traversal / relative-path check inside set_time()
+// `if (strstr(deny_file, "..") != NULL || deny_file[0] != '/')` → CRASHUPLOAD_ERROR + return -1
+// A relative path (no leading '/') hits `deny_file[0] != '/'`.
+TEST_F(RateLimitTest, SetTime_RelativePath_RejectsPathTraversal) {
+    int ret = set_time("relative/path/file.txt", CURRENT_TIME);
+    EXPECT_EQ(ret, -1);
+}
+
+// A path containing ".." hits `strstr(deny_file, "..") != NULL`.
+TEST_F(RateLimitTest, SetTime_DotDotPath_RejectsPathTraversal) {
+    int ret = set_time("/tmp/../etc/evil_file.txt", CURRENT_TIME);
+    EXPECT_EQ(ret, -1);
+}
+
+// Lines 144-145 in ratelimit.c: `if (errno == ERANGE || first_crash_time < 0)` overflow
+// guard inside is_upload_limit_reached().
+// Writing a negative number as the first line makes strtol return a negative value.
+TEST_F(RateLimitTest, IsUploadLimitReached_NegativeFirstTimestamp_AllowUpload) {
+    // 11 lines so we exceed the line_cnt <= 10 threshold.
+    // First line is negative → triggers the overflow/invalid-value ALLOW_UPLOAD return.
+    FILE *fp = fopen(test_timestamp_file, "w");
+    ASSERT_NE(fp, nullptr);
+    fprintf(fp, "-100\n");           // first line: negative timestamp
+    for (int i = 0; i < 10; i++) {
+        fprintf(fp, "%ld\n", (long)time(NULL));
+    }
+    fclose(fp);
+
+    int ret = is_upload_limit_reached(test_timestamp_file);
+    EXPECT_EQ(ret, ALLOW_UPLOAD);
+}
+
+// ============================================================================
 // Main entry point
 // ============================================================================
 

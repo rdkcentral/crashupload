@@ -162,6 +162,16 @@ struct MainAppMockState {
     int logger_error_call_count;
     int logger_info_call_count;
     int logger_warn_call_count;
+
+    // Scanner / config path overrides
+    bool use_tgz_dump_path;       // scanner returns .tgz paths
+    bool use_coredump_type;       // config_init_load sets DUMP_TYPE_COREDUMP
+    bool use_mpeos_path;          // scanner returns path containing "mpeos-main"
+    bool archive_has_core_name;   // archive_create_smart embeds "_core" in name
+    bool use_unknown_dump_type;   // config_init_load sets DUMP_TYPE_UNKNOWN
+    bool logger_init_fail;        // logger_init returns 1 (fail)
+    bool use_plain_long_path;     // scanner returns a long path without '/'
+    bool use_invalid_working_dir; // config sets working_dir_path to non-existent
 };
 
 static MainAppMockState g_mainapp_mock_state = {
@@ -213,7 +223,16 @@ static MainAppMockState g_mainapp_mock_state = {
     0,          // crashupload_log call count
     0,          // logger_error call count
     0,          // logger_info call count
-    0           // logger_warn call count
+    0,          // logger_warn call count
+
+    false,      // use_tgz_dump_path
+    false,      // use_coredump_type
+    false,      // use_mpeos_path
+    false,      // archive_has_core_name
+    false,      // use_unknown_dump_type
+    false,      // logger_init_fail
+    false,      // use_plain_long_path
+    false       // use_invalid_working_dir
 };
 
 // ============================================================================
@@ -477,6 +496,15 @@ void reset_mainapp_mocks() {
     g_mainapp_mock_state.logger_error_call_count = 0;
     g_mainapp_mock_state.logger_info_call_count = 0;
     g_mainapp_mock_state.logger_warn_call_count = 0;
+
+    g_mainapp_mock_state.use_tgz_dump_path = false;
+    g_mainapp_mock_state.use_coredump_type = false;
+    g_mainapp_mock_state.use_mpeos_path = false;
+    g_mainapp_mock_state.archive_has_core_name = false;
+    g_mainapp_mock_state.use_unknown_dump_type = false;
+    g_mainapp_mock_state.logger_init_fail = false;
+    g_mainapp_mock_state.use_plain_long_path = false;
+    g_mainapp_mock_state.use_invalid_working_dir = false;
 }
 
 // ============================================================================
@@ -498,8 +526,16 @@ int config_init_load(config_t *config, int argc, char *argv[]) {
     // Default behavior: initialize config with test values
     memset(config, 0, sizeof(config_t));
     config->device_type = DEVICE_TYPE_MEDIACLIENT;
-    config->dump_type = DUMP_TYPE_MINIDUMP;
-    strncpy(config->working_dir_path, "/tmp/test_dumps", sizeof(config->working_dir_path) - 1);
+    config->dump_type = g_mainapp_mock_state.use_unknown_dump_type
+                        ? DUMP_TYPE_UNKNOWN
+                        : (g_mainapp_mock_state.use_coredump_type
+                           ? DUMP_TYPE_COREDUMP : DUMP_TYPE_MINIDUMP);
+    if (g_mainapp_mock_state.use_invalid_working_dir) {
+        strncpy(config->working_dir_path, "/nonexistent_xyz_chdir_fail/sub",
+                sizeof(config->working_dir_path) - 1);
+    } else {
+        strncpy(config->working_dir_path, "/tmp/test_dumps", sizeof(config->working_dir_path) - 1);
+    }
     strncpy(config->core_log_file, "/tmp/test_core.log", sizeof(config->core_log_file) - 1);
     strncpy(config->box_type, "TEST_BOX", sizeof(config->box_type) - 1);
     if (g_mainapp_mock_state.config_init_load_custom_behavior) {
@@ -655,7 +691,22 @@ int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count) {
             if (*dumps) {
                 memset(*dumps, 0, g_mainapp_mock_state.scanner_find_dumps_output_count * sizeof(dump_file_t));
                 for (int i = 0; i < g_mainapp_mock_state.scanner_find_dumps_output_count; i++) {
-                    snprintf((*dumps)[i].path, sizeof((*dumps)[i].path), "/tmp/test_dump_%d.dmp", i);
+                    if (g_mainapp_mock_state.use_tgz_dump_path) {
+                        snprintf((*dumps)[i].path, sizeof((*dumps)[i].path),
+                                 "/tmp/test_dump_%d.tgz", i);
+                    } else if (g_mainapp_mock_state.use_mpeos_path) {
+                        snprintf((*dumps)[i].path, sizeof((*dumps)[i].path),
+                                 "/tmp/mpeos-main_dump_%d.dmp", i);
+                    } else if (g_mainapp_mock_state.use_plain_long_path) {
+                        /* No '/' — exercises the else-branch in main.c (dump_file_name = path)
+                           and makes new_dump_name >= 135 chars to exercise trim blocks. */
+                        snprintf((*dumps)[i].path, sizeof((*dumps)[i].path),
+                                 "longdump_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                 "aaaaaaaaaaaaaaaaaaaaaaa_%d_proc.dmp", i);
+                    } else {
+                        snprintf((*dumps)[i].path, sizeof((*dumps)[i].path),
+                                 "/tmp/test_dump_%d.dmp", i);
+                    }
                 }
                 *count = g_mainapp_mock_state.scanner_find_dumps_output_count;
             }
@@ -797,15 +848,25 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
     
     if (g_mainapp_mock_state.archive_create_smart_custom_behavior) {
         if (g_mainapp_mock_state.archive_create_smart_return_value == 0) {
-            snprintf(archive->archive_name, sizeof(archive->archive_name), 
-                     "/tmp/test_archive.tar.gz");
+            if (g_mainapp_mock_state.archive_has_core_name) {
+                snprintf(archive->archive_name, sizeof(archive->archive_name),
+                         "/tmp/test_core_archive_abc.tar.gz");
+            } else {
+                snprintf(archive->archive_name, sizeof(archive->archive_name),
+                         "/tmp/test_archive.tar.gz");
+            }
         }
         return g_mainapp_mock_state.archive_create_smart_return_value;
     }
-    
+
     // Default: create test archive name
-    snprintf(archive->archive_name, sizeof(archive->archive_name), 
-             "/tmp/test_archive.tar.gz");
+    if (g_mainapp_mock_state.archive_has_core_name) {
+        snprintf(archive->archive_name, sizeof(archive->archive_name),
+                 "/tmp/test_core_archive_abc.tar.gz");
+    } else {
+        snprintf(archive->archive_name, sizeof(archive->archive_name),
+                 "/tmp/test_archive.tar.gz");
+    }
     return 0;
 }
 
@@ -858,7 +919,9 @@ int upload_process(archive_info_t *archive, const config_t *config,
  */
 int logger_init(void) {
     g_mainapp_mock_state.logger_init_call_count++;
-    // Default: success
+    if (g_mainapp_mock_state.logger_init_fail) {
+        return 1; // non-zero → failure branch
+    }
     return 0;
 }
 
@@ -903,5 +966,81 @@ void logger_warn(const char *fmt, ...) {
     (void)fmt;
     g_mainapp_mock_state.logger_warn_call_count++;
 }
+
+/**
+ * Set scanner to return .tgz dump paths
+ */
+void set_mock_scanner_tgz_behavior(int count) {
+    g_mainapp_mock_state.scanner_find_dumps_return_value = count;
+    g_mainapp_mock_state.scanner_find_dumps_output_count = count;
+    g_mainapp_mock_state.scanner_find_dumps_custom_behavior = true;
+    g_mainapp_mock_state.use_tgz_dump_path = true;
+}
+
+/**
+ * Force config_init_load to set DUMP_TYPE_COREDUMP
+ */
+void set_mock_config_coredump_behavior(void) {
+    g_mainapp_mock_state.use_coredump_type = true;
+}
+
+/**
+ * Set scanner to return paths containing "mpeos-main"
+ */
+void set_mock_scanner_mpeos_behavior(int count) {
+    g_mainapp_mock_state.scanner_find_dumps_return_value = count;
+    g_mainapp_mock_state.scanner_find_dumps_output_count = count;
+    g_mainapp_mock_state.scanner_find_dumps_custom_behavior = true;
+    g_mainapp_mock_state.use_mpeos_path = true;
+}
+
+/**
+ * Make archive_create_smart embed "_core" in the archive name
+ */
+void set_mock_archive_core_behavior(void) {
+    g_mainapp_mock_state.archive_has_core_name = true;
+}
+
+/**
+ * Force config_init_load to set DUMP_TYPE_UNKNOWN (the 'else' branch in main.c)
+ */
+void set_mock_config_unknown_dump_type_behavior(void) {
+    g_mainapp_mock_state.use_unknown_dump_type = true;
+}
+
+/**
+ * Make logger_init() return failure (non-zero) — covers the printf warning branch in main.c
+ */
+void set_mock_logger_init_fail_behavior(void) {
+    g_mainapp_mock_state.logger_init_fail = true;
+}
+
+/**
+ * Make scanner return a long plain path (no '/') so that:
+ *   - main.c takes the else-branch (dump_file_name = path, not basename)
+ *   - new_dump_name >= 135 chars → first and second trim blocks are executed
+ */
+void set_mock_scanner_long_plain_path_behavior(int count) {
+    g_mainapp_mock_state.scanner_find_dumps_return_value = count;
+    g_mainapp_mock_state.scanner_find_dumps_output_count = count;
+    g_mainapp_mock_state.scanner_find_dumps_custom_behavior = true;
+    g_mainapp_mock_state.use_plain_long_path = true;
+}
+
+/**
+ * Make config_init_load set an invalid working_dir_path so that chdir() fails.
+ */
+void set_mock_invalid_working_dir_behavior(void) {
+    g_mainapp_mock_state.use_invalid_working_dir = true;
+}
+
+/* -------------------------------------------------------------------------
+ * Telemetry stubs – keep telemetryinterface.c out of mainapp_gtest_SOURCES
+ * so GCC never crashes compiling that TU under -fprofile-arcs.
+ * ------------------------------------------------------------------------- */
+void t2Init(char *component)   { (void)component; }
+void t2Uninit(void)            {}
+void t2CountNotify(char *marker, int val)         { (void)marker; (void)val; }
+void t2ValNotify(char *marker, char *val)          { (void)marker; (void)val; }
 
 } // extern "C"
