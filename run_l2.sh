@@ -22,7 +22,7 @@
 # Script: run_l2.sh
 # Purpose: Run Level 2 (functional) tests for crashupload
 # Usage: sh run_l2.sh
-# Note: Binary must be built using cov_build.sh before running this script
+# Note: Binary must be built with --l2-test flag using: sh cov_build.sh --l2-test
 
 set -e  # Exit on error
 
@@ -41,6 +41,12 @@ mkdir -p /opt/minidumps
 mkdir -p /var/lib/systemd/coredump
 mkdir -p /tmp
 mkdir -p /opt/logs
+
+# CRITICAL: Create /opt/uptime with high value to bypass 480-second boot deferral
+# This file is used when binary is built with --l2-test flag
+# Format: <uptime_seconds> <idle_time>  (same as /proc/uptime)
+echo "600.0 1200.0" > /opt/uptime
+echo "Created /opt/uptime with 600 seconds (bypasses 480s deferral check)"
 
 # Clean up any existing lock files and test artifacts
 rm -f /tmp/.uploadMinidumps
@@ -67,9 +73,15 @@ export CRASHUPLOAD_BINARY
 # Run functional tests with JSON reports
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/lock_and_exit.json" "$TEST_DIR/test_lock_and_exit.py"
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/lock_and_wait.json" "$TEST_DIR/test_lock_and_wait.py"
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/minidump_happy_path.json" "$TEST_DIR/test_minidump_happy_path.py"
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/coredump_happy_path.json" "$TEST_DIR/test_coredump_happy_path.py"
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/startup_cleanup.json" "$TEST_DIR/test_startup_cleanup.py"
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/unsupported_device_types.json" "$TEST_DIR/test_unsupported_device_types.py"
 
 # Cleanup
 rm -f /tmp/.uploadMinidumps
 rm -f /tmp/.uploadCoredumps
 rm -f /opt/secure/minidumps/*.dmp* 2>/dev/null || true
 rm -f /opt/secure/coredumps/*.dmp* 2>/dev/null || true
+rm -f /opt/uptime 2>/dev/null || true
+echo "L2 tests completed successfully!"

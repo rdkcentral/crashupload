@@ -30,6 +30,7 @@ export INSTALL_DIR=${ROOT}/local
 
 # Command-line flags
 CLEAN_ONLY=false
+L2_TEST_MODE=false
 
 # Parse command-line arguments
 for arg in "$@"; do
@@ -37,12 +38,16 @@ for arg in "$@"; do
         --clean)
             CLEAN_ONLY=true
             ;;
+        --l2-test)
+            L2_TEST_MODE=true
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  (none)      Build crashupload binary (default)"
             echo "  --clean     Clean all build artifacts from c_sourcecode and exit"
+            echo "  --l2-test   Build with L2_TEST flag (uses /opt/uptime for testing)"
             echo "  --help, -h  Show this help message"
             echo ""
             exit 0
@@ -131,8 +136,59 @@ echo "========================================"
 echo "Building common_utilities dependency"
 echo "========================================"
 cd ${ROOT}
+
+# Remove existing common_utilities to ensure clean build with patches
+if [ -d "common_utilities" ]; then
+    echo "Removing existing common_utilities directory..."
+    rm -rf common_utilities
+fi
+
 git clone https://github.com/rdkcentral/common_utilities.git -b feature/upload_L2
 cd common_utilities
+
+# Apply patches for L2 testing environment (disable SSL verification for mock servers)
+echo "Applying L2 test patches to common_utilities..."
+echo "  - Disabling SSL verification in mtls_upload.c"
+sed -i '/file_upload\.sslverify/s/= 1;/= 0;/' uploadutils/mtls_upload.c
+
+echo "  - Disabling SSL verification for S3 PUT in uploadUtil.c"
+sed -i 's/\(ret_code = setCommonCurlOpt(curl, s3url, NULL, \)true\()\)/\1false\2/g' uploadutils/uploadUtil.c
+
+echo "  - Commenting out mTLS auth check in uploadUtil.c"
+sed -i '/if (auth) {/,/}/s/^/\/\/ /' uploadutils/uploadUtil.c
+
+echo "  - Disabling CURLOPT_SSL_VERIFYPEER in urlHelper.c (CRITICAL FIX)"
+sed -i 's/curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L)/curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L)/' dwnlutils/urlHelper.c
+
+echo "L2 test patches applied successfully"
+echo ""
+
+# Verify patches were applied
+echo "Verifying patches..."
+if grep -q "file_upload.sslverify = 0" uploadutils/mtls_upload.c; then
+    echo "  ✓ mtls_upload.c patch verified"
+else
+    echo "  ✗ mtls_upload.c patch FAILED"
+    exit 1
+fi
+
+if grep -q "setCommonCurlOpt(curl, s3url, NULL, false)" uploadutils/uploadUtil.c; then
+    echo "  ✓ uploadUtil.c S3 PUT patch verified"
+else
+    echo "  ✗ uploadUtil.c S3 PUT patch FAILED"
+    exit 1
+fi
+
+if grep -q "CURLOPT_SSL_VERIFYPEER, 0L" dwnlutils/urlHelper.c; then
+    echo "  ✓ urlHelper.c CURLOPT_SSL_VERIFYPEER patch verified"
+else
+    echo "  ✗ urlHelper.c CURLOPT_SSL_VERIFYPEER patch FAILED"
+    exit 1
+fi
+
+echo "All patches verified successfully"
+echo ""
+
 sh cov_build.sh
 echo ""
 
@@ -144,12 +200,19 @@ cd c_sourcecode
 echo "[1/3] Running autoreconf to generate build files..."
 autoreconf -i
 
+# Prepare CFLAGS with optional L2_TEST flag
+BASE_CFLAGS="-DRDK_LOGGER -I/usr/local/include -include rdkcertselector.h -Wall -Werror -O2"
+if [ "$L2_TEST_MODE" = true ]; then
+    echo "L2 TEST MODE: Building with -DL2_TEST flag (will use /opt/uptime instead of /proc/uptime)"
+    BASE_CFLAGS="$BASE_CFLAGS -DL2_TEST"
+fi
+
 # Configure build
 echo "[2/3] Configuring build..."
 ./configure \
     --enable-rdkcertselector \
     --prefix="${INSTALL_DIR}" \
-    CFLAGS="-DRDK_LOGGER -I/usr/local/include -include rdkcertselector.h -Wall -Werror -O2" \
+    CFLAGS="$BASE_CFLAGS" \
     LDFLAGS="-L/usr/local/lib" \
     PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
 

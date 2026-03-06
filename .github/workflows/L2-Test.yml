@@ -34,7 +34,7 @@ jobs:
 
       - name: Build crashupload and run L2 tests
         run: |
-          docker exec -i native-platform /bin/bash -c "cd /mnt/L2_CONTAINER_SHARED_VOLUME/ && chmod +x cov_build.sh run_l2.sh && sh cov_build.sh && export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/lib/aarch64-linux-gnu:/usr/local/lib: && sh run_l2.sh"
+          docker exec -i native-platform /bin/bash -c "cd /mnt/L2_CONTAINER_SHARED_VOLUME/ && chmod +x cov_build.sh run_l2.sh && sh cov_build.sh --l2-test && export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/lib/aarch64-linux-gnu:/usr/local/lib: && sh run_l2.sh"
 
       - name: Copy L2 test results to runner
         run: |
