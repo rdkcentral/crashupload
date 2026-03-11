@@ -22,7 +22,10 @@
 # Script: run_l2.sh
 # Purpose: Run Level 2 (functional) tests for crashupload
 # Usage: sh run_l2.sh
-# Note: Binary must be built using cov_build.sh before running this script
+# Note: Binary must be built with --l2-test flag before running this script:
+#         sh cov_build.sh --l2-test
+#       This enables -DL2_TEST so the binary reads uptime from /opt/uptime
+#       instead of /proc/uptime, bypassing the 480-second deferral check.
 
 # Do NOT use set -e here: individual test failures should not abort the run;
 # we collect all results and print a consolidated summary at the end.
@@ -39,6 +42,13 @@ mkdir -p "$RESULT_DIR"
 
 # Start with a clean summary file so results from a previous run never leak in
 rm -f "$SUMMARY_FILE"
+
+# Create controlled uptime file for L2_TEST mode.
+# The binary is built with -DL2_TEST (via 'sh cov_build.sh --l2-test'), which
+# makes prerequisites.c read /opt/uptime instead of /proc/uptime.  A value of
+# 600 seconds is above the 480-second deferral threshold, so no sleep occurs.
+echo "600.0 1200.0" > /opt/uptime
+echo "Created /opt/uptime with 600 seconds (bypasses 480s deferral check)"
 
 # Setup test directories and environment
 mkdir -p /opt/secure/minidumps
@@ -143,5 +153,7 @@ rm -f /tmp/.uploadMinidumps
 rm -f /tmp/.uploadCoredumps
 rm -f /opt/secure/minidumps/*.dmp* 2>/dev/null || true
 rm -f /opt/secure/coredumps/*.dmp* 2>/dev/null || true
+rm -f /opt/uptime 2>/dev/null || true
+echo "L2 tests completed."
 
 exit $OVERALL_EXIT
