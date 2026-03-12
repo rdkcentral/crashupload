@@ -64,12 +64,33 @@ COREDUMP_LOCK_FILE   = "/tmp/.uploadCoredumps"
 #                             coredump → /var/lib/systemd/coredump
 SECURE_MINIDUMP_PATH = "/opt/secure/minidumps"
 SECURE_COREDUMP_PATH = "/opt/secure/corefiles"
+NORMAL_MINIDUMP_PATH = "/opt/minidumps"
+NORMAL_COREDUMP_PATH = "/var/lib/systemd/coredump"
 
 # NO_DUMPS_FOUND exit path: prerequisites_wait() returns 5 → goto cleanup → exit(0)
 NO_DUMPS_FOUND       = 5
 
 # Reboot flag checked by is_box_rebooting() in system_utils.c
 REBOOT_FLAG_FILE     = "/tmp/set_crash_reboot_flag"
+
+# Rate limiting files (ratelimit.h)
+DENY_UPLOADS_FILE            = "/tmp/.deny_dump_uploads_till"
+MINIDUMP_TIMESTAMPS_FILE     = "/tmp/.minidump_upload_timestamps"
+RECOVERY_DELAY_SEC           = 600  # RECOVERY_DELAY_SEC in ratelimit.h
+
+# Cleanup constants (types.h)
+ON_STARTUP_CLEANED_UP_BASE   = "/tmp/.on_startup_dumps_cleaned_up"
+UPLOAD_ON_STARTUP_FLAG       = "/opt/.upload_on_startup"
+MAX_CORE_FILES               = 4
+
+# Opt-out override file (config_manager.c)
+OPTOUT_FILE                  = "/opt/tmtryoptout"
+
+# L2_TEST controlled uptime file (prerequisites.c #ifdef L2_TEST)
+L2_UPTIME_FILE               = "/opt/uptime"
+
+# Device properties file read by getDevicePropertyData() (config_manager.c)
+DEVICE_PROPERTIES            = "/etc/device.properties"
 
 
 # ---------------------------------------------------------------------------
@@ -168,3 +189,38 @@ def wait_for_path(path: str, present: bool, timeout: float = 10.0) -> bool:
             return True
         time.sleep(0.1)
     return os.path.exists(path) == present
+
+
+def stash_dir_dumps(dir_path: str, pattern: str) -> list:
+    """
+    Move all files whose names contain *pattern* (substring) out of *dir_path*
+    to /tmp, returning a list of (tmp_path, original_path) tuples.
+
+    Use restore_stashed_dumps() in the test's finally block to put them back.
+
+    WHY /tmp and not in-place rename:
+    An in-place rename like 'test_app.dmp' -> 'test_app.dmp.bak' keeps '.dmp'
+    as a substring.  The binary's directory_has_pattern() uses strstr(), so it
+    would still find the backup file and treat it as a real dump, proceeding
+    to process it and eventually failing with exit(-1) / returncode 255.
+    Moving to /tmp makes the directory genuinely empty of matching files.
+    """
+    stashed = []
+    if not os.path.isdir(dir_path):
+        return stashed
+    pid = os.getpid()
+    for fname in sorted(os.listdir(dir_path)):
+        if pattern in fname:
+            src = os.path.join(dir_path, fname)
+            dst = f"/tmp/.l2_stash_{pid}_{fname}"
+            shutil.move(src, dst)
+            stashed.append((dst, src))
+    return stashed
+
+
+def restore_stashed_dumps(stash_list: list) -> None:
+    """Restore files previously moved by stash_dir_dumps() to their original paths."""
+    for tmp_path, orig_path in stash_list:
+        if os.path.exists(tmp_path):
+            os.makedirs(os.path.dirname(orig_path), exist_ok=True)
+            shutil.move(tmp_path, orig_path)

@@ -53,6 +53,7 @@ echo "Created /opt/uptime with 600 seconds (bypasses 480s deferral check)"
 # Setup test directories and environment
 mkdir -p /opt/secure/minidumps
 mkdir -p /opt/secure/coredumps
+mkdir -p /opt/secure/corefiles
 mkdir -p /opt/minidumps
 mkdir -p /var/lib/systemd/coredump
 mkdir -p /tmp
@@ -84,69 +85,26 @@ export CRASHUPLOAD_BINARY
 # Run functional tests with JSON reports
 # '|| OVERALL_EXIT=1' ensures we always continue to the next file and still
 # show the full summary table even when some tests fail.
-pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/lock_and_exit.json"    "$TEST_DIR/test_lock_and_exit.py"               || OVERALL_EXIT=1
-pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/lock_and_wait.json"   "$TEST_DIR/test_lock_and_wait.py"              || OVERALL_EXIT=1
-pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/failure_return.json"  "$TEST_DIR/test_crashupload_failure_return.py" || OVERALL_EXIT=1
-pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/arg_parsing.json"     "$TEST_DIR/test_crashupload_arg_parsing.py"    || OVERALL_EXIT=1
-pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/no_dumps_exit.json"   "$TEST_DIR/test_no_dumps_exit.py"              || OVERALL_EXIT=1
-pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/reboot_and_log.json"  "$TEST_DIR/test_reboot_and_log_scenario.py"    || OVERALL_EXIT=1
-pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/signal_lock.json"     "$TEST_DIR/test_signal_lock_cleanup.py"        || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/lock_and_exit.json" "$TEST_DIR/test_lock_and_exit.py"               || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/lock_and_wait.json" "$TEST_DIR/test_lock_and_wait.py"              || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/failure_return.json" "$TEST_DIR/test_crashupload_failure_return.py" || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/arg_parsing.json" "$TEST_DIR/test_crashupload_arg_parsing.py"    || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/no_dumps_exit.json" "$TEST_DIR/test_no_dumps_exit.py"              || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/reboot_and_log.json" "$TEST_DIR/test_reboot_and_log_scenario.py"    || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/signal_lock.json" "$TEST_DIR/test_signal_lock_cleanup.py"        || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/config_and_path.json" "$TEST_DIR/test_config_and_path.py"            || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/lock_lifecycle.json" "$TEST_DIR/test_lock_lifecycle.py"             || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/upload_deferral.json" "$TEST_DIR/test_upload_deferral.py"            || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/cleanup_batch.json" "$TEST_DIR/test_cleanup_batch.py"              || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/ratelimit.json" "$TEST_DIR/test_ratelimit.py"                       || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/unsupported_devices.json" "$TEST_DIR/test_unsupported_devicetypes.py"         || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/config_baseline.json" "$TEST_DIR/test_config_checks_and_baseline.py"     || OVERALL_EXIT=1
 
 # ---------------------------------------------------------------------------
 # Print consolidated L2 summary table from the accumulated summary file, then
 # clean up the file regardless of whether any tests failed.
 # ---------------------------------------------------------------------------
-python3 - "$SUMMARY_FILE" <<'EOF'
-import sys, os
-
-summary_file = sys.argv[1]
-if not os.path.exists(summary_file):
-    print("\n[run_l2] No summary file found — nothing to display.")
-    sys.exit(0)
-
-ordered, seen = [], {}
-with open(summary_file) as fh:
-    for raw in fh:
-        line = raw.strip()
-        if " = " not in line:
-            continue
-        name, result = line.split(" = ", 1)
-        name, result = name.strip(), result.strip()
-        if name not in seen:
-            ordered.append(name)
-        seen[name] = result
-
-os.remove(summary_file)
-
-entries = [(name, seen[name]) for name in ordered]
-if not entries:
-    sys.exit(0)
-
-col_name   = max(max(len(n) for n, _ in entries), len("Test Case Name"))
-col_result = max(max(len(r) for _, r in entries), len("Result"))
-
-sep    = "+" + "-" * (col_name + 2) + "+" + "-" * (col_result + 2) + "+"
-width  = len(sep)
-header = "| " + "Test Case Name".ljust(col_name) + " | " + "Result".ljust(col_result) + " |"
-
-passed = sum(1 for _, r in entries if r == "SUCCESS")
-failed = len(entries) - passed
-
-print()
-print("=" * width)
-print("  L2 FUNCTIONAL TEST SUMMARY")
-print("=" * width)
-print(sep)
-print(header)
-print(sep)
-for name, result in entries:
-    print("| " + name.ljust(col_name) + " | " + result.ljust(col_result) + " |")
-print(sep)
-print()
-print("  Total : {}   Passed : {}   Failed : {}".format(len(entries), passed, failed))
-print("=" * width)
-print()
-EOF
+python3 "$TEST_DIR/conftest.py" "$SUMMARY_FILE"
 
 # Cleanup
 rm -f /tmp/.uploadMinidumps

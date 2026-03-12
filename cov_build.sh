@@ -132,14 +132,15 @@ echo ""
 mkdir -p "$INSTALL_DIR"
 
 # Clone and build common_utilities
-echo "========================================"
-echo "Building common_utilities dependency"
-echo "========================================"
-cd ${ROOT}
-git clone https://github.com/rdkcentral/common_utilities.git -b feature/upload_L2
-cd common_utilities
-sh cov_build.sh
-echo ""
+# echo "========================================"
+# echo "Building common_utilities dependency"
+# echo "========================================"
+# cd ${ROOT}
+# #git clone https://github.com/rdkcentral/common_utilities.git -b feature/upload_L2
+# git clone https://github.com/rdkcentral/common_utilities.git
+# cd common_utilities
+# sh cov_build.sh
+# echo ""
 
 # Return to working directory and change to c_sourcecode directory
 cd "$WORKDIR"
