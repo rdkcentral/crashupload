@@ -58,13 +58,18 @@ mkdir -p /opt/minidumps
 mkdir -p /var/lib/systemd/coredump
 mkdir -p /tmp
 mkdir -p /opt/logs
-echo "LOG.RDK.DEFAULT" >> /etc/debug.ini
+# Ensure debug.ini exists and only add the entry once
+if [ -f /etc/debug.ini ]; then
+    if ! grep -qxF "LOG.RDK.DEFAULT" /etc/debug.ini 2>/dev/null; then
+        echo "LOG.RDK.DEFAULT" >> /etc/debug.ini
+    fi
+fi
 
 # Clean up any existing lock files and test artifacts
 rm -f /tmp/.uploadMinidumps
 rm -f /tmp/.uploadCoredumps
 rm -f /opt/secure/minidumps/*.dmp* 2>/dev/null || true
-rm -f /opt/secure/coredumps/*.dmp* 2>/dev/null || true
+rm -f /opt/secure/corefiles/*core* 2>/dev/null || true
 rm -f /opt/minidumps/*.dmp* 2>/dev/null || true
 rm -f /var/lib/systemd/coredump/*core* 2>/dev/null || true
 
@@ -114,7 +119,7 @@ python3 "$TEST_DIR/conftest.py" "$SUMMARY_FILE"
 rm -f /tmp/.uploadMinidumps
 rm -f /tmp/.uploadCoredumps
 rm -f /opt/secure/minidumps/*.dmp* 2>/dev/null || true
-rm -f /opt/secure/coredumps/*.dmp* 2>/dev/null || true
+rm -f /opt/secure/corefiles/*core* 2>/dev/null || true
 rm -f /opt/uptime 2>/dev/null || true
 echo "L2 tests completed."
 
