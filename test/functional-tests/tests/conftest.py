@@ -90,6 +90,10 @@ _TC_MAP = {
     "test_upload_blocked_when_deny_file_active":     "TC-051",
     "test_system_initialize_failure_exits_with_1":   "C-TC-001",
     "test_binary_produces_log_output":               "C-TC-002",
+    # Telemetry Opt-Out
+    "test_rfc_optout_set_mediaclient_exits_0":           "TC-038",
+    "test_optout_file_absent_upload_not_blocked":        "TC-039",
+    "test_optout_check_bypassed_for_nonmediaclient":     "TC-040",
     # Unsupported Device Types
     "test_broadband_device_type_no_dumps_exits_0":       "TC-004",
     "test_broadband_minidump_detection_in_core_path":    "TC-017",
@@ -104,6 +108,17 @@ _TC_MAP = {
     "test_mac_fallback_when_file_missing_or_empty":      "TC-024",
     "test_model_number_retrieved":                       "TC-025 / TC-026",
     "test_sha1_firmware_hash_from_version_txt":          "TC-028",
+    # Dump Processing
+    "test_existing_tgz_not_re_archived":                 "TC-060",
+    "test_zero_size_dump_handled_gracefully":            "TC-071",
+    # Rate Limiting — allow paths
+    "test_upload_allowed_when_count_at_or_below_limit":          "TC-048",
+    "test_coredump_not_rate_limited_by_minidump_counter":        "TC-050",
+    # Scanner Behaviour
+    "test_container_delimiter_preserved_in_sanitization":        "TC-057",
+    "test_forbidden_chars_dropped_from_filename":                "TC-058",
+    "test_container_name_preserved_with_forbidden_chars":        "TC-059",
+    "test_dump_filename_components_parsed_correctly":            "TC-064",
 }
 
 

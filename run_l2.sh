@@ -99,6 +99,10 @@ pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/ratelimit.json" "$TEST_DIR/test_ratelimit.py"                       || OVERALL_EXIT=1
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/unsupported_devices.json" "$TEST_DIR/test_unsupported_devicetypes.py"         || OVERALL_EXIT=1
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/config_baseline.json" "$TEST_DIR/test_config_checks_and_baseline.py"     || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/t2_optout.json"        "$TEST_DIR/test_t2_optout.py"                       || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/dump_processing.json" "$TEST_DIR/test_dump_processing.py"               || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/ratelimit_allow.json"  "$TEST_DIR/test_ratelimit_allow.py"               || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/scanner_behaviour.json" "$TEST_DIR/test_scanner_behaviour.py"             || OVERALL_EXIT=1
 
 # ---------------------------------------------------------------------------
 # Print consolidated L2 summary table from the accumulated summary file, then

@@ -68,9 +68,9 @@ sh cov_build.sh --l2-test
 | TC-035 | Defer upload when uptime < 480 s | Upload Deferral | ✅ Yes | `defer_upload_if_needed()` in `prerequisites.c` reads `UPTIME_FILE` and sleeps for `DEVICE_TYPE_MEDIACLIENT` when uptime < 480 s | ✅ Implemented | `test_upload_deferral.py` :: `test_deferred_when_uptime_below_threshold` |
 | TC-036 | No deferral when uptime ≥ 480 s | Upload Deferral | ✅ Yes | `defer_upload_if_needed()` skips sleep when uptime ≥ 480 s; L2_TEST build uses `/opt/uptime` for controlled values | ✅ Implemented | `test_upload_deferral.py` :: `test_no_deferral_when_uptime_above_threshold` |
 | TC-037 | Reboot flag present → skip upload, exit(0) | Upload Deferral | ✅ Yes | `filePresentCheck("/tmp/set_crash_reboot_flag")` returns true inside `defer_upload_if_needed()` → `ret=0` → `goto cleanup` → `exit(0)` | ✅ Implemented | `test_reboot_and_log_scenario.py` :: `test_reboot_flag_present_skips_upload_exits_0` |
-| TC-038 | RFC opt-out flag set → skip upload | Telemetry Opt-Out | ✅ Yes | `get_opt_out_status()` in `config_manager.c` queries RFC value; returns opt-out when flag is set | 🔲 Not Yet | — |
-| TC-039 | Opt-out file present → skip upload | Telemetry Opt-Out | ✅ Yes | `get_opt_out_status()` additionally checks for presence of opt-out override file on filesystem | 🔲 Not Yet | — |
-| TC-040 | Opt-out check only for `MEDIACLIENT` device type | Telemetry Opt-Out | ✅ Yes | `get_opt_out_status()` check is gated on `DEVICE_TYPE_MEDIACLIENT`; other device types bypass this check | 🔲 Not Yet | — |
+| TC-038 | RFC opt-out flag set → skip upload | Telemetry Opt-Out | ✅ Yes | `get_opt_out_status()` in `config_manager.c` queries RFC value; returns opt-out when flag is set | ✅ Implemented | `test_t2_optout.py` :: `test_rfc_optout_set_mediaclient_exits_0` |
+| TC-039 | Opt-out file present → skip upload | Telemetry Opt-Out | ✅ Yes | `get_opt_out_status()` additionally checks for presence of opt-out override file on filesystem | ✅ Implemented | `test_t2_optout.py` :: `test_optout_file_absent_upload_not_blocked` |
+| TC-040 | Opt-out check only for `MEDIACLIENT` device type | Telemetry Opt-Out | ✅ Yes | `get_opt_out_status()` check is gated on `DEVICE_TYPE_MEDIACLIENT`; other device types bypass this check | ✅ Implemented | `test_t2_optout.py` :: `test_optout_check_bypassed_for_nonmediaclient` |
 | TC-041 | On-startup cleanup removes oldest dump files | Cleanup | ✅ Yes | `cleanup_batch()` in `cleanup_batch.c` mtime-sorts files; removes oldest beyond limit; uses `ON_STARTUP_DUMPS_CLEANED_UP_BASE` flag | ✅ Implemented | `test_cleanup_batch.py` :: `test_startup_cleanup_deletes_non_dump_files` |
 | TC-042 | Old dump files deleted to enforce limit | Cleanup | ✅ Yes | Files older than newest `MAX_CORE_FILES=4` are deleted during cleanup pass | ✅ Implemented | `test_cleanup_batch.py` :: `test_stale_archive_files_older_than_2_days_deleted` |
 | TC-043 | First-run cleanup flag file created | Cleanup | ✅ Yes | `ON_STARTUP_DUMPS_CLEANED_UP_BASE` flag file is created after first-run cleanup completes | ✅ Implemented | `test_cleanup_batch.py` :: `test_first_run_flag_created` |
@@ -78,30 +78,30 @@ sh cov_build.sh --l2-test
 | TC-045 | `MAX_CORE_FILES=4` limit enforced | Cleanup | ✅ Yes | Only the 4 newest files are retained; all older files are deleted by `cleanup_batch()` | ✅ Implemented | `test_cleanup_batch.py` :: `test_max_core_files_limit_enforced` |
 | TC-046 | Empty dump directory handled gracefully | Cleanup | ✅ Yes | `cleanup_batch()` handles `opendir()` returning NULL or empty directory without error | ✅ Implemented | `test_cleanup_batch.py` :: `test_empty_dir_handled_gracefully` |
 | TC-047 | Upload-on-startup mode (minidump-on-bootup) | Cleanup | ⚠️ Partial | Upload-on-startup flow exists in `main.c` via `minidump-on-bootup-upload.service`; exact behaviour may differ from shell on-startup path | 🔲 Not Yet | — |
-| TC-048 | Upload count ≤ 10 → ALLOW_UPLOAD | Rate Limiting | ✅ Yes | `is_upload_limit_reached()` in `ratelimit.c` counts timestamp file lines; ≤ 10 entries → returns `ALLOW_UPLOAD` | 🔲 Not Yet | — |
+| TC-048 | Upload count ≤ 10 → ALLOW_UPLOAD | Rate Limiting | ✅ Yes | `is_upload_limit_reached()` in `ratelimit.c` counts timestamp file lines; ≤ 10 entries → returns `ALLOW_UPLOAD` | ✅ Implemented | `test_ratelimit_allow.py` :: `test_upload_allowed_when_count_at_or_below_limit` |
 | TC-049 | Upload count > 10 within window → STOP_UPLOAD | Rate Limiting | ✅ Yes | > 10 lines within `RECOVERY_DELAY_SECONDS` window → `is_upload_limit_reached()` returns `STOP_UPLOAD` | ✅ Implemented | `test_ratelimit.py` :: `test_upload_blocked_when_count_exceeds_10` |
-| TC-050 | Rate limiting applied to minidump path only | Rate Limiting | ✅ Yes | `ratelimit_check_unified()` called in `main.c` only for `DUMP_TYPE_MINIDUMP` branch; coredump path skips rate limiting | 🔲 Not Yet | — |
+| TC-050 | Rate limiting applied to minidump path only | Rate Limiting | ✅ Yes | `ratelimit_check_unified()` called in `main.c` only for `DUMP_TYPE_MINIDUMP` branch; coredump path skips rate limiting | ✅ Implemented | `test_ratelimit_allow.py` :: `test_coredump_not_rate_limited_by_minidump_counter` |
 | TC-051 | Recovery time not yet reached → uploads still blocked | Rate Limiting | ✅ Yes | `is_recovery_time_reached()` reads deny-till timestamp from `/tmp/.deny_dump_uploads_till`; still inside window → blocked | ✅ Implemented | `test_ratelimit.py` :: `test_upload_blocked_when_deny_file_active` |
 | TC-052 | Recovery time reached → uploads unblocked | Rate Limiting | ✅ Yes | `is_recovery_time_reached()` returns `true` after window expires → uploads resume normally | 🔲 Not Yet | — |
 | TC-053 | Timestamp written to rate limit log after upload | Rate Limiting | ✅ Yes | `set_time()` in `ratelimit.c` appends current timestamp entry to rate limit log file | 🔲 Not Yet | — |
 | TC-054 | Rate limit counter resets after recovery period | Rate Limiting | ✅ Yes | Timestamps older than `RECOVERY_DELAY_SECONDS` are not counted; counter effectively resets after recovery period | 🔲 Not Yet | — |
 | TC-055 | Timestamp written in truncated integer format | Rate Limiting | ✅ Yes | `set_time()` writes truncated (integer) timestamp — fractional seconds stripped before writing | 🔲 Not Yet | — |
 | TC-056 | Timestamp suppressed for non-production builds | Rate Limiting | ❌ No | Shell silences timestamp writes when `BUILD_TYPE` is non-prod; C `ratelimit.c` always writes timestamp regardless of build type | — | — |
-| TC-057 | Filename sanitisation preserves container delimiter | Dump Processing | ✅ Yes | `sanitize_filename_preserve_container()` in `scanner.c` preserves the `<#=#>` delimiter and container name suffix intact | 🔲 Not Yet | — |
-| TC-058 | Special characters in filename replaced with `_` | Dump Processing | ✅ Yes | Non-alphanumeric chars (excluding `-`, `.`, `_`) are replaced with `_` by `sanitize_filename_preserve_container()` | 🔲 Not Yet | — |
-| TC-059 | Container name preserved after sanitisation | Dump Processing | ✅ Yes | Text after `<#=#>` delimiter is kept verbatim through the sanitisation pass | 🔲 Not Yet | — |
-| TC-060 | Skip existing `.tgz` archive files | Dump Processing | ✅ Yes | Dump iteration loop in `main.c` skips files whose extension matches `.tgz` to avoid re-processing already-archived dumps | 🔲 Not Yet | — |
+| TC-057 | Filename sanitisation preserves container delimiter | Dump Processing | ✅ Yes | `sanitize_filename_preserve_container()` in `scanner.c` preserves the `<#=#>` delimiter and container name suffix intact | ✅ Implemented | `test_scanner_behaviour.py` :: `test_container_delimiter_preserved_in_sanitization` |
+| TC-058 | Special characters in filename replaced with `_` | Dump Processing | ✅ Yes | Non-alphanumeric chars (excluding `-`, `.`, `_`) are replaced with `_` by `sanitize_filename_preserve_container()` | ✅ Implemented | `test_scanner_behaviour.py` :: `test_forbidden_chars_dropped_from_filename` |
+| TC-059 | Container name preserved after sanitisation | Dump Processing | ✅ Yes | Text after `<#=#>` delimiter is kept verbatim through the sanitisation pass | ✅ Implemented | `test_scanner_behaviour.py` :: `test_container_name_preserved_with_forbidden_chars` |
+| TC-060 | Skip existing `.tgz` archive files | Dump Processing | ✅ Yes | Dump iteration loop in `main.c` skips files whose extension matches `.tgz` to avoid re-processing already-archived dumps | ✅ Implemented | `test_dump_processing.py` :: `test_existing_tgz_not_re_archived` |
 | TC-061 | Archive filename includes MAC + timestamp + pname + version | Dump Processing | ✅ Yes | Output archive named `<mac>_<timestamp>_<pname>_<version>.tgz`; assembled in `main.c` / `archive.c` | 🔲 Not Yet | — |
 | TC-062 | Archive filename truncated at 135 characters | Dump Processing | ✅ Yes | `trim_process_name_in_path()` in `main.c` enforces 135-character filename limit for archive names | 🔲 Not Yet | — |
 | TC-063 | `mpeos-main` process name mapped correctly | Dump Processing | ✅ Yes | `mpeos-main` recognised and mapped to its standardised archive name during dump naming in `main.c` | 🔲 Not Yet | — |
-| TC-064 | Dump filename components parsed correctly | Dump Processing | ✅ Yes | `extract_pname()` and `extract_appname()` in `scanner.c` parse process name and application name from dump filename | 🔲 Not Yet | — |
+| TC-064 | Dump filename components parsed correctly | Dump Processing | ✅ Yes | `extract_pname()` and `extract_appname()` in `scanner.c` parse process name and application name from dump filename | ✅ Implemented | `test_scanner_behaviour.py` :: `test_dump_filename_components_parsed_correctly` |
 | TC-065 | Archive created with dump file and associated logs | Archive Creation | ✅ Yes | `archive_create_smart()` in `archive.c` produces a `.tgz` containing the dump file and all mapped log files | 🔲 Not Yet | — |
 | TC-066 | Archive contains all required files | Archive Creation | ✅ Yes | `archive_create_smart()` verifies each required file is added; returns error if mandatory file missing | 🔲 Not Yet | — |
 | TC-067 | Broadband-specific log archive behaviour | Archive Creation | ⚠️ Partial | Broadband archive logic exists in `archive.c` but the set of included logs differs from the shell implementation | 🔲 Not Yet | — |
 | TC-068 | `/tmp` free-space check before archiving | Archive Creation | ❌ No | Shell checks `/tmp` free space before creating archive; C `archive_create_smart()` performs no disk-space pre-check | — | — |
 | TC-069 | Archive retry when `/tmp` disk is full | Archive Creation | ❌ No | Shell retries archive creation using a fallback `copy_log_files_tmp_dir` path; C has no equivalent retry mechanism | — | — |
 | TC-070 | Temporary directory cleanup after archive | Archive Creation | ❌ No | Shell-specific temp directory copy-and-cleanup pattern (`copy_log_files_tmp_dir`); not present in C | — | — |
-| TC-071 | Zero-size dump file skipped | Dump Processing | ✅ Yes | `stat()`-based size check in `scanner.c` / `archive.c` detects and skips zero-byte dump files | 🔲 Not Yet | — |
+| TC-071 | Zero-size dump file skipped | Dump Processing | ✅ Yes | `stat()`-based size check in `scanner.c` / `archive.c` detects and skips zero-byte dump files | ✅ Implemented | `test_dump_processing.py` :: `test_zero_size_dump_handled_gracefully` |
 | TC-072 | Process crash telemetry event sent | Crash Telemetry | ✅ Yes | `t2_event_s(T2_EVENT_PROCESS_CRASH, ...)` called in `scanner.c` when a process crash dump is processed | 🔲 Not Yet | — |
 | TC-073 | Container crash telemetry event sent | Crash Telemetry | ✅ Yes | `t2_event_s(T2_EVENT_CONTAINER_CRASH, ...)` called in `scanner.c` when a container crash dump is detected | 🔲 Not Yet | — |
 | TC-074 | Telemetry on tarball-retry (isTgz) detection | Crash Telemetry | ❌ No | Shell-specific: `isTgz` checks if re-upload of a previous tarball is happening and emits telemetry; no equivalent in C | — | — |
@@ -127,8 +127,8 @@ sh cov_build.sh --l2-test
 | ✅ Applicable to C implementation | 60 |
 | ⚠️ Partially applicable | 10 |
 | ❌ Not applicable (shell-only) | 15 |
-| **Applicable TCs with L2 tests** | **35** |
-| **Applicable TCs without L2 tests** | **35** |
+| **Applicable TCs with L2 tests** | **46** |
+| **Applicable TCs without L2 tests** | **24** |
 
 ### Applicable TCs — Coverage Breakdown by Category
 
@@ -140,15 +140,15 @@ sh cov_build.sh --l2-test
 | Device Info | 8 | 2 | 3 | 3 | 5 (TC-023, TC-024, TC-025, TC-026, TC-028) |
 | Network / Prerequisites | 4 | 0 | 3 | 1 | 0 |
 | Upload Deferral | 3 | 3 | 0 | 0 | 3 (TC-035, TC-036, TC-037) |
-| Telemetry Opt-Out | 3 | 3 | 0 | 0 | 0 |
+| Telemetry Opt-Out | 3 | 3 | 0 | 0 | 3 (TC-038, TC-039, TC-040) |
 | Cleanup | 7 | 6 | 1 | 0 | 6 (TC-041, TC-042, TC-043, TC-044, TC-045, TC-046) |
-| Rate Limiting | 9 | 8 | 0 | 1 | 2 (TC-049, TC-051) |
-| Dump Processing & Naming | 8 | 8 | 0 | 0 | 0 |
+| Rate Limiting | 9 | 8 | 0 | 1 | 4 (TC-048, TC-049, TC-050, TC-051) |
+| Dump Processing & Naming | 8 | 8 | 0 | 0 | 6 (TC-057, TC-058, TC-059, TC-060, TC-064, TC-071) |
 | Archive Creation | 6 | 2 | 1 | 3 | 0 |
 | Crash Telemetry | 4 | 2 | 0 | 2 | 0 |
 | Log File Mapping | 6 | 4 | 0 | 2 | 0 |
 | Upload | 4 | 3 | 1 | 0 | 0 |
-| **Total** | **85** | **60** | **10** | **15** | **35** |
+| **Total** | **85** | **60** | **10** | **15** | **46** |
 
 ---
 
