@@ -67,6 +67,15 @@ TC-046 — Empty dump directory is handled gracefully
     directory is empty it returns immediately without error.  The binary
     continues to scanner_find_dumps() which likewise finds nothing and exits
     cleanly with code 0.
+
+TC-047 — /opt/.upload_on_startup is removed on coredump mode run
+    When /opt/.upload_on_startup EXISTS, cleanup_batch() takes the else
+    branch and skips the entire startup cleanup block.  If dump_flag == "1"
+    (coredump mode) it then calls unlink("/opt/.upload_on_startup").
+    cleanup_batch() is called twice per run: the first call removes the flag
+    (else branch), the second call (at cleanup: label) no longer sees it and
+    runs the normal startup path creating ON_STARTUP_CLEANED_UP_BASE_1.
+    Primary verified assertion: /opt/.upload_on_startup is deleted after the run.
 """
 
 import os
@@ -491,5 +500,85 @@ class TestCleanupBatch:
             if os.path.exists(MINIDUMP_LOCK_FILE):
                 os.unlink(MINIDUMP_LOCK_FILE)
 
+    # ------------------------------------------------------------------
+    # TC-047: upload-on-startup mode — flag removed, no ON_STARTUP flag
+    # ------------------------------------------------------------------
+    def test_upload_on_startup_flag_removed_for_coredump_mode(
+        self, binary_path, cleanup_pytest_cache
+    ):
+        """
+        TC-047 — /opt/.upload_on_startup is removed when dump_flag == "1" (coredump).
 
+        When /opt/.upload_on_startup EXISTS, cleanup_batch() takes the else
+        branch (skipping startup cleanup) and, if dump_flag == "1", calls
+        unlink("/opt/.upload_on_startup").
 
+        Source: cleanup_batch.c lines 496-499:
+            if (dump_flag && strcmp(dump_flag, "1") == 0)
+                unlink("/opt/.upload_on_startup");
+
+        NOTE on the ON_STARTUP flag: cleanup_batch() is called TWICE per
+        binary run — once before scanning and once at the cleanup: label.
+        The first call sees /opt/.upload_on_startup → unlinks it (else branch).
+        The second call no longer sees the file → takes the normal startup path
+        → creates ON_STARTUP_CLEANED_UP_BASE_1.  So the flag IS expected to be
+        created by the second call; asserting it is absent would be wrong.
+
+        Primary assertion:
+          /opt/.upload_on_startup is REMOVED after the run (first call did it).
+
+        Secondary assertion:
+          Binary exits 0.
+        """
+        _ON_STARTUP_FLAG_CORE = f"{ON_STARTUP_CLEANED_UP_BASE}_1"
+
+        _ensure_system_init_prereqs()
+        os.makedirs(SECURE_MINIDUMP_PATH, exist_ok=True)
+
+        # Use coredump lock file for argv[2]="1" run
+        coredump_lock = "/tmp/.uploadCoredumps"
+        if os.path.exists(coredump_lock):
+            os.unlink(coredump_lock)
+
+        # Pre-condition: /opt/.upload_on_startup exists
+        os.makedirs("/opt", exist_ok=True)
+        Path(UPLOAD_ON_STARTUP_FLAG).touch(exist_ok=True)
+
+        # Ensure ON_STARTUP flag for coredump mode is absent before the run
+        if os.path.exists(_ON_STARTUP_FLAG_CORE):
+            os.unlink(_ON_STARTUP_FLAG_CORE)
+
+        # Plant a coredump file so prerequisites_wait() passes dump-detection
+        # and cleanup_batch() is called with a non-empty working directory.
+        secure_corepath = "/opt/secure/corefiles"
+        os.makedirs(secure_corepath, exist_ok=True)
+        dump = create_dummy_dump(secure_corepath, "tc047_proc_core.prog")
+
+        # Reboot flag prevents upload_process() from attempting a real upload.
+        Path(REBOOT_FLAG_FILE).touch(exist_ok=True)
+
+        try:
+            result = subprocess.run(
+                [binary_path, "", "1", "secure"],   # "1" → DUMP_TYPE_COREDUMP
+                capture_output=True,
+                timeout=30,
+            )
+            assert result.returncode == 0, (
+                f"TC-047: Expected exit 0, got {result.returncode}\n"
+                f"stdout: {result.stdout.decode(errors='replace')}"
+            )
+
+            # Primary assertion: upload_on_startup flag must be removed by the
+            # first cleanup_batch() call (the else-branch unlink path).
+            assert not os.path.exists(UPLOAD_ON_STARTUP_FLAG), (
+                "TC-047: /opt/.upload_on_startup must be removed by cleanup_batch() "
+                "when dump_flag == '1' and the file is present"
+            )
+        finally:
+            for path in [dump, REBOOT_FLAG_FILE, UPLOAD_ON_STARTUP_FLAG,
+                         _ON_STARTUP_FLAG_CORE]:
+                if os.path.exists(path):
+                    os.unlink(path)
+            _cleanup_tgz_files(secure_corepath)
+            if os.path.exists(coredump_lock):
+                os.unlink(coredump_lock)

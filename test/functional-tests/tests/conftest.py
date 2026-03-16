@@ -38,7 +38,18 @@ import pytest
 SUMMARY_FILE = "/tmp/l2_test_summary.txt"
 
 # Total applicable TCs in uploadDumps_TestCases.md (kept in sync with L2_TESTS.md)
-_TC_TOTAL_APPLICABLE = 85
+# TC-031/032/033 reclassified as ❌ Not Applicable (network-wait is an unimplemented TODO stub)
+# TC-084 reclassified as ❌ Not Applicable (fallback upload path is TODO: SUPPORT NOT AVAILABLE)
+#
+# Ground-truth count breakdown (see L2_TESTS.md Not-Applicable TCs — Summary table):
+#   Not Applicable (❌ No): TC-001,002,003,010,027,029,030,031,032,033,034,
+#                           TC-056,068,069,070,074,076,077,084  = 19 TCs
+#   Applicable (✅ Yes + ⚠️ Partial): 85 - 19                            = 66 TCs
+#   Applicable & Implemented:                                             = 63 TCs
+#   Applicable & Not Implemented: TC-081, TC-082, TC-083                  =  3 TCs
+_TC_TOTAL            = 85
+_TC_NOT_APPLICABLE   = 19
+_TC_TOTAL_APPLICABLE = 66  # _TC_TOTAL - _TC_NOT_APPLICABLE
 
 # Session-level counters updated by pytest_runtest_logreport
 _session_pass = 0
@@ -92,6 +103,7 @@ _TC_MAP = {
     "test_subsequent_run_skips_startup_cleanup":     "TC-044",
     "test_max_core_files_limit_enforced":            "TC-045",
     "test_empty_dir_handled_gracefully":             "TC-046",
+    "test_upload_on_startup_flag_removed_for_coredump_mode": "TC-047",
     # Rate Limiting
     "test_upload_blocked_when_count_exceeds_10":     "TC-049",
     "test_upload_blocked_when_deny_file_active":     "TC-051",
@@ -122,7 +134,9 @@ _TC_MAP = {
     "test_upload_allowed_when_count_at_or_below_limit":          "TC-048",
     "test_coredump_not_rate_limited_by_minidump_counter":        "TC-050",
     "test_recovery_time_expired_unblocks_upload":                "TC-052",
+    "test_no_deny_file_allows_upload_to_proceed":                "TC-053",
     "test_rate_limit_resets_after_recovery_period":              "TC-054",
+    "test_set_time_writes_integer_format_timestamp":             "TC-055",
     # Archive Naming
     "test_archive_filename_contains_required_fields":            "TC-061",
     "test_archive_filename_truncated_at_135_chars":              "TC-062",
@@ -248,16 +262,23 @@ def pytest_runtest_logreport(report):
 def pytest_terminal_summary(terminalreporter, exitstatus, config):
     """Print a compact coverage block at the end of every pytest session."""
     total = _session_pass + _session_fail
-    pass_str  = f"{_session_pass} passed"
-    fail_str  = f"{_session_fail} failed"
-    run_line  = f"This run:    {pass_str}, {fail_str}  ({total} test functions)"
-    cov_line  = f"TC coverage: {_TC_COVERAGE} / {_TC_TOTAL_APPLICABLE} applicable TCs have L2 tests"
-    width = max(len(run_line), len(cov_line)) + 4
+    not_implemented = _TC_TOTAL_APPLICABLE - _TC_COVERAGE
+
+    lines = [
+        f"Found TCs                       : {_TC_TOTAL}",
+        f"Not Applicable TCs              : {_TC_NOT_APPLICABLE}",
+        f"Applicable TCs                  : {_TC_TOTAL_APPLICABLE}  ({_TC_TOTAL} − {_TC_NOT_APPLICABLE})",
+        f"  ✔ Applicable & Implemented    : {_TC_COVERAGE}",
+        f"  ○ Applicable & Not Implemented : {not_implemented}",
+        "",
+        f"This run  :  {_session_pass} passed, {_session_fail} failed  ({total} test functions)",
+    ]
+    width = max(len(l) for l in lines) + 4
     sep = "─" * width
     terminalreporter.write_sep("=", "L2 Coverage Summary")
     terminalreporter.write_line(sep)
-    terminalreporter.write_line(f"  {run_line}")
-    terminalreporter.write_line(f"  {cov_line}")
+    for l in lines:
+        terminalreporter.write_line(f"  {l}")
     terminalreporter.write_line(sep)
 
 

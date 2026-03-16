@@ -248,3 +248,95 @@ class TestRateLimit:
                     os.unlink(path)
             if os.path.exists(MINIDUMP_LOCK_FILE):
                 os.unlink(MINIDUMP_LOCK_FILE)
+
+    # ------------------------------------------------------------------
+    # TC-055: set_time() writes timestamps as truncated integers
+    #         (no fractional seconds / decimal point in output)
+    # ------------------------------------------------------------------
+    def test_set_time_writes_integer_format_timestamp(
+        self, binary_path, cleanup_pytest_cache
+    ):
+        """
+        TC-055 — set_time() uses %ld format; timestamp is a truncated integer.
+
+        set_time() always writes via:
+            fprintf(fp, "%ld\n", deny_until)
+        where deny_until is cast to long — fractional seconds are dropped.
+
+        This test exercises the RECOVERY_TIME path (called when RATELIMIT_BLOCK
+        fires due to > 10 timestamps within the window) and explicitly verifies
+        that the written value is a pure integer:
+          • Contains only digit characters (raw.isdigit())
+          • No decimal point
+          • Parseable as Python int() without error
+          • Value is approximately now + RECOVERY_DELAY_SEC (within 5 s tolerance)
+
+        Note: The CURRENT_TIME path (timestamp appended to the minidump timestamps
+        file after a successful upload) uses the exact same fprintf() call.  Testing
+        RECOVERY_TIME is sufficient to validate the format; the CURRENT_TIME path
+        requires a live mock HTTP server to exercise.
+        """
+        _ensure_system_init_prereqs()
+        os.makedirs(SECURE_MINIDUMP_PATH, exist_ok=True)
+        if os.path.exists(MINIDUMP_LOCK_FILE):
+            os.unlink(MINIDUMP_LOCK_FILE)
+
+        # Clear previous rate-limit state
+        for f in [DENY_UPLOADS_FILE, MINIDUMP_TIMESTAMPS_FILE]:
+            if os.path.exists(f):
+                os.unlink(f)
+
+        # 11 timestamps with first entry within the 600-second window
+        # → is_upload_limit_reached() returns STOP_UPLOAD
+        # → ratelimit_check_unified() calls set_time(DENY_UPLOADS_FILE, RECOVERY_TIME)
+        now_ts = int(time.time())
+        first_ts = now_ts - 300   # 5 minutes ago — within 600s window
+        lines = [str(first_ts)] + [str(now_ts)] * 10   # 11 lines total
+        Path(MINIDUMP_TIMESTAMPS_FILE).write_text("\n".join(lines) + "\n")
+
+        dump = create_dummy_dump(SECURE_MINIDUMP_PATH, "tc055_ts.dmp")
+
+        try:
+            result = subprocess.run(
+                [binary_path, "", "0", "secure"],
+                capture_output=True,
+                timeout=60,
+            )
+            assert result.returncode == 0, (
+                f"Expected exit 0 via rate-limit block, got {result.returncode}\n"
+                f"stdout: {result.stdout.decode(errors='replace')}"
+            )
+
+            assert os.path.exists(DENY_UPLOADS_FILE), (
+                "TC-055: DENY_UPLOADS_FILE not created — set_time(RECOVERY_TIME) "
+                "was not called; cannot verify timestamp format"
+            )
+
+            raw = Path(DENY_UPLOADS_FILE).read_text().strip()
+
+            # Format check: pure digits only — no decimal point, no scientific notation
+            assert raw.isdigit(), (
+                f"TC-055: deny-file content '{raw}' is not a pure integer — "
+                "set_time() must write %ld format (no fractional seconds)"
+            )
+            assert "." not in raw, (
+                f"TC-055: deny-file content '{raw}' contains a decimal point — "
+                "timestamp must be a truncated (floor) integer, not a float"
+            )
+
+            written_ts = int(raw)
+            assert written_ts > now_ts, (
+                f"TC-055: written timestamp {written_ts} is not > now ({now_ts}) — "
+                "RECOVERY_TIME path should write now + RECOVERY_DELAY_SEC"
+            )
+            assert written_ts <= now_ts + RECOVERY_DELAY_SEC + 5, (
+                f"TC-055: written timestamp {written_ts} is unexpectedly large "
+                f"(expected ~{now_ts + RECOVERY_DELAY_SEC})"
+            )
+        finally:
+            for path in [dump, DENY_UPLOADS_FILE, MINIDUMP_TIMESTAMPS_FILE,
+                         _ON_STARTUP_FLAG_MINI]:
+                if os.path.exists(path):
+                    os.unlink(path)
+            if os.path.exists(MINIDUMP_LOCK_FILE):
+                os.unlink(MINIDUMP_LOCK_FILE)

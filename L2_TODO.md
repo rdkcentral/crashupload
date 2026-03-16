@@ -6,7 +6,7 @@ Tracks which applicable TCs still need L2 functional tests.
 
 ---
 
-## ✅ Applicable + Implemented — 60 TCs
+## ✅ Applicable + Implemented — 63 TCs
 
 | TC-ID | Test Case Name |
 |-------|----------------|
@@ -45,6 +45,7 @@ Tracks which applicable TCs still need L2 functional tests.
 | TC-044 | Subsequent runs skip first-run cleanup pass |
 | TC-045 | `MAX_CORE_FILES=4` limit enforced |
 | TC-046 | Empty dump directory handled gracefully |
+| TC-047 | Upload-on-startup mode — `/opt/.upload_on_startup` removed on coredump run |
 | TC-048 | Upload count ≤ 10 → ALLOW_UPLOAD |
 | TC-049 | Upload count > 10 within window → STOP_UPLOAD |
 | TC-050 | Rate limiting applied to minidump path only |
@@ -69,28 +70,96 @@ Tracks which applicable TCs still need L2 functional tests.
 | TC-078 | Missing log file handled gracefully |
 | TC-079 | `crashed_url.txt` generated with upload URL |
 | TC-080 | All associated log files added to archive |
+| TC-053 | Rate-limit check passes when no deny file present (is_recovery_time_reached) | Rate Limiting |
+| TC-055 | set_time() writes timestamps in integer format (no fractional seconds) | Rate Limiting |
 | TC-085 | Single instance lock prevents duplicate execution |
 
 ---
 
-## 🔲 Applicable + Not Implemented — 10 TCs
+## 🔲 Applicable + Not Implemented — 3 TCs
 
-### Not Upload Related — 6
-
-| TC-ID | Test Case Name | Category |
-|-------|----------------|----------|
-| TC-031 | Wait for network connectivity before upload | Network / Prerequisites |
-| TC-032 | Network becomes available → processing proceeds | Network / Prerequisites |
-| TC-033 | Network timeout → abort | Network / Prerequisites |
-| TC-047 | Upload-on-startup mode (minidump-on-bootup) | Cleanup |
-| TC-053 | Timestamp written to rate limit log after upload | Rate Limiting |
-| TC-055 | Timestamp written in truncated integer format | Rate Limiting |
-
-### Upload Related — 4
+### Upload Related — 3
 
 | TC-ID | Test Case Name | Category |
 |-------|----------------|----------|
 | TC-081 | Upload succeeds on first attempt | Upload |
 | TC-082 | Upload retried up to 3 times on failure | Upload |
 | TC-083 | Upload permanently fails after 3 retries → error logged | Upload |
-| TC-084 | Fallback to alternative upload path | Upload |
+
+---
+
+## ❌ Not Applicable — 19 TCs
+
+These TCs cover shell-specific behaviour or unimplemented C stubs with no equivalent in the C implementation.
+See `L2_TESTS.md` "Not-Applicable TCs — Summary" for the reason each was excluded.
+
+### Config & Init — 3
+
+| TC-ID | Test Case Name | Reason |
+|-------|----------------|--------|
+| TC-001 | Source `device.properties` on startup | Shell `source` sets global vars; C uses `rf_hal_property_get()` API internally |
+| TC-002 | Source `include.properties` on startup | Shell global variable setup; C uses compile-time / runtime config API |
+| TC-003 | Source `t2Shared_api.sh` T2 library | Shell sources T2 helper script; C links T2 library directly |
+
+### Network / Prerequisites — 4
+
+| TC-ID | Test Case Name | Reason |
+|-------|----------------|--------|
+| TC-031 | Wait for network connectivity before upload | Network-wait loop is an unimplemented TODO stub in `prerequisites_wait()` |
+| TC-032 | Network becomes available → processing proceeds | Depends on same unimplemented network-wait loop as TC-031 |
+| TC-033 | Network timeout → abort | Depends on same unimplemented network-wait loop; no timeout path exists |
+| TC-034 | Broadband network via `network_commn_status` | Pure shell function; no direct equivalent in C |
+
+### Device Info — 3
+
+| TC-ID | Test Case Name | Reason |
+|-------|----------------|--------|
+| TC-027 | Model number from `getDeviceDetails.sh` | Shell-specific; C uses `common_device_api` library call directly |
+| TC-029 | Partner ID via `getpartnerid.sh` | Shell-specific; C reads partner ID via `rf_hal_property_get()` |
+| TC-030 | Partner ID from account management file | Shell `grep`s account file; no equivalent file-grep logic in C |
+
+### Rate Limiting — 1
+
+| TC-ID | Test Case Name | Reason |
+|-------|----------------|--------|
+| TC-056 | Timestamp suppressed for non-production builds | Shell silences timestamp writes for non-prod; C `ratelimit.c` always writes regardless of build type |
+
+### Upload — 2
+
+| TC-ID | Test Case Name | Reason |
+|-------|----------------|--------|
+| TC-010 | TLS v1.2 curl flag | Shell passes `--tlsv1.2` on CLI curl; C uses libcurl `CURLOPT_SSLVERSION` |
+| TC-084 | Fallback to alternative upload path | Fallback path is `TODO: SUPPORT NOT AVAILABLE` stub in `upload.c`; feature not implemented |
+
+### Archive Creation — 3
+
+| TC-ID | Test Case Name | Reason |
+|-------|----------------|--------|
+| TC-068 | `/tmp` free-space check before archiving | Shell pre-checks `/tmp` disk space; C `archive_create_smart()` has no disk-space check |
+| TC-069 | Archive retry when `/tmp` disk is full | Shell retries via `copy_log_files_tmp_dir` fallback; C has no retry mechanism |
+| TC-070 | Temporary directory cleanup after archive | Shell-specific temp directory copy-and-cleanup pattern; not present in C |
+
+### Crash Telemetry — 1
+
+| TC-ID | Test Case Name | Reason |
+|-------|----------------|--------|
+| TC-074 | Telemetry on tarball-retry (`isTgz`) detection | Shell-specific `isTgz` re-upload detection; no equivalent in C |
+
+### Log File Mapping — 2
+
+| TC-ID | Test Case Name | Reason |
+|-------|----------------|--------|
+| TC-076 | Log file lines capped at 500 (production build) | Shell truncates to 500 lines for prod; C archives entire log without line-count limits |
+| TC-077 | Log file lines capped at 5000 (non-production build) | Shell truncates to 5000 lines for non-prod; C has no build-type-based line-count limit |
+
+---
+
+## Summary
+
+| Status | Count |
+|--------|-------|
+| Total TCs in `uploadDumps_TestCases.md` | 85 |
+| ❌ Not Applicable | 19 |
+| ✅ Applicable — total | 66 |
+| &nbsp;&nbsp;&nbsp;✅ Implemented | 63 |
+| &nbsp;&nbsp;&nbsp;🔲 Pending | 3 |

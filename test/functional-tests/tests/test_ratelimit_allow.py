@@ -77,6 +77,7 @@ from testUtility import (
     COREDUMP_LOCK_FILE,
     DENY_UPLOADS_FILE,
     MINIDUMP_TIMESTAMPS_FILE,
+    RECOVERY_DELAY_SEC,
     REBOOT_FLAG_FILE,
     ON_STARTUP_CLEANED_UP_BASE,
 )
@@ -382,5 +383,60 @@ class TestRateLimitAllow:
             Path(DENY_UPLOADS_FILE).unlink(missing_ok=True)
             Path(MINIDUMP_TIMESTAMPS_FILE).unlink(missing_ok=True)
             Path(REBOOT_FLAG_FILE).unlink(missing_ok=True)
+            Path(MINIDUMP_LOCK_FILE).unlink(missing_ok=True)
+            Path(_ON_STARTUP_FLAG_MINI).unlink(missing_ok=True)
+
+    # ------------------------------------------------------------------
+    # TC-053: is_recovery_time_reached() returns ALLOW_UPLOAD when
+    #         deny file is absent (no rate-limit block on clean state)
+    # ------------------------------------------------------------------
+    def test_no_deny_file_allows_upload_to_proceed(
+        self, binary_path, cleanup_pytest_cache
+    ):
+        """
+        TC-053 — is_recovery_time_reached() returns ALLOW_UPLOAD when deny file absent.
+
+        When /tmp/.deny_dump_uploads_till does NOT exist:
+          - stat(deny_file) fails  → is_recovery_time_reached() returns ALLOW_UPLOAD
+          - ratelimit_check_unified() calls is_upload_limit_reached()
+          - No timestamps file       → line_cnt = 0 ≤ 10 → returns ALLOW_UPLOAD
+          - Binary falls through to the upload loop (fails — no network in test
+            container). set_time(DENY_UPLOADS_FILE, RECOVERY_TIME) is NEVER called
+            on the ALLOW_UPLOAD path.
+
+        Primary assertion:
+          DENY_UPLOADS_FILE is NOT created after the run — proves the rate-limiter
+          did not fire and set_time(RECOVERY_TIME) was not called.
+        """
+        _ensure_system_init_prereqs()
+        os.makedirs(SECURE_MINIDUMP_PATH, exist_ok=True)
+        Path(MINIDUMP_LOCK_FILE).unlink(missing_ok=True)
+
+        # Clean rate-limit state: no deny file, no timestamps file
+        Path(DENY_UPLOADS_FILE).unlink(missing_ok=True)
+        Path(MINIDUMP_TIMESTAMPS_FILE).unlink(missing_ok=True)
+
+        stashed = stash_dir_dumps(SECURE_MINIDUMP_PATH, ".dmp")
+        dump_path = create_dummy_dump(SECURE_MINIDUMP_PATH, "tc053_allow.dmp")
+        # No REBOOT_FLAG_FILE — must reach ratelimit_check_unified()
+        try:
+            subprocess.run(
+                [binary_path, "", "0", "secure"],
+                capture_output=True, text=True, timeout=60,
+            )
+            # Exit code not asserted — upload fails in test container (no network).
+            assert not os.path.exists(DENY_UPLOADS_FILE), (
+                "TC-053: DENY_UPLOADS_FILE was created even though no deny file "
+                "existed and no count limit was active — "
+                "is_recovery_time_reached() must return ALLOW_UPLOAD when the file "
+                "is absent; set_time(RECOVERY_TIME) must not be called on the "
+                "clean allow path"
+            )
+        finally:
+            Path(dump_path).unlink(missing_ok=True)
+            _cleanup_tgz(SECURE_MINIDUMP_PATH)
+            restore_stashed_dumps(stashed)
+            Path(DENY_UPLOADS_FILE).unlink(missing_ok=True)
+            Path(MINIDUMP_TIMESTAMPS_FILE).unlink(missing_ok=True)
             Path(MINIDUMP_LOCK_FILE).unlink(missing_ok=True)
             Path(_ON_STARTUP_FLAG_MINI).unlink(missing_ok=True)

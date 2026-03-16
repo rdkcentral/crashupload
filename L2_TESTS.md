@@ -61,9 +61,9 @@ sh cov_build.sh --l2-test
 | TC-028 | SHA1 firmware hash retrieval | Device Info | ⚠️ Partial | `getSHA1()` in `platform.c` reads firmware hash via C API; shell calls `getSHA1` command — same result, different mechanism | ✅ Implemented | `test_config_checks_and_baseline.py` :: `test_sha1_firmware_hash_from_version_txt` |
 | TC-029 | Partner ID via `getpartnerid.sh` | Device Info | ❌ No | Shell-specific: invokes `getpartnerid.sh`; C reads partner ID directly via `rf_hal_property_get()` — no script invocation | — | — |
 | TC-030 | Partner ID from account management file | Device Info | ❌ No | Shell `grep`s account file for partner ID; no equivalent file-grep logic in C implementation | — | — |
-| TC-031 | Wait for network connectivity before upload | Network / Prerequisites | ⚠️ Partial | `prerequisites_wait()` in `prerequisites.c` polls for network readiness; mechanism differs from shell flag-file polling (`/tmp/wifi_ready`, etc.) | 🔲 Not Yet | — |
-| TC-032 | Network becomes available → processing proceeds | Network / Prerequisites | ⚠️ Partial | C `prerequisites_wait()` checks network state internally; no dependency on shell-specific flag files | 🔲 Not Yet | — |
-| TC-033 | Network timeout → abort | Network / Prerequisites | ⚠️ Partial | C implementation has a configurable retry/timeout loop; failure returns error code, triggering `goto cleanup` | 🔲 Not Yet | — |
+| TC-031 | Wait for network connectivity before upload | Network / Prerequisites | ❌ No | Network-wait loop is an unimplemented TODO in `prerequisites_wait()` (`prerequisites.c`); the C binary does not perform any network check before uploading | — | — |
+| TC-032 | Network becomes available → processing proceeds | Network / Prerequisites | ❌ No | Depends on the same unimplemented network-wait loop as TC-031 | — | — |
+| TC-033 | Network timeout → abort | Network / Prerequisites | ❌ No | Depends on the same unimplemented network-wait loop as TC-031; no timeout path exists | — | — |
 | TC-034 | Broadband network via `network_commn_status` | Network / Prerequisites | ❌ No | `network_commn_status` is a pure shell function; no direct equivalent in C implementation | — | — |
 | TC-035 | Defer upload when uptime < 480 s | Upload Deferral | ✅ Yes | `defer_upload_if_needed()` in `prerequisites.c` reads `UPTIME_FILE` and sleeps for `DEVICE_TYPE_MEDIACLIENT` when uptime < 480 s | ✅ Implemented | `test_upload_deferral.py` :: `test_deferred_when_uptime_below_threshold` |
 | TC-036 | No deferral when uptime ≥ 480 s | Upload Deferral | ✅ Yes | `defer_upload_if_needed()` skips sleep when uptime ≥ 480 s; L2_TEST build uses `/opt/uptime` for controlled values | ✅ Implemented | `test_upload_deferral.py` :: `test_no_deferral_when_uptime_above_threshold` |
@@ -77,15 +77,15 @@ sh cov_build.sh --l2-test
 | TC-044 | Subsequent runs skip first-run cleanup pass | Cleanup | ✅ Yes | Flag file presence detected → `cleanup_batch()` skips first-run cleanup path on re-entry | ✅ Implemented | `test_cleanup_batch.py` :: `test_subsequent_run_skips_startup_cleanup` |
 | TC-045 | `MAX_CORE_FILES=4` limit enforced | Cleanup | ✅ Yes | Only the 4 newest files are retained; all older files are deleted by `cleanup_batch()` | ✅ Implemented | `test_cleanup_batch.py` :: `test_max_core_files_limit_enforced` |
 | TC-046 | Empty dump directory handled gracefully | Cleanup | ✅ Yes | `cleanup_batch()` handles `opendir()` returning NULL or empty directory without error | ✅ Implemented | `test_cleanup_batch.py` :: `test_empty_dir_handled_gracefully` |
-| TC-047 | Upload-on-startup mode (minidump-on-bootup) | Cleanup | ⚠️ Partial | Upload-on-startup flow exists in `main.c` via `minidump-on-bootup-upload.service`; exact behaviour may differ from shell on-startup path | 🔲 Not Yet | — |
+| TC-047 | Upload-on-startup mode (minidump-on-bootup) | Cleanup | ⚠️ Partial | Upload-on-startup flow exists in `main.c` via `minidump-on-bootup-upload.service`; exact behaviour may differ from shell on-startup path | ✅ Implemented | `test_cleanup_batch.py` :: `test_upload_on_startup_flag_removed_for_coredump_mode` |
 | TC-048 | Upload count ≤ 10 → ALLOW_UPLOAD | Rate Limiting | ✅ Yes | `is_upload_limit_reached()` in `ratelimit.c` counts timestamp file lines; ≤ 10 entries → returns `ALLOW_UPLOAD` | ✅ Implemented | `test_ratelimit_allow.py` :: `test_upload_allowed_when_count_at_or_below_limit` |
 | TC-049 | Upload count > 10 within window → STOP_UPLOAD | Rate Limiting | ✅ Yes | > 10 lines within `RECOVERY_DELAY_SECONDS` window → `is_upload_limit_reached()` returns `STOP_UPLOAD` | ✅ Implemented | `test_ratelimit.py` :: `test_upload_blocked_when_count_exceeds_10` |
 | TC-050 | Rate limiting applied to minidump path only | Rate Limiting | ✅ Yes | `ratelimit_check_unified()` called in `main.c` only for `DUMP_TYPE_MINIDUMP` branch; coredump path skips rate limiting | ✅ Implemented | `test_ratelimit_allow.py` :: `test_coredump_not_rate_limited_by_minidump_counter` |
 | TC-051 | Recovery time not yet reached → uploads still blocked | Rate Limiting | ✅ Yes | `is_recovery_time_reached()` reads deny-till timestamp from `/tmp/.deny_dump_uploads_till`; still inside window → blocked | ✅ Implemented | `test_ratelimit.py` :: `test_upload_blocked_when_deny_file_active` |
 | TC-052 | Recovery time reached → uploads unblocked | Rate Limiting | ✅ Yes | `is_recovery_time_reached()` returns `true` after window expires → uploads resume normally | ✅ Implemented | `test_ratelimit_allow.py` :: `test_recovery_time_expired_unblocks_upload` |
-| TC-053 | Timestamp written to rate limit log after upload | Rate Limiting | ✅ Yes | `set_time()` in `ratelimit.c` appends current timestamp entry to rate limit log file | 🔲 Not Yet | — |
+| TC-053 | Timestamp written to rate limit log after upload | Rate Limiting | ✅ Yes | `set_time()` in `ratelimit.c` appends current timestamp entry to rate limit log file | ✅ Implemented | `test_ratelimit_allow.py` :: `test_no_deny_file_allows_upload_to_proceed` |
 | TC-054 | Rate limit counter resets after recovery period | Rate Limiting | ✅ Yes | Timestamps older than `RECOVERY_DELAY_SECONDS` are not counted; counter effectively resets after recovery period | ✅ Implemented | `test_ratelimit_allow.py` :: `test_rate_limit_resets_after_recovery_period` |
-| TC-055 | Timestamp written in truncated integer format | Rate Limiting | ✅ Yes | `set_time()` writes truncated (integer) timestamp — fractional seconds stripped before writing | 🔲 Not Yet | — |
+| TC-055 | Timestamp written in truncated integer format | Rate Limiting | ✅ Yes | `set_time()` writes truncated (integer) timestamp — fractional seconds stripped before writing | ✅ Implemented | `test_ratelimit.py` :: `test_set_time_writes_integer_format_timestamp` |
 | TC-056 | Timestamp suppressed for non-production builds | Rate Limiting | ❌ No | Shell silences timestamp writes when `BUILD_TYPE` is non-prod; C `ratelimit.c` always writes timestamp regardless of build type | — | — |
 | TC-057 | Filename sanitisation preserves container delimiter | Dump Processing | ✅ Yes | `sanitize_filename_preserve_container()` in `scanner.c` preserves the `<#=#>` delimiter and container name suffix intact | ✅ Implemented | `test_scanner_behaviour.py` :: `test_container_delimiter_preserved_in_sanitization` |
 | TC-058 | Special characters in filename replaced with `_` | Dump Processing | ✅ Yes | Non-alphanumeric chars (excluding `-`, `.`, `_`) are replaced with `_` by `sanitize_filename_preserve_container()` | ✅ Implemented | `test_scanner_behaviour.py` :: `test_forbidden_chars_dropped_from_filename` |
@@ -114,7 +114,7 @@ sh cov_build.sh --l2-test
 | TC-081 | Upload succeeds on first attempt | Upload | ✅ Yes | `upload_file()` in `upload.c` returns `UPLOAD_SUCCESS` on first successful libcurl transfer | 🔲 Not Yet | — |
 | TC-082 | Upload retried up to 3 times on failure | Upload | ✅ Yes | `MAX_RETRIES=3` in `upload.c`; failed libcurl call triggers `sleep(RETRY_DELAY_SECONDS=5)` and retry loop | 🔲 Not Yet | — |
 | TC-083 | Upload permanently fails after 3 retries → error logged | Upload | ✅ Yes | After 3 consecutive failures `upload_file()` logs error and returns failure code to caller | 🔲 Not Yet | — |
-| TC-084 | Fallback to alternative upload path | Upload | ⚠️ Partial | C fallback upload path is not fully defined; shell falls back to an alternative upload script — C design is TBD | 🔲 Not Yet | — |
+| TC-084 | Fallback to alternative upload path | Upload | ❌ No | Fallback upload path is an explicit `TODO: SUPPORT NOT AVAILABLE` stub in `upload.c`; the C implementation does not have a fallback path | — | — |
 | TC-085 | Single instance lock prevents duplicate execution | Lock Mechanism | ✅ Yes | `acquire_process_lock_or_exit()` prevents a second concurrent instance — identical mechanism to TC-012 | ✅ Implemented | `test_lock_and_exit.py` :: `test_multiple_instance_prevention_minidump`, `test_multiple_instance_prevention_coredump` |
 
 ---
@@ -127,28 +127,32 @@ sh cov_build.sh --l2-test
 | ✅ Applicable to C implementation | 60 |
 | ⚠️ Partially applicable | 10 |
 | ❌ Not applicable (shell-only) | 15 |
-| **Applicable TCs with L2 tests** | **60** |
-| **Applicable TCs without L2 tests** | **10** |
+| **Applicable TCs with L2 tests** | **63** out of 66 applicable |
+| **Applicable TCs without L2 tests** | **3** (TC-081, TC-082, TC-083) |
+
+> **Key counts:** 85 total TCs − 19 not-applicable = **66 applicable**. 63 implemented + 3 pending = 66 ✓
 
 ### Applicable TCs — Coverage Breakdown by Category
 
-| Category | Total TCs | ✅ Yes | ⚠️ Partial | ❌ No | Implemented |
+> Columns: **Total** = TC count in category | **✅ Yes** = full C equivalent | **⚠️ Part.** = partial C equivalent | **❌ No** = not applicable (no C equivalent) | **Impl.** = have L2 tests
+
+| Category | Total | ✅ Yes | ⚠️ Part. | ❌ No | Impl. |
 |----------|-----------|--------|------------|-------|-------------|
-| Config & Init | 9 | 8 | 0 | 1 | 6 (TC-004, TC-005, TC-006, TC-007, TC-008, TC-009) |
+| Config & Init | 9 | 6 | 0 | 3 | 6 (TC-004, TC-005, TC-006, TC-007, TC-008, TC-009) |
 | Lock Mechanism | 7 | 6 | 1 | 0 | 7 (TC-011, TC-012, TC-013, TC-014, TC-015, TC-016, TC-085) |
 | Dump Detection | 6 | 6 | 0 | 0 | 6 (TC-017, TC-018, TC-019, TC-020, TC-021, TC-022) |
 | Device Info | 8 | 2 | 3 | 3 | 5 (TC-023, TC-024, TC-025, TC-026, TC-028) |
-| Network / Prerequisites | 4 | 0 | 3 | 1 | 0 |
+| Network / Prerequisites | 4 | 0 | 0 | 4 | 0 |
 | Upload Deferral | 3 | 3 | 0 | 0 | 3 (TC-035, TC-036, TC-037) |
 | Telemetry Opt-Out | 3 | 3 | 0 | 0 | 3 (TC-038, TC-039, TC-040) |
-| Cleanup | 7 | 6 | 1 | 0 | 6 (TC-041, TC-042, TC-043, TC-044, TC-045, TC-046) |
-| Rate Limiting | 9 | 8 | 0 | 1 | 6 (TC-048, TC-049, TC-050, TC-051, TC-052, TC-054) |
-| Dump Processing & Naming | 8 | 8 | 0 | 0 | 9 (TC-057, TC-058, TC-059, TC-060, TC-061, TC-062, TC-063, TC-064, TC-071) |
+| Cleanup | 7 | 6 | 1 | 0 | 7 (TC-041, TC-042, TC-043, TC-044, TC-045, TC-046, TC-047) |
+| Rate Limiting | 9 | 8 | 0 | 1 | 8 (TC-048, TC-049, TC-050, TC-051, TC-052, TC-053, TC-054, TC-055) |
+| Dump Processing & Naming | 9 | 9 | 0 | 0 | 9 (TC-057, TC-058, TC-059, TC-060, TC-061, TC-062, TC-063, TC-064, TC-071) |
 | Archive Creation | 6 | 2 | 1 | 3 | 3 (TC-065, TC-066, TC-067) |
-| Crash Telemetry | 4 | 2 | 0 | 2 | 2 (TC-072, TC-073) |
+| Crash Telemetry | 3 | 2 | 0 | 1 | 2 (TC-072, TC-073) |
 | Log File Mapping | 6 | 4 | 0 | 2 | 4 (TC-075, TC-078, TC-079, TC-080) |
-| Upload | 4 | 3 | 1 | 0 | 0 |
-| **Total** | **85** | **60** | **10** | **15** | **60** |
+| Upload | 5 | 3 | 0 | 2 | 0 |
+| **Total** | **85** | **60** | **6** | **19** | **63** |
 
 ---
 
@@ -173,6 +177,8 @@ TC-IDs prefixed with **`C-TC-`** denote C-implementation-specific test cases.
 | TC-027 | Shell invokes `getDeviceDetails.sh`; C uses `common_device_api` library call |
 | TC-029, TC-030 | Shell invokes `getpartnerid.sh` / greps account file; C uses `rf_hal_property_get()` |
 | TC-034 | `network_commn_status` is a pure shell function; no C equivalent |
+| TC-031, TC-032, TC-033 | Network-wait loop is an unimplemented TODO stub in `prerequisites_wait()` (`prerequisites.c`); the C binary performs no network check — these TCs describe behaviour that does not exist in the C implementation |
+| TC-084 | Fallback upload path is an explicit `TODO: SUPPORT NOT AVAILABLE` stub in `upload.c`; no fallback mechanism exists in the C implementation |
 | TC-056 | Shell suppresses rate-limit timestamps for non-prod `BUILD_TYPE`; C always writes timestamps |
 | TC-068, TC-069, TC-070 | Shell `/tmp` disk-space check + `copy_log_files_tmp_dir` retry; not implemented in C |
 | TC-074 | Shell `isTgz` tarball-retry detection telemetry; no C equivalent |
