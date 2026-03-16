@@ -36,6 +36,9 @@ c_sourcecode/stamp-h1
 # Compiled crashupload binary
 c_sourcecode/src/crashupload
 
+# Core dump produced if the binary crashes during local development/testing
+c_sourcecode/src/core
+
 # =============================================================================
 # unittest/ — autoconf/automake build system and compiled test binaries
 # =============================================================================

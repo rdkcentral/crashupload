@@ -108,6 +108,10 @@ pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/dump_processing.json" "$TEST_DIR/test_dump_processing.py"               || OVERALL_EXIT=1
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/ratelimit_allow.json"  "$TEST_DIR/test_ratelimit_allow.py"               || OVERALL_EXIT=1
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/scanner_behaviour.json" "$TEST_DIR/test_scanner_behaviour.py"             || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/file_ext_check.json"     "$TEST_DIR/test_file_ext_check.py"                || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/archive_content.json"   "$TEST_DIR/test_archive_content.py"               || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/telemetry.json"          "$TEST_DIR/test_telemetry.py"                     || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/broadband_env.json"      "$TEST_DIR/test_broadband_env.py"                 || OVERALL_EXIT=1
 
 # ---------------------------------------------------------------------------
 # Print consolidated L2 summary table from the accumulated summary file, then

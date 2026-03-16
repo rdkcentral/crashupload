@@ -37,6 +37,13 @@ import pytest
 
 SUMMARY_FILE = "/tmp/l2_test_summary.txt"
 
+# Total applicable TCs in uploadDumps_TestCases.md (kept in sync with L2_TESTS.md)
+_TC_TOTAL_APPLICABLE = 85
+
+# Session-level counters updated by pytest_runtest_logreport
+_session_pass = 0
+_session_fail = 0
+
 
 # ---------------------------------------------------------------------------
 # TC-ID mapping  (function name → TC-ID(s) from L2_TESTS.md)
@@ -114,12 +121,44 @@ _TC_MAP = {
     # Rate Limiting — allow paths
     "test_upload_allowed_when_count_at_or_below_limit":          "TC-048",
     "test_coredump_not_rate_limited_by_minidump_counter":        "TC-050",
+    "test_recovery_time_expired_unblocks_upload":                "TC-052",
+    "test_rate_limit_resets_after_recovery_period":              "TC-054",
+    # Archive Naming
+    "test_archive_filename_contains_required_fields":            "TC-061",
+    "test_archive_filename_truncated_at_135_chars":              "TC-062",
+    "test_mpeos_main_uses_mtime_not_crashts":                    "TC-063",
     # Scanner Behaviour
     "test_container_delimiter_preserved_in_sanitization":        "TC-057",
     "test_forbidden_chars_dropped_from_filename":                "TC-058",
     "test_container_name_preserved_with_forbidden_chars":        "TC-059",
     "test_dump_filename_components_parsed_correctly":            "TC-064",
+    # Archive Content
+    "test_archive_created_for_dump":                             "TC-065",
+    "test_archive_contains_required_members":                    "TC-066",
+    "test_crashed_url_file_included_in_archive":                 "TC-079",
+    "test_log_files_mapped_for_crashed_process":                 "TC-075",
+    "test_all_mapped_log_files_added_to_archive":                "TC-080",
+    "test_missing_log_file_handled_gracefully":                  "TC-078",
+    # Crash Telemetry
+    "test_process_crash_telemetry_path_exercised":               "TC-072",
+    "test_container_crash_telemetry_path_exercised":             "TC-073",
+    # Broadband Env
+    "test_broadband_minidump_archive_not_created":               "TC-067",
 }
+
+
+def _count_tc_coverage() -> int:
+    """Return the number of unique TC-NNN IDs that have at least one test function."""
+    seen: set = set()
+    for val in _TC_MAP.values():
+        for tc in val.split(" / "):
+            tc = tc.strip()
+            if re.match(r"^TC-\d+$", tc):
+                seen.add(tc)
+    return len(seen)
+
+
+_TC_COVERAGE = _count_tc_coverage()
 
 
 # ---------------------------------------------------------------------------
@@ -191,13 +230,35 @@ def pytest_runtest_logreport(report):
     We record the final result after the 'call' phase, or FAIL if setup
     itself crashed (meaning the test never ran).
     """
+    global _session_pass, _session_fail
     if report.when == "call":
         result = "SUCCESS" if report.passed else "FAIL"
         tc_id, label = _descriptive_name(report.nodeid)
         _append_to_summary(tc_id, label, result)
+        if report.passed:
+            _session_pass += 1
+        else:
+            _session_fail += 1
     elif report.when == "setup" and report.failed:
         tc_id, label = _descriptive_name(report.nodeid)
         _append_to_summary(tc_id, label, "FAIL (setup error)")
+        _session_fail += 1
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Print a compact coverage block at the end of every pytest session."""
+    total = _session_pass + _session_fail
+    pass_str  = f"{_session_pass} passed"
+    fail_str  = f"{_session_fail} failed"
+    run_line  = f"This run:    {pass_str}, {fail_str}  ({total} test functions)"
+    cov_line  = f"TC coverage: {_TC_COVERAGE} / {_TC_TOTAL_APPLICABLE} applicable TCs have L2 tests"
+    width = max(len(run_line), len(cov_line)) + 4
+    sep = "─" * width
+    terminalreporter.write_sep("=", "L2 Coverage Summary")
+    terminalreporter.write_line(sep)
+    terminalreporter.write_line(f"  {run_line}")
+    terminalreporter.write_line(f"  {cov_line}")
+    terminalreporter.write_line(sep)
 
 
 # pytest_sessionfinish is intentionally absent: run_l2.sh reads the accumulated

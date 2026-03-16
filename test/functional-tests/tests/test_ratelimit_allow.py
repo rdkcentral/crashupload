@@ -241,3 +241,146 @@ class TestRateLimitAllow:
             Path(REBOOT_FLAG_FILE).unlink(missing_ok=True)
             Path(COREDUMP_LOCK_FILE).unlink(missing_ok=True)
             Path(_ON_STARTUP_FLAG_CORE).unlink(missing_ok=True)
+
+    def test_recovery_time_expired_unblocks_upload(
+        self, binary_path, cleanup_pytest_cache
+    ):
+        """TC-052: Expired deny-window timestamp → ALLOW_UPLOAD; deny file not refreshed.
+
+        DENY_UPLOADS_FILE is pre-written with a timestamp 700 seconds in the past
+        (beyond the 600-second RECOVERY_DELAY_SEC window).
+        is_recovery_time_reached() reads the file, evaluates `now > deny_until` → ALLOW_UPLOAD.
+
+        Because ALLOW_UPLOAD is returned, ratelimit_check_unified does NOT call
+        set_time(DENY_UPLOADS_FILE, RECOVERY_TIME) — that call only happens on RATELIMIT_BLOCK.
+        DENY_UPLOADS_FILE therefore retains its original past timestamp throughout the run.
+
+        Note: REBOOT_FLAG_FILE is deliberately absent.  is_box_rebooting() is checked
+        BEFORE ratelimit_check_unified() in main.c; with the reboot flag set the binary
+        would exit before reaching the ratelimit code and nothing would be proven.
+        The upload loop is reached and fails (no network in the test container) — the
+        binary exits non-zero.  Exit code is NOT the primary assertion here.
+
+        Primary assertion:
+          DENY_UPLOADS_FILE still contains the original past timestamp after the run
+          (i.e. set_time() was NOT called), proving is_recovery_time_reached() returned
+          ALLOW_UPLOAD for the expired timestamp — not STOP_UPLOAD.
+        """
+        _ensure_system_init_prereqs()
+        os.makedirs(SECURE_MINIDUMP_PATH, exist_ok=True)
+        Path(MINIDUMP_LOCK_FILE).unlink(missing_ok=True)
+
+        # Past timestamp — 700 s ago, beyond the 600-second recovery window
+        past_ts = int(time.time()) - 700
+        Path(DENY_UPLOADS_FILE).write_text(f"{past_ts}\n")
+
+        # 10 timestamped entries so that the count check also returns ALLOW_UPLOAD
+        now_ts = int(time.time())
+        Path(MINIDUMP_TIMESTAMPS_FILE).write_text(
+            "\n".join([str(now_ts - i * 10) for i in range(10)]) + "\n"
+        )
+
+        stashed = stash_dir_dumps(SECURE_MINIDUMP_PATH, ".dmp")
+        dump_path = create_dummy_dump(SECURE_MINIDUMP_PATH, "tc052_allow.dmp")
+        # No REBOOT_FLAG_FILE — must reach ratelimit_check_unified()
+        try:
+            subprocess.run(
+                [binary_path, "", "0", "secure"],
+                capture_output=True, text=True, timeout=60,
+            )
+            # Exit code not asserted — upload fails in the test container (no network).
+            # The meaningful assertion is the deny-file content below.
+            assert os.path.exists(DENY_UPLOADS_FILE), (
+                "TC-052: DENY_UPLOADS_FILE was unexpectedly removed during the run"
+            )
+            recorded_ts = int(Path(DENY_UPLOADS_FILE).read_text().strip())
+            now_after = int(time.time())
+            assert recorded_ts <= now_after, (
+                f"TC-052: DENY_UPLOADS_FILE was refreshed to a future timestamp "
+                f"({recorded_ts} > now {now_after}) — is_recovery_time_reached() "
+                "must have returned STOP_UPLOAD for the already-expired timestamp "
+                "instead of ALLOW_UPLOAD."
+            )
+            assert recorded_ts == past_ts, (
+                f"TC-052: DENY_UPLOADS_FILE timestamp changed from {past_ts} to "
+                f"{recorded_ts} — set_time(DENY_UPLOADS_FILE, RECOVERY_TIME) should "
+                "not be called on the ALLOW_UPLOAD path."
+            )
+        finally:
+            Path(dump_path).unlink(missing_ok=True)
+            _cleanup_tgz(SECURE_MINIDUMP_PATH)
+            restore_stashed_dumps(stashed)
+            Path(DENY_UPLOADS_FILE).unlink(missing_ok=True)
+            Path(MINIDUMP_TIMESTAMPS_FILE).unlink(missing_ok=True)
+            Path(REBOOT_FLAG_FILE).unlink(missing_ok=True)
+            Path(MINIDUMP_LOCK_FILE).unlink(missing_ok=True)
+            Path(_ON_STARTUP_FLAG_MINI).unlink(missing_ok=True)
+
+    def test_rate_limit_resets_after_recovery_period(
+        self, binary_path, cleanup_pytest_cache
+    ):
+        """TC-054: Timestamps file with expired window → counter reset (file unlinked).
+
+        MINIDUMP_TIMESTAMPS_FILE is pre-written with 11 entries whose FIRST line
+        is a timestamp 700 seconds in the past (beyond RECOVERY_DELAY_SEC = 600 s).
+
+        Inside is_upload_limit_reached():
+          line_cnt = 11  >  10
+          (now - first_crash_time) = 700  >=  RECOVERY_DELAY_SEC (600)
+          → calls unlink(MINIDUMP_TIMESTAMPS_FILE)   ← counter RESET
+          → returns ALLOW_UPLOAD
+
+        Because the function returns ALLOW_UPLOAD, ratelimit_check_unified does NOT
+        call set_time(DENY_UPLOADS_FILE, RECOVERY_TIME) and DENY_UPLOADS_FILE is
+        never created.
+
+        Note: REBOOT_FLAG_FILE is absent for the same reason as TC-052 — reboot
+        flag would shortcut past the ratelimit check.  Upload fails (no network)
+        and exit code is not the primary assertion.
+
+        Primary assertions:
+          1. MINIDUMP_TIMESTAMPS_FILE was DELETED (by unlink() inside the C function),
+             proving the expired-window counter-reset path was taken.
+          2. DENY_UPLOADS_FILE was NOT created, proving RATELIMIT_BLOCK was not returned.
+        """
+        _ensure_system_init_prereqs()
+        os.makedirs(SECURE_MINIDUMP_PATH, exist_ok=True)
+        Path(MINIDUMP_LOCK_FILE).unlink(missing_ok=True)
+
+        # No deny window — is_recovery_time_reached() returns ALLOW immediately
+        Path(DENY_UPLOADS_FILE).unlink(missing_ok=True)
+
+        # 11 entries; first timestamp is 700 s ago → window expired → counter resets
+        first_ts = int(time.time()) - 700
+        now_ts   = int(time.time())
+        lines    = [str(first_ts)] + [str(now_ts)] * 10   # 11 total
+        Path(MINIDUMP_TIMESTAMPS_FILE).write_text("\n".join(lines) + "\n")
+
+        stashed   = stash_dir_dumps(SECURE_MINIDUMP_PATH, ".dmp")
+        dump_path = create_dummy_dump(SECURE_MINIDUMP_PATH, "tc054_reset.dmp")
+        # No REBOOT_FLAG_FILE — must reach ratelimit_check_unified()
+        try:
+            subprocess.run(
+                [binary_path, "", "0", "secure"],
+                capture_output=True, text=True, timeout=60,
+            )
+            # Exit code not asserted — upload fails in the test container (no network).
+            assert not os.path.exists(MINIDUMP_TIMESTAMPS_FILE), (
+                "TC-054: MINIDUMP_TIMESTAMPS_FILE still present after the run — "
+                "is_upload_limit_reached() should have called unlink() when the "
+                f"first timestamp was older than RECOVERY_DELAY_SEC ({RECOVERY_DELAY_SEC} s)."
+            )
+            assert not os.path.exists(DENY_UPLOADS_FILE), (
+                "TC-054: DENY_UPLOADS_FILE was created, indicating RATELIMIT_BLOCK "
+                "was returned — the expired-window reset path should return ALLOW_UPLOAD "
+                "without creating the deny file."
+            )
+        finally:
+            Path(dump_path).unlink(missing_ok=True)
+            _cleanup_tgz(SECURE_MINIDUMP_PATH)
+            restore_stashed_dumps(stashed)
+            Path(DENY_UPLOADS_FILE).unlink(missing_ok=True)
+            Path(MINIDUMP_TIMESTAMPS_FILE).unlink(missing_ok=True)
+            Path(REBOOT_FLAG_FILE).unlink(missing_ok=True)
+            Path(MINIDUMP_LOCK_FILE).unlink(missing_ok=True)
+            Path(_ON_STARTUP_FLAG_MINI).unlink(missing_ok=True)

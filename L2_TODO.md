@@ -6,7 +6,7 @@ Tracks which applicable TCs still need L2 functional tests.
 
 ---
 
-## ✅ Applicable + Implemented — 46 TCs
+## ✅ Applicable + Implemented — 60 TCs
 
 | TC-ID | Test Case Name |
 |-------|----------------|
@@ -49,19 +49,33 @@ Tracks which applicable TCs still need L2 functional tests.
 | TC-049 | Upload count > 10 within window → STOP_UPLOAD |
 | TC-050 | Rate limiting applied to minidump path only |
 | TC-051 | Recovery time not yet reached → uploads still blocked |
+| TC-052 | Recovery time expired → uploads unblocked |
+| TC-054 | Rate-limit counter reset after recovery period |
 | TC-057 | Filename sanitisation preserves container delimiter |
 | TC-058 | Special characters in filename replaced with `_` |
 | TC-059 | Container name preserved after sanitisation |
 | TC-060 | Skip existing `.tgz` archive files |
+| TC-061 | Archive filename includes MAC + timestamp + pname + version |
+| TC-062 | Archive filename truncated at 135 characters |
+| TC-063 | `mpeos-main` process name mapped correctly |
 | TC-064 | Dump filename components parsed correctly |
+| TC-065 | Archive created with dump file and associated logs |
+| TC-066 | Archive contains all required files |
+| TC-067 | Broadband-specific log archive behaviour |
 | TC-071 | Zero-size dump file skipped |
+| TC-072 | Process crash telemetry event sent |
+| TC-073 | Container crash telemetry event sent |
+| TC-075 | Log files mapped for crashed process |
+| TC-078 | Missing log file handled gracefully |
+| TC-079 | `crashed_url.txt` generated with upload URL |
+| TC-080 | All associated log files added to archive |
 | TC-085 | Single instance lock prevents duplicate execution |
 
 ---
 
-## 🔲 Applicable + Not Implemented — 24 TCs
+## 🔲 Applicable + Not Implemented — 10 TCs
 
-### Not Upload Related — 20
+### Not Upload Related — 6
 
 | TC-ID | Test Case Name | Category |
 |-------|----------------|----------|
@@ -69,22 +83,8 @@ Tracks which applicable TCs still need L2 functional tests.
 | TC-032 | Network becomes available → processing proceeds | Network / Prerequisites |
 | TC-033 | Network timeout → abort | Network / Prerequisites |
 | TC-047 | Upload-on-startup mode (minidump-on-bootup) | Cleanup |
-| TC-052 | Recovery time reached → uploads unblocked | Rate Limiting |
 | TC-053 | Timestamp written to rate limit log after upload | Rate Limiting |
-| TC-054 | Rate limit counter resets after recovery period | Rate Limiting |
 | TC-055 | Timestamp written in truncated integer format | Rate Limiting |
-| TC-061 | Archive filename includes MAC + timestamp + pname + version | Dump Processing |
-| TC-062 | Archive filename truncated at 135 characters | Dump Processing |
-| TC-063 | `mpeos-main` process name mapped correctly | Dump Processing |
-| TC-065 | Archive created with dump file and associated logs | Archive Creation |
-| TC-066 | Archive contains all required files | Archive Creation |
-| TC-067 | Broadband-specific log archive behaviour | Archive Creation |
-| TC-072 | Process crash telemetry event sent | Crash Telemetry |
-| TC-073 | Container crash telemetry event sent | Crash Telemetry |
-| TC-075 | Log files mapped for crashed process | Log File Mapping |
-| TC-078 | Missing log file handled gracefully | Log File Mapping |
-| TC-079 | `crashed_url.txt` generated with upload URL | Log File Mapping |
-| TC-080 | All associated log files added to archive | Log File Mapping |
 
 ### Upload Related — 4
 
