@@ -810,68 +810,68 @@ This document contains functional test cases covering all features of the upload
 
 ---
 
-## 6. Telemetry Opt-Out Test Cases
+## 6. Privacy Mode Test Cases
 
-### TC-038: Telemetry Opt-Out Check - Enabled and Opted Out (Negative)
-**Test Case Name**:  Verify dumps are not uploaded when telemetry opt-out is enabled  
+### TC-038: Privacy Mode - DO_NOT_SHARE Blocks Upload (Negative)
+**Test Case Name**: Verify dumps are not uploaded when privacy mode is DO_NOT_SHARE  
 **Pre-condition**:
 - DEVICE_TYPE is "mediaclient"
-- RFC feature TelemetryOptOut is enabled
-- /opt/tmtryoptout file contains "true"
+- RBUS parameter `Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode` returns "DO_NOT_SHARE"
+- Dump files exist in the working directory
 
 **Operation**: 
-1. Enable TelemetryOptOut via RFC
-2. Create /opt/tmtryoptout with content "true"
-3. Execute script
-4. Verify no uploads occur
+1. Configure RBUS to return "DO_NOT_SHARE" for `Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode`
+2. Execute with valid dump files present
+3. Verify no uploads occur
 
 **Expected Result**: 
-- getOptOutStatus() returns 1
-- Log message: "Coreupload is disabled as TelemetryOptOut is set"
-- removePendingDumps() is called
-- All pending dumps are removed
-- Script exits without uploading
+- `get_privacy_control_mode()` is called (MEDIACLIENT only) and returns `DO_NOT_SHARE`
+- Dumps are scanned and mtime is collected, but `archive_create_smart()` is skipped for each dump in the processing loop via `continue`
+- After the archive loop: log message "Privacy mode is DO_NOT_SHARE, skip upload process & cleanup unprocessed dumps"
+- `cleanup_batch(do_not_share_cleanup=true)` deletes all dump files matching the extension pattern
+- Script exits with code 0 without uploading
 
 **Actual Result**:  _[To be filled during testing]_
 
 ---
 
-### TC-039: Telemetry Opt-Out Check - Not Opted Out (Positive)
-**Test Case Name**:  Verify dumps are uploaded when telemetry opt-out is not enabled  
+### TC-039: Privacy Mode - SHARE Allows Upload (Positive)
+**Test Case Name**: Verify dumps are uploaded when privacy mode is SHARE  
 **Pre-condition**:
 - DEVICE_TYPE is "mediaclient"
-- Either RFC feature is disabled OR /opt/tmtryoptout contains "false"
+- RBUS parameter `Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode` returns "SHARE" (or RBUS fails — both default to SHARE)
 
 **Operation**: 
-1. Ensure TelemetryOptOut is not active
+1. Ensure `Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode` returns "SHARE" via RBUS
 2. Execute script with valid dumps
 3. Verify upload proceeds
 
 **Expected Result**:
-- getOptOutStatus() returns 0
-- No opt-out message logged
-- Script continues to dump processing and upload
+- `get_privacy_control_mode()` returns `SHARE`
+- Archive creation proceeds normally for each dump
+- No privacy block message logged
+- Rate limit is checked; dumps are archived and uploaded
 - Dumps are successfully uploaded
 
 **Actual Result**: _[To be filled during testing]_
 
 ---
 
-### TC-040: Telemetry Opt-Out Check - Non-MediaClient Device (Positive)
-**Test Case Name**: Verify opt-out check is skipped for non-mediaclient devices  
+### TC-040: Privacy Mode - Non-MEDIACLIENT Device Skips Privacy Check (Positive)
+**Test Case Name**: Verify privacy check is not performed on non-mediaclient devices  
 **Pre-condition**:
-- DEVICE_TYPE is "broadband", "extender", or "hybrid"
-- TelemetryOptOut settings exist but should be ignored
+- DEVICE_TYPE is "broadband" or "extender"
+- Dump files exist in the working directory
 
 **Operation**: 
-1. Execute script on non-mediaclient device
-2. Verify opt-out check is bypassed
+1. Execute script on a broadband or extender device with valid dumps
+2. Verify upload proceeds without any RBUS privacy mode query
 
 **Expected Result**: 
-- getOptOutStatus() is NOT called
-- No opt-out checking occurs
-- Script proceeds directly to dump processing
-- Dumps are processed regardless of opt-out settings
+- `get_privacy_control_mode()` is NOT called (guarded by `config.device_type == DEVICE_TYPE_MEDIACLIENT` in main.c)
+- `privacy_mode` remains at the default `SHARE` value set by `config_init_load()`
+- All dumps are archived and uploaded normally
+- No privacy-related log messages appear
 
 **Actual Result**: _[To be filled during testing]_
 

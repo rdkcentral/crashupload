@@ -97,7 +97,6 @@ protected:
     void TearDown() override {
         reset_all_mocks();
         // Clean up any test files
-        unlink("/tmp/tmtryoptout");
     }
 };
 
@@ -567,24 +566,6 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_EdgeCase_EmptyDeviceProperty) {
     
     EXPECT_EQ(result, CONFIG_SUCCESS);
     EXPECT_EQ(test_config.device_type, DEVICE_TYPE_UNKNOWN);
-}
-
-TEST_F(ConfigManagerTest, ConfigInitLoad_OptOutStatus_Integration) {
-    // Create optout file
-    FILE* fp = fopen("/tmp/tmtryoptout", "w");
-    ASSERT_NE(fp, nullptr);
-    fprintf(fp, "true\n");
-    fclose(fp);
-    
-    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
-    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "mediaclient");
-    set_mock_filePresentCheck_behavior(1);
-    
-    int result = config_init_load(&test_config, 5, test_argv);
-    
-    EXPECT_EQ(result, CONFIG_SUCCESS);
-    
-    unlink("/tmp/tmtryoptout");
 }
 #endif
 // ============================================================================
