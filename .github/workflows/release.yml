@@ -38,7 +38,7 @@ jobs:
             echo "[release.yml] ERROR: No version data found in Pull Request description, defaulting to none."
             VERSION_TYPE="none"
           fi
-          echo "[release.yml] INFO: version_type=$VERSION_TYPE" >> $GITHUB_OUTPUT
+          echo "version_type=$VERSION_TYPE" >> $GITHUB_OUTPUT
           echo "[release.yml] INFO: Detected version type: $VERSION_TYPE"
 
       - name: Dispatch release to Device Management Repo
