@@ -174,25 +174,6 @@ fi
 EnableOCSPStapling="/tmp/.EnableOCSPStapling"
 EnableOCSP="/tmp/.EnableOCSPCA"
 
-#get telemetry opt out status
-getOptOutStatus()
-{
-    optoutStatus=0
-    currentVal="false"
-    #check if feature is enabled through rfc
-    rfcStatus=$(tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryOptOut.Enable 2>&1 > /dev/null)
-    #check the current option
-    if [ -f /opt/tmtryoptout ]; then
-        currentVal=$(cat /opt/tmtryoptout)
-    fi
-    if [ "x$rfcStatus" == "xtrue" ]; then
-        if [ "x$currentVal" == "xtrue" ]; then
-            optoutStatus=1
-        fi
-    fi
-    return $optoutStatus
-}
-
 # Set the name of the log file using SHA1
 setLogFile()
 {
@@ -637,17 +618,6 @@ else
 fi
 # Upon exit, remove locking
 trap finalize EXIT
-
-if [ "$DEVICE_TYPE" = "mediaclient" ]; then
-    #skip upload if opt out is set to true
-    getOptOutStatus
-    opt_out=$?
-    if [ $opt_out -eq 1 ]; then
-        logMessage "Coreupload is disabled as TelemetryOptOut is set"
-        removePendingDumps
-        exit
-    fi
-fi    
 
 if [ ! -f /tmp/coredump_mutex_release ] && [ "$DUMP_FLAG" == "1" ]; then
      logMessage "Waiting for Coredump Completion"

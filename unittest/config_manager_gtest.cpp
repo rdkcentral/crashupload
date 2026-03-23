@@ -411,60 +411,6 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_ZeroArgc_Success) {
 }
 
 // ============================================================================
-// Tests for get_opt_out_status()
-// ============================================================================
-
-TEST_F(ConfigManagerTest, GetOptOutStatus_BothTrue_ReturnsTrue) {
-    // Create optout file with "true"
-    FILE* fp = fopen("/tmp/tmtryoptout", "w");
-    ASSERT_NE(fp, nullptr);
-    fprintf(fp, "true\n");
-    fclose(fp);
-    
-    bool result = get_opt_out_status();
-    
-    // RFC is hardcoded to "true", file is "true" -> should return true
-    EXPECT_TRUE(result);
-    
-    unlink("/tmp/tmtryoptout");
-}
-
-TEST_F(ConfigManagerTest, GetOptOutStatus_FileNotExists_ReturnsFalse) {
-    unlink("/tmp/tmtryoptout");  // Ensure file doesn't exist
-    
-    bool result = get_opt_out_status();
-    
-    // RFC is "true" but file doesn't exist (defaults to "false") -> should return false
-    EXPECT_FALSE(result);
-}
-
-TEST_F(ConfigManagerTest, GetOptOutStatus_FileFalse_ReturnsFalse) {
-    FILE* fp = fopen("/tmp/tmtryoptout", "w");
-    ASSERT_NE(fp, nullptr);
-    fprintf(fp, "false\n");
-    fclose(fp);
-    
-    bool result = get_opt_out_status();
-    
-    // RFC is "true" but file is "false" -> should return false
-    EXPECT_FALSE(result);
-    
-    unlink("/tmp/tmtryoptout");
-}
-
-TEST_F(ConfigManagerTest, GetOptOutStatus_FileEmpty_ReturnsFalse) {
-    FILE* fp = fopen("/tmp/tmtryoptout", "w");
-    ASSERT_NE(fp, nullptr);
-    fclose(fp);
-    
-    bool result = get_opt_out_status();
-    
-    EXPECT_FALSE(result);
-    
-    unlink("/tmp/tmtryoptout");
-}
-
-// ============================================================================
 // Tests for config_get() - Negative Cases (Not Implemented)
 // ============================================================================
 
@@ -637,7 +583,6 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_OptOutStatus_Integration) {
     int result = config_init_load(&test_config, 5, test_argv);
     
     EXPECT_EQ(result, CONFIG_SUCCESS);
-    EXPECT_TRUE(test_config.opt_out);
     
     unlink("/tmp/tmtryoptout");
 }

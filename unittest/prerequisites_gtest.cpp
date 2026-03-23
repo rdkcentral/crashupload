@@ -68,7 +68,6 @@ protected:
         strcpy(test_config.working_dir_path, "/tmp");
         test_config.device_type = DEVICE_TYPE_BROADBAND;
         test_config.dump_type = DUMP_TYPE_MINIDUMP;
-        test_config.opt_out = false;
         
         // Clean up flag files
         unlink("/tmp/set_crash_reboot_flag");
@@ -287,7 +286,6 @@ TEST_F(PrerequisitesTest, PrerequisitesWait_MediaClient_CoredumpNotFound_NoDumps
 TEST_F(PrerequisitesTest, PrerequisitesWait_MediaClient_OptOut_CleansUp) {
     test_config.device_type = DEVICE_TYPE_MEDIACLIENT;
     test_config.dump_type = DUMP_TYPE_MINIDUMP;
-    test_config.opt_out = true;
     CreateDumpFile(test_minidump_dir, "crash.dmp");
     
     int ret = prerequisites_wait(&test_config, 30);
@@ -299,7 +297,6 @@ TEST_F(PrerequisitesTest, PrerequisitesWait_MediaClient_OptOut_CleansUp) {
 TEST_F(PrerequisitesTest, PrerequisitesWait_MediaClient_OptOutCoredump_CleansUp) {
     test_config.device_type = DEVICE_TYPE_MEDIACLIENT;
     test_config.dump_type = DUMP_TYPE_COREDUMP;
-    test_config.opt_out = true;
     CreateDumpFile(test_core_dir, "app_core.12345");
     
     int ret = prerequisites_wait(&test_config, 30);
