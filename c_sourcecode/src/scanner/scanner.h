@@ -23,7 +23,7 @@
 #ifndef SCANNER_H
 #define SCANNER_H
 
-#include "../../common/types.h"
+#include "types.h"
 #include <ctype.h>
 /**
  * @brief Find and sort dump files

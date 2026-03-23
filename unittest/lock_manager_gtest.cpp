@@ -36,7 +36,7 @@
 #include <sys/wait.h>
 
 extern "C" {
-#include "../c_sourcecode/src/utils/lock_manager.h"
+#include "lock_manager.h"
 
 // Forward declarations for internal functions not in header
 int acquire_process_lock_or_wait(const char *lock_path, int wait_time);

@@ -16,7 +16,7 @@
  */
 
 #include "rfcinterface.h"
-#include "../utils/logger.h"
+#include "logger.h"
 
 #ifndef GTEST_ENABLE
 #include "rdk_fwdl_utils.h"

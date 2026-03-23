@@ -34,9 +34,9 @@
 #include <dirent.h>
 
 extern "C" {
-#include "../c_sourcecode/src/utils/prerequisites.h"
-#include "../c_sourcecode/common/types.h"
-#include "../c_sourcecode/common/errors.h"
+#include "prerequisites.h"
+#include "types.h"
+#include "errors.h"
 
 // Forward declarations for internal functions
 void defer_upload_if_needed(device_type_t device_type);

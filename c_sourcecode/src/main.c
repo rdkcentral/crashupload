@@ -25,23 +25,23 @@
  * SKELETON: Function bodies need implementation
  */
 
-#include "../common/types.h"
-#include "../common/constants.h"
-#include "../common/errors.h"
-#include "init/system_init.h"
-#include "config/config_manager.h"
-#include "utils/prerequisites.h"
-#include "utils/lock_manager.h"
-#include "scanner/scanner.h"
-#include "archive/archive_crash.h"
-#include "utils/cleanup_batch.h"
-#include "utils/logger.h"
+#include "types.h"
+#include "constants.h"
+#include "errors.h"
+#include "system_init.h"
+#include "config_manager.h"
+#include "prerequisites.h"
+#include "lock_manager.h"
+#include "scanner.h"
+#include "archive_crash.h"
+#include "cleanup_batch.h"
+#include "logger.h"
 #include <signal.h>
 #include "file_utils.h"
 #include "ratelimit.h"
 #include "systemutils.h"
 #include "upload.h"
-#include "t2Interface/telemetryinterface.h"
+#include "telemetryinterface.h"
 
 int lock_dir_prefix = 0;
 

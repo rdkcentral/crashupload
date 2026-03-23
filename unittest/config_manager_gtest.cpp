@@ -37,10 +37,10 @@
 #include <unistd.h>
 
 extern "C" {
-#include "../c_sourcecode/src/config/config_manager.h"
-#include "../c_sourcecode/common/types.h"
-#include "../c_sourcecode/common/errors.h"
-#include "../c_sourcecode/common/constants.h"
+#include "config_manager.h"
+#include "types.h"
+#include "errors.h"
+#include "constants.h"
 
 // Mock function declarations
 int mock_getIncludePropertyData(const char* param, char* value, int len);
@@ -712,7 +712,7 @@ TEST_F(ConfigManagerTest, GetPrivacyControlMode_RbusStubBehavior) {
 // ============================================================================
 
 extern "C" {
-#include "../c_sourcecode/src/rfcInterface/rfcinterface.h"
+#include "rfcinterface.h"
 }
 
 TEST_F(ConfigManagerTest, WriteRFCProperty_StringType_ReturnsNotApplicable) {

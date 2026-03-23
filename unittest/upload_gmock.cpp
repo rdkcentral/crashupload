@@ -56,7 +56,7 @@
 #include <string.h>
 
 extern "C" {
-#include "../c_sourcecode/common/types.h"
+#include "types.h"
 
 // External type definitions for mocking
 typedef struct {

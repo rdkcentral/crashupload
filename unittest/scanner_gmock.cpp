@@ -46,7 +46,7 @@
 #include <string.h>
 
 extern "C" {
-#include "../c_sourcecode/common/types.h"
+#include "types.h"
 }
 
 // Mock state control structure

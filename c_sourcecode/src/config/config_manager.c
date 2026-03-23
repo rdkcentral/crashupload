@@ -20,10 +20,10 @@
  * SKELETON: Implementation needed
  */
 #include "config_manager.h"
-#include "../../common/errors.h"
-#include "../utils/logger.h"
-#include "../rfcInterface/rfcinterface.h"
-#include "../rbusInterface/rbus_interface.h"
+#include "errors.h"
+#include "logger.h"
+#include "rfcinterface.h"
+#include "rbus_interface.h"
 
 #include <stdio.h>
 #include <string.h>
