@@ -236,15 +236,22 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                 t2ValNotify("coreUpld_split", upload_split_val);
             }
 #if defined(L2_TEST)
-            /* TC-083 force-fail hook: if /tmp/cu_all_fail exists, treat every
-             * metadata attempt as a hard failure so all MAX_RETRIES are exhausted
-             * without requiring any server-side configuration. */
+            /* TC-083 force-fail hook: if /tmp/cu_all_fail exists, treat every metadata attempt as a hard failure */
             if (access("/tmp/cu_all_fail", F_OK) == 0) {
                 http_code = 500;
                 curl_ret = -1;
             }
-#endif
-#if defined(L2_TEST)
+            /* TC-082 partial-fail hook: fail first N attempts then succeed. */
+            FILE *_cu_fp = fopen("/tmp/cu_fail_n", "r+");
+            if (_cu_fp) {
+                    int _cu_n = 0;
+                    if (fscanf(_cu_fp, "%d", &_cu_n) != 1)
+                        _cu_n = 0;
+                    rewind(_cu_fp);
+                    fprintf(_cu_fp, "%d\n", (_cu_n > 0) ? _cu_n - 1 : 0);
+                    fclose(_cu_fp);
+                    if (_cu_n > 0) { http_code = 500; curl_ret = -1; }
+            }
             if (http_code >= 200 && http_code < 300)
 #else
             if (curl_ret ==0)
