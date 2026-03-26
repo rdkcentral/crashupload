@@ -46,6 +46,7 @@ from testUtility import (
     DEFAULT_LOG_PATH,
     CORE_LOG_FILE,
     DEVICE_PROPERTIES,
+    UPLOADED_CRASHES_DIR,
 )
 
 
@@ -53,9 +54,8 @@ class TestUpload:
     """TC-081: verify a single successful upload is saved by mock S3."""
 
     def test_single_successful_upload(self, binary_path, cleanup_pytest_cache):
-        # Determine the repository root then the uploaded_crashes directory
-        repo_root = Path(__file__).resolve().parents[4]
-        upload_dir = repo_root / "uploaded_crashes"
+        # Shared directory where mock-xconf saves uploaded dumps
+        upload_dir = Path(UPLOADED_CRASHES_DIR)
 
         # Ensure clean upload directory
         if upload_dir.exists():

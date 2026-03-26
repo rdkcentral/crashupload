@@ -113,7 +113,7 @@ sh cov_build.sh --l2-test
 | TC-080 | All associated log files added to archive | Log File Mapping | ✅ Yes | `archive_add_file()` called for each log file returned by `lookup_log_files_for_proc()`; all mapped logs included | ✅ Implemented | `test_archive_content.py` :: `test_all_mapped_log_files_added_to_archive` |
 | TC-081 | Upload succeeds on first attempt | Upload | ✅ Yes | `upload_file()` in `upload.c` returns `UPLOAD_SUCCESS` on first successful libcurl transfer | ✅ Implemented | `test_single_dump_upload.py` :: `TestUpload::test_single_successful_upload` |
 | TC-082 | Upload retried up to 3 times on failure | Upload | ✅ Yes | `MAX_RETRIES=3` in `upload.c`; failed libcurl call triggers `sleep(RETRY_DELAY_SECONDS=5)` and retry loop | 🔲 Not Yet | — |
-| TC-083 | Upload permanently fails after 3 retries → error logged | Upload | ✅ Yes | After 3 consecutive failures `upload_file()` logs error and returns failure code to caller | 🔲 Not Yet | — |
+| TC-083 | Upload permanently fails after 3 retries → error logged | Upload | ✅ Yes | After 3 consecutive failures `upload_file()` logs error and returns failure code to caller | ✅ Implemented | `test_upload_retry.py` :: `TestUploadPermanentFailure::test_upload_fails_after_max_retries` |
 | TC-084 | Fallback to alternative upload path | Upload | ❌ No | Fallback upload path is an explicit `TODO: SUPPORT NOT AVAILABLE` stub in `upload.c`; the C implementation does not have a fallback path | — | — |
 | TC-085 | Single instance lock prevents duplicate execution | Lock Mechanism | ✅ Yes | `acquire_process_lock_or_exit()` prevents a second concurrent instance — identical mechanism to TC-012 | ✅ Implemented | `test_lock_and_exit.py` :: `test_multiple_instance_prevention_minidump`, `test_multiple_instance_prevention_coredump` |
 
@@ -127,10 +127,10 @@ sh cov_build.sh --l2-test
 | ✅ Applicable to C implementation | 60 |
 | ⚠️ Partially applicable | 10 |
 | ❌ Not applicable (shell-only) | 15 |
-| **Applicable TCs with L2 tests** | **64** out of 66 applicable |
-| **Applicable TCs without L2 tests** | **2** (TC-082, TC-083) |
+| **Applicable TCs with L2 tests** | **65** out of 66 applicable |
+| **Applicable TCs without L2 tests** | **1** (TC-082) |
 
-> **Key counts:** 85 total TCs − 19 not-applicable = **66 applicable**. 64 implemented + 2 pending = 66 ✓
+> **Key counts:** 85 total TCs − 19 not-applicable = **66 applicable**. 65 implemented + 1 pending = 66 ✓
 
 ### Applicable TCs — Coverage Breakdown by Category
 
@@ -151,8 +151,8 @@ sh cov_build.sh --l2-test
 | Archive Creation | 6 | 2 | 1 | 3 | 3 (TC-065, TC-066, TC-067) |
 | Crash Telemetry | 3 | 2 | 0 | 1 | 2 (TC-072, TC-073) |
 | Log File Mapping | 6 | 4 | 0 | 2 | 4 (TC-075, TC-078, TC-079, TC-080) |
-| Upload | 5 | 3 | 0 | 2 | 1 (TC-081) |
-| **Total** | **85** | **60** | **6** | **19** | **64** |
+| Upload | 5 | 3 | 0 | 2 | 2 (TC-081, TC-083) |
+| **Total** | **85** | **60** | **6** | **19** | **65** |
 
 ---
 

@@ -107,6 +107,7 @@ pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/broadband_env.json"      "$TEST_DIR/test_broadband_env.py"                 || OVERALL_EXIT=1
 
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/tc_081_single_upload.json" "$TEST_DIR/test_single_dump_upload.py" || OVERALL_EXIT=1
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/tc_082_083_upload_retry.json" "$TEST_DIR/test_upload_retry.py" || OVERALL_EXIT=1
 python3 "$TEST_DIR/conftest.py" "$SUMMARY_FILE"
 
 # Cleanup

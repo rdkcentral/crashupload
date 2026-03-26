@@ -92,6 +92,11 @@ L2_UPTIME_FILE               = "/opt/uptime"
 # Device properties file read by getDevicePropertyData() (config_manager.c)
 DEVICE_PROPERTIES            = "/etc/device.properties"
 
+# Shared volume directory where mock-xconf (crashUpload.js) saves uploaded dumps.
+# Must match the hardcoded uploadDir in crashUpload.js:
+#   const uploadDir = '/mnt/L2_CONTAINER_SHARED_VOLUME/uploaded_crashes';
+UPLOADED_CRASHES_DIR         = "/mnt/L2_CONTAINER_SHARED_VOLUME/uploaded_crashes"
+
 
 # ---------------------------------------------------------------------------
 # Fixtures

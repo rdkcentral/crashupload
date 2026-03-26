@@ -236,6 +236,15 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                 t2ValNotify("coreUpld_split", upload_split_val);
             }
 #if defined(L2_TEST)
+            /* TC-083 force-fail hook: if /tmp/cu_all_fail exists, treat every
+             * metadata attempt as a hard failure so all MAX_RETRIES are exhausted
+             * without requiring any server-side configuration. */
+            if (access("/tmp/cu_all_fail", F_OK) == 0) {
+                http_code = 500;
+                curl_ret = -1;
+            }
+#endif
+#if defined(L2_TEST)
             if (http_code >= 200 && http_code < 300)
 #else
             if (curl_ret ==0)
@@ -270,6 +279,14 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
             else
             {
                 snprintf(fqdn, sizeof(fqdn), "%s", url);
+#if defined(L2_TEST)
+                /* In L2 test mode, treat any non-2xx metadata response as a curl
+                 * failure so the retry loop actually fires when the mock server
+                 * returns an HTTP error code (libcurl itself returns 0 for a clean
+                 * TCP response even when the HTTP status indicates failure). */
+                if (curl_ret == 0)
+                    curl_ret = -1;
+#endif
             }
             if (curl_ret != 0)
             {

@@ -6,7 +6,7 @@ Tracks which applicable TCs still need L2 functional tests.
 
 ---
 
-## ✅ Applicable + Implemented — 64 TCs
+## ✅ Applicable + Implemented — 65 TCs
 
 | TC-ID | Test Case Name |
 |-------|----------------|
@@ -73,18 +73,18 @@ Tracks which applicable TCs still need L2 functional tests.
 | TC-053 | Rate-limit check passes when no deny file present (is_recovery_time_reached) | Rate Limiting |
 | TC-055 | set_time() writes timestamps in integer format (no fractional seconds) | Rate Limiting |
 | TC-081 | Upload succeeds on first attempt | Upload |
+| TC-083 | Upload permanently fails after 3 retries → error logged | Upload |
 | TC-085 | Single instance lock prevents duplicate execution |
 
 ---
 
-## 🔲 Applicable + Not Implemented — 2 TCs
+## 🔲 Applicable + Not Implemented — 1 TC
 
-### Upload Related — 2
+### Upload Related — 1
 
 | TC-ID | Test Case Name | Category |
 |-------|----------------|----------|
 | TC-082 | Upload retried up to 3 times on failure | Upload |
-| TC-083 | Upload permanently fails after 3 retries → error logged | Upload |
 
 ---
 
