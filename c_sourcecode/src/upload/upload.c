@@ -216,7 +216,15 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
         if (totlen < szPostFieldOut)
         {
             CRASHUPLOAD_INFO("postfiled data=%s\n", post_filed);
+#if defined(L2_TEST)
+            char s3_url_file_saved[sizeof(s3_url_file)];
+            memcpy(s3_url_file_saved, s3_url_file, sizeof(s3_url_file));
+#endif
             ret = performMetadataPostWithCertRotationEx(url, s3_url_file, post_filed, &sec_out, &http_code);
+#if defined(L2_TEST)
+            if (s3_url_file[0] == '\0')
+                memcpy(s3_url_file, s3_url_file_saved, sizeof(s3_url_file));
+#endif
             CRASHUPLOAD_INFO("After performMetadataPostWithCertRotationEx ret=%d=>http code=%lu\n", ret, http_code);
             __uploadutil_get_status(&http_code, &curl_ret);
             CRASHUPLOAD_INFO("Curl Connected to $FQDN:%s\n", url);
@@ -227,7 +235,11 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                 snprintf(upload_split_val, sizeof(upload_split_val), "%d, %ld", curl_ret, http_code);
                 t2ValNotify("coreUpld_split", upload_split_val);
             }
-            if (curl_ret == 0)
+#if defined(L2_TEST)
+            if (http_code >= 200 && http_code < 300)
+#else
+            if (curl_ret ==0)
+#endif
             {
                 CRASHUPLOAD_INFO("Attempting TLS1.2 connection to Amazon S3\n");
                 ret = extractS3PresignedUrl(s3_url_file, out_url, sizeof(out_url));
@@ -239,6 +251,9 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                     http_code = 0;
                     curl_ret = -1;
                     __uploadutil_get_status(&http_code, &curl_ret);
+#if defined(L2_TEST)
+                    if (ret != 0) curl_ret = ret;
+#endif
                     CRASHUPLOAD_INFO("Curl return code: %d HTTP Response code: %ld\n", curl_ret, http_code);
                 }
                 else

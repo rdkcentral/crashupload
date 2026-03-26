@@ -45,8 +45,8 @@ SUMMARY_FILE = "/tmp/l2_test_summary.txt"
 #   Not Applicable (❌ No): TC-001,002,003,010,027,029,030,031,032,033,034,
 #                           TC-056,068,069,070,074,076,077,084  = 19 TCs
 #   Applicable (✅ Yes + ⚠️ Partial): 85 - 19                            = 66 TCs
-#   Applicable & Implemented:                                             = 63 TCs
-#   Applicable & Not Implemented: TC-081, TC-082, TC-083                  =  3 TCs
+#   Applicable & Implemented:                                             = 64 TCs
+#   Applicable & Not Implemented: TC-082, TC-083                          =  2 TCs
 _TC_TOTAL            = 85
 _TC_NOT_APPLICABLE   = 19
 _TC_TOTAL_APPLICABLE = 66  # _TC_TOTAL - _TC_NOT_APPLICABLE
@@ -153,6 +153,8 @@ _TC_MAP = {
     "test_log_files_mapped_for_crashed_process":                 "TC-075",
     "test_all_mapped_log_files_added_to_archive":                "TC-080",
     "test_missing_log_file_handled_gracefully":                  "TC-078",
+    # Upload functionality
+    "test_single_successful_upload":                             "TC-081",
     # Crash Telemetry
     "test_process_crash_telemetry_path_exercised":               "TC-072",
     "test_container_crash_telemetry_path_exercised":             "TC-073",

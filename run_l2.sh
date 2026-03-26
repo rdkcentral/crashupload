@@ -59,11 +59,7 @@ mkdir -p /var/lib/systemd/coredump
 mkdir -p /tmp
 mkdir -p /opt/logs
 # Ensure debug.ini exists and only add the entry once
-if [ -f /etc/debug.ini ]; then
-    if ! grep -qxF "LOG.RDK.DEFAULT" /etc/debug.ini 2>/dev/null; then
-        echo "LOG.RDK.DEFAULT" >> /etc/debug.ini
-    fi
-fi
+echo "LOG.RDK.DEFAULT" >> /etc/debug.ini
 
 # Clean up any existing lock files and test artifacts
 rm -f /tmp/.uploadMinidumps
@@ -87,9 +83,6 @@ fi
 
 export CRASHUPLOAD_BINARY
 
-# Run functional tests with JSON reports
-# '|| OVERALL_EXIT=1' ensures we always continue to the next file and still
-# show the full summary table even when some tests fail.
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/lock_and_exit.json" "$TEST_DIR/test_lock_and_exit.py"               || OVERALL_EXIT=1
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/lock_and_wait.json" "$TEST_DIR/test_lock_and_wait.py"              || OVERALL_EXIT=1
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/failure_return.json" "$TEST_DIR/test_crashupload_failure_return.py" || OVERALL_EXIT=1
@@ -113,17 +106,18 @@ pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/telemetry.json"          "$TEST_DIR/test_telemetry.py"                     || OVERALL_EXIT=1
 pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/broadband_env.json"      "$TEST_DIR/test_broadband_env.py"                 || OVERALL_EXIT=1
 
-# ---------------------------------------------------------------------------
-# Print consolidated L2 summary table from the accumulated summary file, then
-# clean up the file regardless of whether any tests failed.
-# ---------------------------------------------------------------------------
+pytest -v -s --json-report --json-report-summary --json-report-file "$RESULT_DIR/tc_081_single_upload.json" "$TEST_DIR/test_single_dump_upload.py" || OVERALL_EXIT=1
 python3 "$TEST_DIR/conftest.py" "$SUMMARY_FILE"
 
 # Cleanup
+rm /etc/debug.ini 2>/dev/null || true
 rm -f /tmp/.uploadMinidumps
 rm -f /tmp/.uploadCoredumps
-rm -f /opt/secure/minidumps/*.dmp* 2>/dev/null || true
-rm -f /opt/secure/corefiles/*core* 2>/dev/null || true
+rm -rf /opt/minidumps/ 2>/dev/null || true
+rm -rf /var/lib/systemd/coredump/ 2>/dev/null || true
+rm -rf /opt/secure/corefiles/ 2>/dev/null || true
+rm -rf /opt/secure/minidumps/ 2>/dev/null || true
+rm -rf /tmp/signed_url_* 2>/dev/null || true
 rm -f /opt/uptime 2>/dev/null || true
 echo "L2 tests completed."
 
