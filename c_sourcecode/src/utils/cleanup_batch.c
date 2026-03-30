@@ -420,8 +420,8 @@ int cleanup_batch(const char *working_dir,
     }
 
     CRASHUPLOAD_INFO("Cleanup %s directory\n", working_dir);
-    /* 1) Find and delete files by wildcard '*_mac*_dat*' older than 2 days */
-    delete_files_matching_pattern_older_than(working_dir, "*_mac*_dat*", 2);
+    /* 1) Find and delete files by wildcard '*mac*_dat*' older than 2 days */
+    delete_files_matching_pattern_older_than(working_dir, "*mac*_dat*", 2);
 
     if (do_not_share_cleanup)
     {
@@ -469,8 +469,8 @@ int cleanup_batch(const char *working_dir,
         if (need_run_startup)
         {
             CRASHUPLOAD_INFO("Inside run start up cleanup\n");
-            /* delete unfinished files from previous run (matching "*_mac*_dat*") */
-            delete_files_matching_pattern(working_dir, "*_mac*_dat*");
+            /* delete unfinished files from previous run (matching "*mac*_dat*") */
+            delete_files_matching_pattern(working_dir, "*mac*_dat*");
 
             /* delete non-dump files */
             if (dumps_extn_pattern && dumps_extn_pattern[0] != '\0')
