@@ -132,15 +132,15 @@ echo ""
 mkdir -p "$INSTALL_DIR"
 
 # Clone and build common_utilities
-# echo "========================================"
-# echo "Building common_utilities dependency"
-# echo "========================================"
-# cd ${ROOT}
-# rm -rf common_utilities 2>/dev/null || true
-# git clone https://github.com/rdkcentral/common_utilities.git -b feature/L2uploadEnabled-GPS
-# cd common_utilities
-# sh cov_build.sh
-# echo ""
+echo "========================================"
+echo "Building common_utilities dependency"
+echo "========================================"
+cd ${ROOT}
+rm -rf common_utilities 2>/dev/null || true
+git clone https://github.com/rdkcentral/common_utilities.git -b develop
+cd common_utilities
+sh cov_build.sh
+echo ""
 
 # Return to working directory and change to c_sourcecode directory
 cd "$WORKDIR"
