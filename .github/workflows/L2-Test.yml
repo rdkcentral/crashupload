@@ -31,11 +31,11 @@ jobs:
 
       - name: Start mockxconf container
         run: |
-          docker run -d --name mockxconf -p 50059:50059 -p 50060:50060 -v ${{ github.workspace }}:/mnt/L2_CONTAINER_SHARED_VOLUME ghcr.io/rdkcentral/docker-device-mgt-service-test/mockxconf:latest
+          docker run -d --name mockxconf -p 50059:50059 -p 50060:50060 -e ENABLE_MTLS=true -v ${{ github.workspace }}:/mnt/L2_CONTAINER_SHARED_VOLUME ghcr.io/rdkcentral/docker-device-mgt-service-test/mockxconf:latest
 
       - name: Start native-platform container
         run: |
-          docker run -d --name native-platform --link mockxconf -v ${{ github.workspace }}:/mnt/L2_CONTAINER_SHARED_VOLUME ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
+          docker run -d --name native-platform --link mockxconf -e ENABLE_MTLS=true -v ${{ github.workspace }}:/mnt/L2_CONTAINER_SHARED_VOLUME ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
 
       - name: Build crashupload and run L2 tests
         run: |
