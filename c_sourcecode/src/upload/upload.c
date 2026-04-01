@@ -216,7 +216,15 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
         if (totlen < szPostFieldOut)
         {
             CRASHUPLOAD_INFO("postfiled data=%s\n", post_filed);
+#if defined(L2_TEST)
+            char s3_url_file_saved[sizeof(s3_url_file)];
+            memcpy(s3_url_file_saved, s3_url_file, sizeof(s3_url_file));
+#endif
             ret = performMetadataPostWithCertRotationEx(url, s3_url_file, post_filed, &sec_out, &http_code);
+#if defined(L2_TEST)
+            if (s3_url_file[0] == '\0')
+                memcpy(s3_url_file, s3_url_file_saved, sizeof(s3_url_file));
+#endif
             CRASHUPLOAD_INFO("After performMetadataPostWithCertRotationEx ret=%d=>http code=%lu\n", ret, http_code);
             __uploadutil_get_status(&http_code, &curl_ret);
             CRASHUPLOAD_INFO("Curl Connected to $FQDN:%s\n", url);
@@ -227,7 +235,27 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                 snprintf(upload_split_val, sizeof(upload_split_val), "%d, %ld", curl_ret, http_code);
                 t2ValNotify("coreUpld_split", upload_split_val);
             }
-            if (curl_ret == 0)
+#if defined(L2_TEST)
+            /* TC-083 force-fail hook: if /tmp/cu_all_fail exists, treat every metadata attempt as a hard failure */
+            if (access("/tmp/cu_all_fail", F_OK) == 0) {
+                http_code = 500;
+                curl_ret = -1;
+            }
+            /* TC-082 partial-fail hook: fail first N attempts then succeed. */
+            FILE *_cu_fp = fopen("/tmp/cu_fail_n", "r+");
+            if (_cu_fp) {
+                    int _cu_n = 0;
+                    if (fscanf(_cu_fp, "%d", &_cu_n) != 1)
+                        _cu_n = 0;
+                    rewind(_cu_fp);
+                    fprintf(_cu_fp, "%d\n", (_cu_n > 0) ? _cu_n - 1 : 0);
+                    fclose(_cu_fp);
+                    if (_cu_n > 0) { http_code = 500; curl_ret = -1; }
+            }
+            if (http_code >= 200 && http_code < 300)
+#else
+            if (curl_ret ==0)
+#endif
             {
                 CRASHUPLOAD_INFO("Attempting TLS1.2 connection to Amazon S3\n");
                 ret = extractS3PresignedUrl(s3_url_file, out_url, sizeof(out_url));
@@ -239,6 +267,9 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                     http_code = 0;
                     curl_ret = -1;
                     __uploadutil_get_status(&http_code, &curl_ret);
+#if defined(L2_TEST)
+                    if (ret != 0) curl_ret = ret;
+#endif
                     CRASHUPLOAD_INFO("Curl return code: %d HTTP Response code: %ld\n", curl_ret, http_code);
                 }
                 else
@@ -255,6 +286,14 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
             else
             {
                 snprintf(fqdn, sizeof(fqdn), "%s", url);
+#if defined(L2_TEST)
+                /* In L2 test mode, treat any non-2xx metadata response as a curl
+                 * failure so the retry loop actually fires when the mock server
+                 * returns an HTTP error code (libcurl itself returns 0 for a clean
+                 * TCP response even when the HTTP status indicates failure). */
+                if (curl_ret == 0)
+                    curl_ret = -1;
+#endif
             }
             if (curl_ret != 0)
             {
