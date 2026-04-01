@@ -137,8 +137,9 @@ echo "Building common_utilities dependency"
 echo "========================================"
 cd ${ROOT}
 rm -rf common_utilities 2>/dev/null || true
-git clone https://github.com/rdkcentral/common_utilities.git -b develop
+git clone https://github.com/rdkcentral/common_utilities.git
 cd common_utilities
+git checkout tags/1.5.4
 sh cov_build.sh
 echo ""
 

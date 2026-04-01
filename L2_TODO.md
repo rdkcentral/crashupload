@@ -158,5 +158,5 @@ See `L2_TESTS.md` "Not-Applicable TCs — Summary" for the reason each was exclu
 | Total TCs in `uploadDumps_TestCases.md` | 85 |
 | ❌ Not Applicable | 19 |
 | ✅ Applicable — total | 66 |
-| &nbsp;&nbsp;&nbsp;✅ Implemented | 63 |
-| &nbsp;&nbsp;&nbsp;🔲 Pending | 3 |
+| &nbsp;&nbsp;&nbsp;✅ Implemented | 66 |
+| &nbsp;&nbsp;&nbsp;🔲 Pending | 0 |
