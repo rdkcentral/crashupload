@@ -30,6 +30,7 @@ export INSTALL_DIR=${ROOT}/local
 
 # Command-line flags
 CLEAN_ONLY=false
+L2_TEST_MODE=false
 
 # Parse command-line arguments
 for arg in "$@"; do
@@ -37,12 +38,16 @@ for arg in "$@"; do
         --clean)
             CLEAN_ONLY=true
             ;;
+        --l2-test)
+            L2_TEST_MODE=true
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  (none)      Build crashupload binary (default)"
             echo "  --clean     Clean all build artifacts from c_sourcecode and exit"
+            echo "  --l2-test   Build with -DL2_TEST (reads uptime from /opt/uptime instead of /proc/uptime)"
             echo "  --help, -h  Show this help message"
             echo ""
             exit 0
@@ -131,8 +136,10 @@ echo "========================================"
 echo "Building common_utilities dependency"
 echo "========================================"
 cd ${ROOT}
-git clone https://github.com/rdkcentral/common_utilities.git -b feature/upload_L2
+rm -rf common_utilities 2>/dev/null || true
+git clone https://github.com/rdkcentral/common_utilities.git
 cd common_utilities
+git checkout tags/1.5.4
 sh cov_build.sh
 echo ""
 
@@ -146,10 +153,15 @@ autoreconf -i
 
 # Configure build
 echo "[2/3] Configuring build..."
+BASE_CFLAGS="-DRDK_LOGGER -I/usr/local/include -include rdkcertselector.h -Wall -Werror -O2"
+if [ "$L2_TEST_MODE" = true ]; then
+    echo "L2 TEST MODE: Building with -DL2_TEST flag (will use /opt/uptime instead of /proc/uptime)"
+    BASE_CFLAGS="$BASE_CFLAGS -DL2_TEST"
+fi
 ./configure \
     --enable-rdkcertselector \
     --prefix="${INSTALL_DIR}" \
-    CFLAGS="-DRDK_LOGGER -I/usr/local/include -include rdkcertselector.h -Wall -Werror -O2" \
+    CFLAGS="$BASE_CFLAGS" \
     LDFLAGS="-L/usr/local/lib" \
     PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
 

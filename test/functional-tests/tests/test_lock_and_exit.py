@@ -25,45 +25,16 @@ Tests that crashupload properly detects and prevents multiple concurrent instanc
 import pytest
 import subprocess
 import os
-import fcntl
 import time
 import threading
-import shutil
 from pathlib import Path
+from testUtility import (
+    cleanup_pytest_cache, binary_path, create_dummy_dump, hold_lock_and_release,
+)
 
 
 class TestMultipleInstancePrevention:
     """Test crashupload lock mechanism to prevent multiple instances"""
-    
-    @pytest.fixture(scope="session", autouse=True)
-    def cleanup_pytest_cache(self):
-        """Cleanup pytest cache directories after all tests complete"""
-        yield  # Run all tests first
-        
-        # Cleanup after all tests in this session
-        test_dir = Path(__file__).parent
-        cache_dirs = [
-            test_dir / "__pycache__",
-            test_dir / ".pytest_cache",
-            test_dir.parent / "__pycache__",
-            test_dir.parent / ".pytest_cache",
-        ]
-        
-        for cache_dir in cache_dirs:
-            if cache_dir.exists():
-                try:
-                    shutil.rmtree(cache_dir)
-                    print(f"Cleaned up: {cache_dir}")
-                except Exception as e:
-                    print(f"Warning: Could not remove {cache_dir}: {e}")
-    
-    @pytest.fixture
-    def binary_path(self):
-        """Get path to crashupload binary"""
-        binary = os.environ.get('CRASHUPLOAD_BINARY', '/usr/local/bin/crashupload')
-        if not os.path.exists(binary):
-            pytest.skip(f"Crashupload binary not found at {binary}")
-        return binary
     
     @pytest.fixture
     def minidump_dir(self):
@@ -77,46 +48,7 @@ class TestMultipleInstancePrevention:
         """Return the minidump lock file path"""
         return "/tmp/.uploadMinidumps"
     
-    def create_dummy_dump(self, dump_dir, dump_name="multi_instance.dmp", size_kb=1):
-        """Create a dummy dump file with specified size"""
-        dump_path = Path(dump_dir) / dump_name
-        # Create file with at least 1KB of data
-        with open(dump_path, 'wb') as f:
-            f.write(b'MINIDUMP_HEADER' + b'\x00' * (size_kb * 1024))
-        
-        assert dump_path.exists(), f"Failed to create dump file {dump_path}"
-        assert dump_path.stat().st_size > 0, f"Dump file {dump_path} has zero size"
-        return str(dump_path)
-    
-    def hold_lock(self, lock_file_path, duration_sec, lock_acquired_event):
-        """Hold an exclusive lock on the lock file for specified duration"""
-        try:
-            # Create lock file if it doesn't exist
-            lock_fd = os.open(lock_file_path, os.O_CREAT | os.O_RDWR, 0o644)
-            
-            # Acquire exclusive lock (non-blocking test first)
-            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            print(f"Lock acquired on {lock_file_path}")
-            
-            # Signal that lock is acquired
-            lock_acquired_event.set()
-            
-            # Hold lock for specified duration
-            time.sleep(duration_sec)
-            
-            # Release lock
-            fcntl.flock(lock_fd, fcntl.LOCK_UN)
-            os.close(lock_fd)
-            print(f"Lock released on {lock_file_path}")
-            
-        except BlockingIOError:
-            print(f"Could not acquire lock on {lock_file_path} - already locked")
-            lock_acquired_event.set()  # Signal anyway to not block test
-        except Exception as e:
-            print(f"Error in lock thread: {e}")
-            lock_acquired_event.set()
-    
-    def test_multiple_instance_prevention_minidump(self, binary_path, minidump_dir, lock_file_path):
+    def test_multiple_instance_prevention_minidump(self, binary_path, minidump_dir, lock_file_path, cleanup_pytest_cache):
         """
         Test LOCK-03: Verify that second instance exits when lock is already held
         
@@ -134,7 +66,7 @@ class TestMultipleInstancePrevention:
                 pass
         
         # Create dummy dump file
-        dump_file = self.create_dummy_dump(minidump_dir, "multi_instance.dmp", size_kb=1)
+        dump_file = create_dummy_dump(minidump_dir, "multi_instance.dmp", size_kb=1)
         print(f"Created dummy dump file: {dump_file}")
         
         # Event to signal when lock is acquired
@@ -143,7 +75,7 @@ class TestMultipleInstancePrevention:
         # Start thread to hold lock for 60 seconds
         lock_duration = 60
         lock_thread = threading.Thread(
-            target=self.hold_lock,
+            target=hold_lock_and_release,
             args=(lock_file_path, lock_duration, lock_acquired),
             daemon=True
         )
@@ -213,7 +145,7 @@ class TestMultipleInstancePrevention:
                 except:
                     pass
     
-    def test_multiple_instance_prevention_coredump(self, binary_path):
+    def test_multiple_instance_prevention_coredump(self, binary_path, cleanup_pytest_cache):
         """
         Test LOCK-01: Verify coredump uses different lock file
         
@@ -240,7 +172,7 @@ class TestMultipleInstancePrevention:
         
         # Start thread to hold lock
         lock_thread = threading.Thread(
-            target=self.hold_lock,
+            target=hold_lock_and_release,
             args=(lock_file_path, 60, lock_acquired),
             daemon=True
         )
