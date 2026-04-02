@@ -34,17 +34,22 @@
 
 #define FOUR_EIGHTY_SECS 480   // 8 minutes (same as script)
 
+#ifdef L2_TEST
+#define UPTIME_FILE "/opt/uptime"   /* L2 testing: controlled uptime value */
+#else
+#define UPTIME_FILE "/proc/uptime"  /* Production: kernel-provided uptime  */
+#endif
+
 void defer_upload_if_needed(device_type_t device_type)
 {
     int ret = -1;
 
     if (device_type == DEVICE_TYPE_MEDIACLIENT)
     {
-        /* Read uptime from /proc/uptime */
-        FILE *fp = fopen("/proc/uptime", "r");
+        FILE *fp = fopen(UPTIME_FILE, "r");
         if (!fp)
         {
-            CRASHUPLOAD_ERROR("Failed to read /proc/uptime\n");
+            CRASHUPLOAD_ERROR("Failed to read %s\n", UPTIME_FILE);
             return;
         }
 
@@ -53,7 +58,7 @@ void defer_upload_if_needed(device_type_t device_type)
         fclose(fp);
         if (ret != 1)
         {
-            CRASHUPLOAD_ERROR("Failed to parse /proc/uptime");
+            CRASHUPLOAD_ERROR("Failed to parse %s\n", UPTIME_FILE);
         }
 
         int uptime_val = (int)uptime_seconds;
@@ -114,13 +119,13 @@ int prerequisites_wait(config_t *config, int timeout_sec)
 {
     int dump_file_found = 0;
     char dump_extn[16] = {0};
-    CRASHUPLOAD_INFO("Inside prerequisites_wait: device type=%u\n", config->device_type);
     /* TODO: Check network + time sync together */
     if (NULL == config)
     {
         CRASHUPLOAD_ERROR("Invalid parameter or NULL parameter\n");
         return -1;
     }
+    CRASHUPLOAD_INFO("Inside prerequisites_wait: device type=%u\n", config->device_type);
     if ((config->device_type == DEVICE_TYPE_BROADBAND) || (config->device_type == DEVICE_TYPE_EXTENDER))
     {
         dump_file_found = directory_has_pattern(config->core_path, ".dmp");

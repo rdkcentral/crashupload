@@ -30,6 +30,8 @@ void logger_exit(void);
 void logger_error(const char *fmt, ...);
 void logger_warn(const char *fmt, ...);
 void logger_info(const char *fmt, ...);
+/* crashupload_log is the fallback logging function compiled when RDK_LOGGER is not defined */
+void crashupload_log(unsigned int level, const char *file, int line, const char *msg, ...);
 }
 
 // ============================================================================
@@ -232,6 +234,52 @@ TEST_F(LoggerTest, Integration_MultipleSessions) {
     logger_exit();
     
     SUCCEED();
+}
+
+// ============================================================================
+// Tests for crashupload_log() - fallback logging (compiled when RDK_LOGGER not defined)
+// ============================================================================
+
+TEST_F(LoggerTest, CrashuploadLog_SimpleMessage_DoesNotCrash) {
+    // Covers: function entry, va_start/va_end, vsnprintf size calc,
+    //         messageLen > 0 branch, malloc, second vsnprintf, printf, free
+    EXPECT_NO_THROW({
+        crashupload_log(1, "test_file.c", 42, "Simple log message\n");
+    });
+}
+
+TEST_F(LoggerTest, CrashuploadLog_FormattedMessage_DoesNotCrash) {
+    // Covers: format-string path with multiple variadic args
+    EXPECT_NO_THROW({
+        crashupload_log(2, "other_file.c", 100,
+                        "Value=%d str=%s float=%.2f\n", 99, "hello", 3.14);
+    });
+}
+
+TEST_F(LoggerTest, CrashuploadLog_EmptyFormatString_SkipsBuffer) {
+    // Covers: messageLen == 0 path (vsnprintf returns 0 for empty string)
+    // The if (messageLen > 0) block is skipped entirely.
+    EXPECT_NO_THROW({
+        crashupload_log(0, "file.c", 1, "");
+    });
+}
+
+TEST_F(LoggerTest, CrashuploadLog_LongMessage_DoesNotCrash) {
+    // Covers: large allocation path through malloc
+    EXPECT_NO_THROW({
+        crashupload_log(1, "bigfile.c", 999,
+                        "This is a longer message exercising the buffer allocation "
+                        "path: counter=%d, name=%s, extra=%s\n",
+                        1234, "longprocessname", "additionaldata");
+    });
+}
+
+TEST_F(LoggerTest, CrashuploadLog_AfterLoggerInit_DoesNotCrash) {
+    logger_init();
+    EXPECT_NO_THROW({
+        crashupload_log(1, "init_test.c", 10, "Message after init: %s\n", "ok");
+    });
+    logger_exit();
 }
 
 // ============================================================================

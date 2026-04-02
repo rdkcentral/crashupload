@@ -186,12 +186,12 @@ cat test-suite.log
 Current code coverage metrics from GTest suite:
 
 ```
-Lines......: 83.4% (1753 of 2102 lines)
-Functions..: 97.8% (87 of 89 functions)
-Branches...: 77.9% (1003 of 1288 branches)
+Lines......: 90.5% (1903 of 2102 lines)
+Functions..: 100.0% (89 of 89 functions)
+Branches...: 84.3% (1086 of 1288 branches)
 ```
 
-**Coverage Target**: Maintain >80% line coverage, >95% function coverage
+**Coverage Target**: Maintain >90% line coverage, 100% function coverage, >80% branches coverage
 
 ### L2 Functional Tests
 
@@ -203,13 +203,35 @@ cd test/functional-tests
 ```
 
 **Test Status**:
-1. ✅ Lock and Exit - Completed
-2. ✅ Lock and Wait - Completed
-3. 🔄 Minidump Upload - TBD
-4. 🔄 Coredump Upload - TBD
-5. 🔄 Ratelimit - TBD
-6. 🔄 Startup Cleanup - TBD
-7. 🔄 OptOut - TBD
+
+| Module | Feature File | Status |
+|--------|-------------|--------|
+| Argument parsing (TC-008) | `arg_parsing.feature` | ✅ Complete |
+| Failure return codes | `failure_return.feature` | ✅ Complete |
+| Reboot flag / log output | `reboot_and_log_scenario.feature` | ✅ Complete |
+| Config & path selection (TC-006/007/009) | `config_and_path.feature` | ✅ Complete |
+| Dump detection & platform baseline (TC-019–028) | `config_checks_and_baseline.feature` | ✅ Complete |
+| Unsupported device types (TC-004/005/017/018) | `unsupported_device_types.feature` | ✅ Complete |
+| Broadband archive behaviour (TC-067) | `broadband_env.feature` | ✅ Complete |
+| No dumps exit (NODMP-01..04) | `no_dumps_exit.feature` | ✅ Complete |
+| Upload deferral (TC-035/036/037) | `upload_deferral.feature` | ✅ Complete |
+| Lock and exit (TC-012/013/015/085) | `test_lock_and_exit.feature` | ✅ Complete |
+| Lock and wait | `test_lock_and_wait.feature` | ✅ Complete |
+| Lock lifecycle (TC-011/014/016) | `lock_lifecycle.feature` | ✅ Complete |
+| Signal lock cleanup (SIG-01/02) | `signal_lock_cleanup.feature` | ✅ Complete |
+| Startup cleanup batch (TC-041–047) | `cleanup_batch.feature` | ✅ Complete |
+| Rate limiting — block (TC-049/051/055) | `ratelimit.feature` | ✅ Complete |
+| Rate limiting — allow (TC-048/050/052–054) | `ratelimit.feature` | ✅ Complete |
+| Telemetry opt-out (TC-038/039/040) | `telemetry_optout.feature` | ✅ Complete |
+| Crash telemetry (TC-072/073) | `crash_telemetry.feature` | ✅ Complete |
+| Scanner / filename sanitisation (TC-057–059/064) | `scanner_behaviour.feature` | ✅ Complete |
+| Dump processing (TC-060/071) | `dump_processing.feature` | ✅ Complete |
+| Archive naming (TC-061/062/063) | `archive_naming.feature` | ✅ Complete |
+| Archive content (TC-065/066/075/078–080) | `archive_content.feature` | ✅ Complete |
+| Single successful upload (TC-081) | `upload.feature` | ✅ Complete |
+| Upload retry (TC-082/083) | `upload_retry.feature` | ✅ Complete |
+
+**Coverage**: 66 / 66 applicable TCs implemented (19 not applicable — see `L2_TESTS.md`)
 
 ## Rate Limiting & Recovery Mode
 
