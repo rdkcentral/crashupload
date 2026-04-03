@@ -23,7 +23,7 @@
 #ifndef CONFIG_MANAGER_H
 #define CONFIG_MANAGER_H
 
-#include "../../common/types.h"
+#include "types.h"
 
 bool get_opt_out_status(void);
 /**

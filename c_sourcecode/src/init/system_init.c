@@ -24,12 +24,12 @@
  */
 
 #include "system_init.h"
-#include "../../common/errors.h"
-#include "../../common/constants.h"
-#include "../config/config_manager.h"
-#include "../utils/logger.h"
-#include "../platform/platform.h"
-#include "../t2Interface/telemetryinterface.h"
+#include "errors.h"
+#include "constants.h"
+#include "config_manager.h"
+#include "logger.h"
+#include "platform.h"
+#include "telemetryinterface.h"
 #include <stdio.h>
 #include <string.h>
 

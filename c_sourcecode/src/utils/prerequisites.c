@@ -21,7 +21,7 @@
  */
 #include "prerequisites.h"
 #include "cleanup_batch.h"
-#include "../../common/errors.h"
+#include "errors.h"
 
 #include <stdio.h>
 #include <string.h>

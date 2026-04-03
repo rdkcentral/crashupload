@@ -34,8 +34,8 @@
 #include <fcntl.h>
 
 extern "C" {
-#include "../c_sourcecode/include/ratelimit.h"
-#include "../c_sourcecode/common/types.h"
+#include "ratelimit.h"
+#include "types.h"
 }
 
 // ============================================================================
