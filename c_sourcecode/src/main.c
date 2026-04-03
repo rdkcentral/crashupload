@@ -65,7 +65,7 @@ void handle_signal(int no, siginfo_t *info, void *uc)
  * Implements optimized 7-step flow:
  * 1. Consolidated initialization (parse + config + platform)
  * 2. Combined prerequisites check (network + time)
- * 3. Unified privacy check (opt-out + privacy mode)
+ * 3. Privacy check and deferred upload if needed
  * 4. Lock acquisition
  * 5. Process dumps (scan, archive, upload, rate limit)
  * 6. Batch cleanup

@@ -25,7 +25,6 @@
 
 #include "../../common/types.h"
 
-bool get_opt_out_status(void);
 /**
  * @brief Load configuration from multiple sources
  * @param config Configuration structure to populate

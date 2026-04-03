@@ -33,15 +33,16 @@ flowchart TD
     CheckTime -->|Wait for Time| TimeLoop[Time Sync Loop]
     TimeLoop --> CheckTime
     
-    CheckTime -->|Synced| CheckOptOut{Telemetry Opt-Out?}
+    CheckTime -->|Synced| CheckMediaClient{DEVICE_TYPE = MEDIACLIENT?}
     
-    CheckOptOut -->|Yes| RemoveDumps[Remove All Pending Dumps]
-    RemoveDumps --> ReleaseLock1[Release Lock]
+    CheckMediaClient -->|Yes| FetchPrivacy[get_privacy_control_mode via RBUS]
+    FetchPrivacy --> CheckPrivacy{Privacy Mode = DO_NOT_SHARE?}
+    CheckPrivacy -->|Yes| DoNotSharePath[Scan Dumps, Skip Archiving, Delete Dump Files]
+    DoNotSharePath --> ReleaseLock1[Release Lock]
     ReleaseLock1 --> End2([Exit 0])
     
-    CheckOptOut -->|No| CheckPrivacy{Privacy Mode = DO_NOT_SHARE?}
-    
-    CheckPrivacy -->|Yes| RemoveDumps
+    CheckMediaClient -->|No| Cleanup[Cleanup Old Files]
+    CheckPrivacy -->|No| Cleanup
     
     CheckPrivacy -->|No| Cleanup[Cleanup Old Files]
     Cleanup --> ScanDumps[Scan for Dump Files]

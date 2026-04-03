@@ -9,7 +9,6 @@
 | Function | Test Cases | Coverage Target |
 |----------|-----------|----------------|
 | `config_init_load()` | 60+ | >95% |
-| `get_opt_out_status()` | 4 | 100% |
 | `config_get()` | 4 | 100% (not implemented) |
 | `config_cleanup()` | 3 | 100% |
 
@@ -79,8 +78,6 @@
 - ✅ Working directory path logic
 - ✅ Combined secure + wait mode
 
-### 2. get_opt_out_status() Tests (4 cases)
-
 #### File Status Tests
 - ✅ Both RFC and file are "true" → returns true
 - ✅ File doesn't exist → returns false
@@ -106,7 +103,6 @@
 
 ### Line Coverage Targets
 - **config_manager.c**: >90% (Target: 95%+)
-- **get_opt_out_status()**: 100%
 - **config_init_load()**: >95%
 - **config_get()**: 100% (single return line)
 - **config_cleanup()**: 100%
@@ -193,9 +189,8 @@ Clean up test files
 
 ## Known Limitations
 
-1. **RFC Value Hardcoded**: `get_opt_out_status()` has RFC value hardcoded to "true"
-2. **config_get() Not Implemented**: Returns ERR_NOT_IMPLEMENTED
-3. **File I/O**: Some tests create temporary files in /tmp
+1. **config_get() Not Implemented**: Returns ERR_NOT_IMPLEMENTED
+2. **File I/O**: Some tests create temporary files in /tmp
 
 ## Continuous Integration Readiness
 

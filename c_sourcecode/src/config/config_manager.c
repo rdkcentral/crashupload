@@ -31,44 +31,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define OPTOUT_FILE "/opt/tmtryoptout"
 #define RFC_PRIVACY_MODE "Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode"
-
-bool get_opt_out_status(void)
-{
-    bool optoutStatus = false;
-    char currentVal[16] = "false";
-    int ret = -1;
-    char rfcStatus[32] = {0};
-    ret = read_RFCProperty("rfcTelemetryOptout", RFC_TELEMETRY_OPTOUT, rfcStatus, sizeof(rfcStatus));
-    if ((ret == READ_RFC_FAILURE) || (rfcStatus[0] == '\0'))
-    {
-        strcpy(rfcStatus, "false");
-        CRASHUPLOAD_WARN("Read rfc failed rfcTelemetryOptout:%s and default value set:%s\n", RFC_TELEMETRY_OPTOUT, rfcStatus);
-    }
-    else
-    {
-        CRASHUPLOAD_INFO("Read rfc Success rfcTelemetryOptout:%s and value=:%s\n", RFC_TELEMETRY_OPTOUT, rfcStatus);
-    }
-
-    FILE *fp = fopen(OPTOUT_FILE, "r");
-    if (fp)
-    {
-        if (fgets(currentVal, sizeof(currentVal), fp))
-        {
-            // remove newline if present
-            currentVal[strcspn(currentVal, "\n")] = '\0';
-        }
-        fclose(fp);
-    }
-
-    // Compare & Set Status
-    if (strcmp(rfcStatus, "true") == 0 && strcmp(currentVal, "true") == 0)
-    {
-        optoutStatus = true;
-    }
-    return optoutStatus;
-}
 
 int config_init_load(config_t *config, int argc, char *argv[])
 {
@@ -221,9 +184,6 @@ int config_init_load(config_t *config, int argc, char *argv[])
     {
         config->t2_enabled = false;
     }
-
-    config->opt_out = false;
-    config->opt_out = get_opt_out_status();
     config->lock_mode = ((argc == 5) && (0 == (strncmp(argv[4], "wait_for_lock", 13)))) ? LOCK_MODE_WAIT : LOCK_MODE_EXIT;
     config->privacy_mode = SHARE; // default to SHARE
     return CONFIG_SUCCESS;

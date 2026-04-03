@@ -110,7 +110,6 @@ typedef struct {
     char build_type_val[8];
     bool t2_enabled;
     privacy_control_t privacy_mode; // DO_NOT_SHARE (0) or SHARE (1)
-    bool opt_out;
     int max_dumps_per_run;
     int upload_timeout;
 } config_t;
