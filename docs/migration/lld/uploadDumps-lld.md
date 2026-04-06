@@ -617,13 +617,6 @@ int upload_retry(const char *filepath, const upload_config_t *config,
 bool upload_check_privacy_mode(void);
 
 /**
- * @brief Check if telemetry opt-out is enabled
- * 
- * @return true if enabled, false otherwise
- */
-bool upload_check_telemetry_optout(void);
-
-/**
  * @brief Free upload configuration
  * 
  * @param config Upload configuration
@@ -1040,16 +1033,14 @@ function process_dumps_loop(config, platform):
         log_message("System time not synced")
         # Continue anyway
     
-    # Check opt-out and privacy
-    if upload_check_telemetry_optout():
-        scanner_remove_all_pending(config.working_dir)
-        return SUCCESS
+    # Privacy check (MEDIACLIENT only)
+    if config.device_type == MEDIACLIENT:
+        config.privacy_mode = get_privacy_control_mode()
+        # RBUS: Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode
+        # Returns SHARE (default) or DO_NOT_SHARE
+        # Defaults to SHARE if RBUS is unavailable
     
-    if upload_check_privacy_mode():
-        scanner_remove_all_pending(config.working_dir)
-        return SUCCESS
-    
-    # Cleanup old files
+    # Cleanup old files (always runs, regardless of privacy mode)
     cleanup_old_files(config.working_dir)
     
     # Scan for dumps
@@ -1065,7 +1056,22 @@ function process_dumps_loop(config, platform):
         log_message("No dumps found")
         return SUCCESS
     
-    # Process each dump
+    # Archive phase: process each dump (skip archiving if DO_NOT_SHARE)
+    for dump in dump_list:
+        get_mtime(dump)
+        
+        if config.privacy_mode == DO_NOT_SHARE:
+            continue  # skip archive creation for this dump
+        
+        # Rename dump file and create archive
+        process_single_dump_archive(dump, config, platform)
+    
+    # If DO_NOT_SHARE: delete dump files and exit without uploading
+    if config.privacy_mode == DO_NOT_SHARE:
+        cleanup_dump_files(config.working_dir)  # cleanup_batch(do_not_share_cleanup=true)
+        return SUCCESS
+    
+    # Upload phase: rate limit check then upload each archive
     ratelimiter = ratelimit_init(timestamp_file)
     
     for dump in dump_list:
@@ -1098,8 +1104,8 @@ function process_dumps_loop(config, platform):
             scanner_remove_pending_dumps()
             break
         
-        # Process dump normally
-        result = process_single_dump(dump, config, platform)
+        # Upload archived dump
+        result = upload_single_dump(dump, config, platform)
         
         if result == SUCCESS:
             ratelimit_record_upload(ratelimiter)

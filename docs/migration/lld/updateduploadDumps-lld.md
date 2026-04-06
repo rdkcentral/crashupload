@@ -225,27 +225,33 @@ int prerequisites_wait(int max_wait_seconds);
 bool prerequisites_check_cached(void);
 ```
 
-### 3.3 Unified Privacy Check
+### 3.3 Privacy Control Check
 
 ```c
-// privacy.h
+// config_manager.h
 
 /**
- * @brief Check if uploads should be blocked due to privacy settings
- * 
- * Combines telemetry opt-out and privacy mode checks into single function.
- * Result is cached in config->uploads_blocked.
- * 
- * @param config Configuration (updated with result)
- * @return true if uploads blocked, false if allowed
- * 
+ * @brief Get privacy control mode from RBUS (MEDIACLIENT devices only)
+ *
+ * Called in main() after lock acquisition and prerequisites, guarded by
+ * `config.device_type == DEVICE_TYPE_MEDIACLIENT`. Non-mediaclient devices
+ * retain the default SHARE value set during config_init_load().
+ *
+ * When DO_NOT_SHARE: archive_create_smart() is skipped for each dump via
+ * `continue` in the processing loop. After the loop, cleanup_batch() is
+ * called with do_not_share_cleanup=true which deletes all dump files.
+ * Script exits without uploading.
+ *
+ * @return privacy_control_t - SHARE or DO_NOT_SHARE
+ *         Always returns SHARE on RBUS failure or unrecognised value
+ *
  * Implementation:
- * - Check Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryOptOut.Enable
- * - Check privacy control mode (DO_NOT_SHARE)
- * - Return true if EITHER is active
- * - Cache result in config->uploads_blocked
+ * - Call rbus_init() to open RBUS connection
+ * - Read Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode via rbus_get_string_param()
+ * - Return DO_NOT_SHARE only if value is "DO_NOT_SHARE", SHARE otherwise
+ * - Call rbus_cleanup() to close connection
  */
-bool privacy_uploads_blocked(config_t *config);
+privacy_control_t get_privacy_control_mode(void);
 ```
 
 ### 3.4 Smart Archive Creator

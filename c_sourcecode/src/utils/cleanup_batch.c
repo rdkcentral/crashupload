@@ -546,7 +546,7 @@ void remove_pending_dumps(const char *working_dir,
 
             if (match_extn || match_tgz)
             {
-                CRASHUPLOAD_INFO("Removing %s because upload limit has been reached or build is blacklisted or TelemetryOptOut is set\n", path);
+                CRASHUPLOAD_INFO("Removing %s because upload limit has been reached or build is blacklisted\n", path);
 
                 if (unlink(path) == 0)
                 {

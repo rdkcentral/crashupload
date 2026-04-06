@@ -7,9 +7,8 @@ Comprehensive GTest suite for `config_manager.c` with >90% line and function cov
 
 ### Functions Tested
 1. **config_init_load()** - Complete coverage with 60+ test cases
-2. **get_opt_out_status()** - Complete coverage with 4 test cases
-3. **config_get()** - Not implemented tests (4 test cases)
-4. **config_cleanup()** - Complete coverage with 3 test cases
+2. **config_get()** - Not implemented tests (4 test cases)
+3. **config_cleanup()** - Complete coverage with 3 test cases
 
 ### Test Categories
 - ✅ Positive test cases (valid inputs, success paths)

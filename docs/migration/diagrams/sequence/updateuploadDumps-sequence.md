@@ -69,14 +69,10 @@ sequenceDiagram
     end
     PreReq-->>Main: Prerequisites ready
     
-    Main->>Main: check_privacy_optout()
-    
-    Note over Main: Unified check for privacy<br/>mode + telemetry opt-out
-    
-    alt Privacy/Opt-out enabled
-        Main->>Scanner: Remove all pending dumps
-        Main->>Lock: Release lock
-        Main->>User: Exit(0)
+    opt Device type = MEDIACLIENT
+        Main->>Config: get_privacy_control_mode()
+        Note over Config: RBUS: Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode<br/>Defaults to SHARE on RBUS failure
+        Config-->>Main: SHARE or DO_NOT_SHARE
     end
     
     Main->>Scanner: Batch cleanup old files (>2 days)
@@ -237,6 +233,13 @@ sequenceDiagram
                 end
             end
         end
+    end
+    
+    alt MEDIACLIENT AND Privacy mode = DO_NOT_SHARE
+        Main->>Scanner: cleanup_batch(do_not_share_cleanup=true)
+        Note over Scanner: Deletes all dump files matching extension pattern
+        Main->>Lock: Release lock
+        Main->>User: Exit(0)
     end
     
     Main->>Lock: Release lock
@@ -692,13 +695,12 @@ LOOP until time synced or timeout:
     PreReq -> PreReq: Sleep & retry
 PreReq -> Main: Prerequisites ready
 
-# UNIFIED PRIVACY CHECK (privacy mode + telemetry opt-out)
-Main -> Main: check_privacy_optout()
-
-IF privacy OR opt-out enabled:
-    Main -> Scanner: Remove all pending dumps
-    Main -> Lock: Release lock
-    Main -> User: Exit(0)
+# PRIVACY CHECK (MEDIACLIENT ONLY)
+IF device type = MEDIACLIENT:
+    Main -> Config: get_privacy_control_mode()
+    Note: RBUS reads Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode
+    Note: Defaults to SHARE on RBUS failure
+    Config -> Main: SHARE or DO_NOT_SHARE
 
 Main -> Scanner: Batch cleanup old files (>2 days)
 Main -> Scanner: Scan for dumps
@@ -830,7 +832,11 @@ LOOP for each dump:
                     ELSE dump is coredump:
                         Main -> Archive: Remove failed archive
                         Main -> Log: Log removal (won't retry)
-
+IF MEDIACLIENT AND privacy mode = DO_NOT_SHARE:
+    Main -> Scanner: cleanup_batch(do_not_share_cleanup=true)
+    Note: Deletes all dump files matching extension pattern
+    Main -> Lock: Release lock
+    Main -> User: Exit(0)
 Main -> Lock: Release lock
 Main -> User: Exit(0)
 ```
