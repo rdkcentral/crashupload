@@ -25,45 +25,14 @@ Tests that crashupload waits for lock to be released when 'wait_for_lock' argume
 import pytest
 import subprocess
 import os
-import fcntl
 import time
 import threading
-import shutil
 from pathlib import Path
+from testUtility import cleanup_pytest_cache, binary_path, hold_lock_and_release, SECURE_COREDUMP_PATH
 
 
 class TestWaitForLock:
     """Test crashupload wait-for-lock functionality with 'wait_for_lock' argument"""
-    
-    @pytest.fixture(scope="session", autouse=True)
-    def cleanup_pytest_cache(self):
-        """Cleanup pytest cache directories after all tests complete"""
-        yield  # Run all tests first
-        
-        # Cleanup after all tests in this session
-        test_dir = Path(__file__).parent
-        cache_dirs = [
-            test_dir / "__pycache__",
-            test_dir / ".pytest_cache",
-            test_dir.parent / "__pycache__",
-            test_dir.parent / ".pytest_cache",
-        ]
-        
-        for cache_dir in cache_dirs:
-            if cache_dir.exists():
-                try:
-                    shutil.rmtree(cache_dir)
-                    print(f"Cleaned up: {cache_dir}")
-                except Exception as e:
-                    print(f"Warning: Could not remove {cache_dir}: {e}")
-    
-    @pytest.fixture
-    def binary_path(self):
-        """Get path to crashupload binary"""
-        binary = os.environ.get('CRASHUPLOAD_BINARY', '/usr/local/bin/crashupload')
-        if not os.path.exists(binary):
-            pytest.skip(f"Crashupload binary not found at {binary}")
-        return binary
     
     @pytest.fixture
     def minidump_dir(self):
@@ -90,8 +59,14 @@ class TestWaitForLock:
     
     @pytest.fixture
     def coredump_dir(self):
-        """Setup and cleanup coredump directory"""
-        dump_dir = Path("/opt/secure/coredumps")
+        """Setup and cleanup coredump directory.
+
+        Uses SECURE_COREDUMP_PATH (/opt/secure/corefiles) — the exact path that
+        config_manager.c assigns to config->core_path when argv[3]=="secure" and
+        argv[2]=="1".  prerequisites_wait() scans that directory for *_core* files;
+        if any are found the binary proceeds to a sleep(21) call, causing a timeout.
+        """
+        dump_dir = Path(SECURE_COREDUMP_PATH)
         dump_dir.mkdir(parents=True, exist_ok=True)
         
         # Clean up any existing dump files before test
@@ -166,45 +141,7 @@ class TestWaitForLock:
             except:
                 pass
     
-    def hold_lock_then_release(self, lock_file_path, hold_duration, lock_acquired_event):
-        """
-        Hold an exclusive lock for specified duration, then release it
-        This simulates a first instance that releases the lock
-        """
-        lock_fd = None
-        try:
-            # Create lock file if it doesn't exist
-            lock_fd = os.open(lock_file_path, os.O_CREAT | os.O_RDWR, 0o644)
-            
-            # Acquire exclusive lock (non-blocking)
-            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            print(f"[Thread] Lock acquired on {lock_file_path}")
-            
-            # Signal that lock is acquired
-            lock_acquired_event.set()
-            
-            # Hold lock for specified duration
-            print(f"[Thread] Holding lock for {hold_duration} seconds...")
-            time.sleep(hold_duration)
-            
-            # Release lock
-            fcntl.flock(lock_fd, fcntl.LOCK_UN)
-            print(f"[Thread] Lock released on {lock_file_path}")
-            
-        except BlockingIOError:
-            print(f"[Thread] Could not acquire lock on {lock_file_path} - already locked")
-            lock_acquired_event.set()
-        except Exception as e:
-            print(f"[Thread] Error in lock thread: {e}")
-            lock_acquired_event.set()
-        finally:
-            if lock_fd is not None:
-                try:
-                    os.close(lock_fd)
-                except:
-                    pass
-    
-    def test_wait_for_lock_minidump(self, binary_path, minidump_dir, minidump_lock_file):
+    def test_wait_for_lock_minidump(self, binary_path, minidump_dir, minidump_lock_file, cleanup_pytest_cache):
         """
         Test LOCK-04: Verify 'wait_for_lock' argument causes binary to wait for lock release
         
@@ -231,7 +168,7 @@ class TestWaitForLock:
         # Start thread to hold lock for 3 seconds (less than 5 second wait timeout)
         lock_duration = 3
         lock_thread = threading.Thread(
-            target=self.hold_lock_then_release,
+            target=hold_lock_and_release,
             args=(minidump_lock_file, lock_duration, lock_acquired),
             daemon=True
         )
@@ -251,9 +188,9 @@ class TestWaitForLock:
             # Run crashupload with wait_for_lock argument
             # Usage: crashupload <dir> <type> <secure|placeholder> wait_for_lock
             # argc must be 5: argv[0]=program, argv[1]=dir, argv[2]=type, argv[3]=secure, argv[4]=wait_for_lock
-            print(f"\n[Main] Running: {binary_path} {minidump_dir} 0 secure wait_for_lock")
+            print(f"\n[Main] Running: {binary_path} '' 0 secure wait_for_lock")
             result = subprocess.run(
-                [binary_path, minidump_dir, "0", "secure", "wait_for_lock"],
+                [binary_path, "", "0", "secure", "wait_for_lock"],
                 capture_output=True,
                 text=True,
                 timeout=10  # Should complete within 10 seconds
@@ -323,7 +260,7 @@ class TestWaitForLock:
             lock_thread.join(timeout=2)
             print(f"\n✓ Cleanup: Lock thread finished")
     
-    def test_wait_for_lock_coredump(self, binary_path, coredump_dir, coredump_lock_file):
+    def test_wait_for_lock_coredump(self, binary_path, coredump_dir, coredump_lock_file, cleanup_pytest_cache):
         """
         Test LOCK-05: Verify 'wait_for_lock' argument works for coredump type
         
@@ -350,7 +287,7 @@ class TestWaitForLock:
         # Start thread to hold lock for 3 seconds
         lock_duration = 3
         lock_thread = threading.Thread(
-            target=self.hold_lock_then_release,
+            target=hold_lock_and_release,
             args=(coredump_lock_file, lock_duration, lock_acquired),
             daemon=True
         )
@@ -370,9 +307,9 @@ class TestWaitForLock:
             # Run crashupload with wait_for_lock argument for coredump type
             # Usage: crashupload <dir> <type> <secure|placeholder> wait_for_lock
             # argc must be 5: argv[0]=program, argv[1]=dir, argv[2]=type, argv[3]=secure, argv[4]=wait_for_lock
-            print(f"\n[Main] Running: {binary_path} {coredump_dir} 1 secure wait_for_lock")
+            print(f"\n[Main] Running: {binary_path} '' 1 secure wait_for_lock")
             result = subprocess.run(
-                [binary_path, coredump_dir, "1", "secure", "wait_for_lock"],
+                [binary_path, "", "1", "secure", "wait_for_lock"],
                 capture_output=True,
                 text=True,
                 timeout=10

@@ -34,17 +34,22 @@
 
 #define FOUR_EIGHTY_SECS 480   // 8 minutes (same as script)
 
+#ifdef L2_TEST
+#define UPTIME_FILE "/opt/uptime"   /* L2 testing: controlled uptime value */
+#else
+#define UPTIME_FILE "/proc/uptime"  /* Production: kernel-provided uptime  */
+#endif
+
 void defer_upload_if_needed(device_type_t device_type)
 {
     int ret = -1;
 
     if (device_type == DEVICE_TYPE_MEDIACLIENT)
     {
-        /* Read uptime from /proc/uptime */
-        FILE *fp = fopen("/proc/uptime", "r");
+        FILE *fp = fopen(UPTIME_FILE, "r");
         if (!fp)
         {
-            CRASHUPLOAD_ERROR("Failed to read /proc/uptime\n");
+            CRASHUPLOAD_ERROR("Failed to read %s\n", UPTIME_FILE);
             return;
         }
 
@@ -53,7 +58,7 @@ void defer_upload_if_needed(device_type_t device_type)
         fclose(fp);
         if (ret != 1)
         {
-            CRASHUPLOAD_ERROR("Failed to parse /proc/uptime");
+            CRASHUPLOAD_ERROR("Failed to parse %s\n", UPTIME_FILE);
         }
 
         int uptime_val = (int)uptime_seconds;
@@ -146,13 +151,6 @@ int prerequisites_wait(config_t *config, int timeout_sec)
     {
         CRASHUPLOAD_INFO("dump file or core file not found. Exiting\n");
         return NO_DUMPS_FOUND;
-    }
-    if ((config->device_type == DEVICE_TYPE_MEDIACLIENT) && (config->opt_out == true))
-    {
-        CRASHUPLOAD_INFO("Coreupload is disabled as TelemetryOptOut is set\n");
-        CRASHUPLOAD_INFO("Cleaning dump with extension:%s:%s\n", config->working_dir_path, dump_extn);
-        remove_pending_dumps(config->working_dir_path, dump_extn);
-        return 1;
     }
     defer_upload_if_needed(config->device_type);
     // TODO: Below mutex_release file create by core dump generation script.So using same
