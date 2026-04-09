@@ -349,8 +349,8 @@ cleanup()
 
     logMessage "Cleanup ${DUMP_NAME} directory ${WORKING_DIR}"
 
-    # find and delete files by wildcard '*_mac*_dat*' and older than 2 days
-    find ${WORKING_DIR} -type f -name '*_mac*_dat*' -mtime +2 |
+    # find and delete files by wildcard '*mac*_dat*' and older than 2 days
+    find ${WORKING_DIR} -type f -name '*mac*_dat*' -mtime +2 |
     while IFS= read -r file;
     do
         rm -f "$file"
@@ -366,7 +366,7 @@ cleanup()
             path="${WORKING_DIR}"
 
             # delete unfinished files from previous run
-            deleted_files=$(find "$path" -type f -name "*_mac*_dat*" -print -exec rm -f {} \;)
+            deleted_files=$(find "$path" -type f -name "*mac*_dat*" -print -exec rm -f {} \;)
             logMessage "Deleting unfinished files: ${deleted_files}"
 
             # delete non-dump files
