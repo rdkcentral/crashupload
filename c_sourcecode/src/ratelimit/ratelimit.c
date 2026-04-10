@@ -26,7 +26,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include "ratelimit.h"
-#include "../utils/logger.h"
+#include "logger.h"
 
 int set_time(const char *deny_file, int type)
 {

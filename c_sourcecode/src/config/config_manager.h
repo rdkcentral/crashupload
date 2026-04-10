@@ -23,7 +23,7 @@
 #ifndef CONFIG_MANAGER_H
 #define CONFIG_MANAGER_H
 
-#include "../../common/types.h"
+#include "types.h"
 
 /**
  * @brief Load configuration from multiple sources

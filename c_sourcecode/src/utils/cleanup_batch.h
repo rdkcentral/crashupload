@@ -26,7 +26,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <time.h>
-#include "../../common/types.h"
+#include "types.h"
 
 /* ---------- File list structure for sorting by mtime ---------- */
 

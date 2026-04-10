@@ -28,7 +28,7 @@
 #ifndef SYSTEM_INIT_H
 #define SYSTEM_INIT_H
 
-#include "../../common/types.h"
+#include "types.h"
 
 #include <fcntl.h>
 #include <sys/stat.h>

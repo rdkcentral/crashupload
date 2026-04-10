@@ -23,7 +23,7 @@
 #ifndef PREREQUISITES_H
 #define PREREQUISITES_H
 
-#include "../../common/types.h"
+#include "types.h"
 #include "rdk_fwdl_utils.h"
 #include "system_utils.h"
 
