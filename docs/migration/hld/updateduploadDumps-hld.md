@@ -582,7 +582,7 @@ int cleanup_batch(const char *working_dir, int max_files, bool is_startup) {
 |-------------------|----------------------|
 | `parse_arguments()` + `config_load()` + `platform_init()` | `system_initialize()` |
 | `network_wait_for_connection()` + `network_wait_for_system_time()` | `prerequisites_wait()` |
-| `upload_check_telemetry_optout()` + `upload_check_privacy_mode()` | `privacy_uploads_blocked()` |
+| `upload_check_privacy_mode()` | `get_privacy_control_mode()` |
 | `ratelimit_is_recovery_time_reached()` + `ratelimit_is_exceeded()` | `ratelimit_check_unified()` |
 | `upload_file()` + type-specific handling | `upload_file_type_aware()` |
 

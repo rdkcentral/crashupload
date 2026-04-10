@@ -152,13 +152,6 @@ int prerequisites_wait(config_t *config, int timeout_sec)
         CRASHUPLOAD_INFO("dump file or core file not found. Exiting\n");
         return NO_DUMPS_FOUND;
     }
-    if ((config->device_type == DEVICE_TYPE_MEDIACLIENT) && (config->opt_out == true))
-    {
-        CRASHUPLOAD_INFO("Coreupload is disabled as TelemetryOptOut is set\n");
-        CRASHUPLOAD_INFO("Cleaning dump with extension:%s:%s\n", config->working_dir_path, dump_extn);
-        remove_pending_dumps(config->working_dir_path, dump_extn);
-        return 1;
-    }
     defer_upload_if_needed(config->device_type);
     // TODO: Below mutex_release file create by core dump generation script.So using same
     if ((config->dump_type == DUMP_TYPE_COREDUMP) && (0 != (filePresentCheck(" /tmp/coredump_mutex_release"))))
