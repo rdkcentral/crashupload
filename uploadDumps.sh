@@ -46,10 +46,9 @@ case "$DEVICE_TYPE" in
         ;;
 esac
 
-CORE_LOG="${LOG_DIR}/core_log.txt"
-
-Log() { 
-    echo "`/bin/timestamp` [uploadDumps.sh] [PID:$$]: $*" >> $CORE_LOG 
+Log() {
+    log_msg="`/bin/timestamp` [uploadDumps.sh] [PID:$$]: $*"
+    echo "$log_msg" | systemd-cat -t uploadDumps
 }
 
 UPLOAD_SCRIPT="/lib/rdk/runDumpUpload.sh"
@@ -76,8 +75,10 @@ run_legacy() {
 run_crashupload() {
     bin="$(find_crashupload || true)"
     if [ -n "$bin" ]; then
+
         Log "Delegating to crashupload binary: $bin $@"
-        "$bin" "$@" >> $CORE_LOG 2>&1
+        # Capture stdout/stderr and log via systemd-cat
+        "$bin" "$@" > >(while read line; do echo "[crashupload stdout] $line" | systemd-cat -t uploadDumps; done) 2> >(while read line; do echo "[crashupload stderr] $line" | systemd-cat -t uploadDumps; done)
         exit_code=$?
 
         case $exit_code in
