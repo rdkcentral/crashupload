@@ -27,7 +27,7 @@
 #include <unistd.h>
 #include <fnmatch.h>
 #include "cleanup_batch.h"
-#include "../../common/errors.h"
+#include "errors.h"
 #include "logger.h"
 
 // For unit testing: allow static functions to be visible

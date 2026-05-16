@@ -20,7 +20,7 @@
 #include <string.h>
 #include <curl/curl.h>
 #include <time.h>
-#include "../rfcInterface/rfcinterface.h"
+#include "rfcinterface.h"
 #include "upload.h"
 #ifndef GTEST_ENABLE
 #include "common_device_api.h"
@@ -30,7 +30,7 @@
 #include "ratelimit.h"
 #include <unistd.h>
 #include "telemetryinterface.h"
-#include "../utils/logger.h"
+#include "logger.h"
 
 #define MAX_RETRIES 3
 #define TIMEOUT_SECONDS 45

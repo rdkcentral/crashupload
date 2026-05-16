@@ -23,7 +23,7 @@
 #ifndef ARCHIVE_SMART_H
 #define ARCHIVE_SMART_H
 
-#include "../../common/types.h"
+#include "types.h"
 #include <archive.h>
 #include <archive_entry.h>
 #include <sys/resource.h>

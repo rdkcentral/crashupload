@@ -41,10 +41,10 @@
 #include <signal.h>
 
 extern "C" {
-#include "../c_sourcecode/src/init/system_init.h"
-#include "../c_sourcecode/common/types.h"
-#include "../c_sourcecode/common/errors.h"
-#include "../c_sourcecode/common/constants.h"
+#include "system_init.h"
+#include "types.h"
+#include "errors.h"
+#include "constants.h"
 
 int main_test(int argc, char *argv[]);
 void handle_signal(int no, siginfo_t* info, void* uc);

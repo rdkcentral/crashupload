@@ -25,7 +25,7 @@
 
 #include "telemetryinterface.h"
 #include <stdio.h>
-#include "../utils/logger.h"
+#include "logger.h"
 
 #ifdef T2_EVENT_ENABLED
 #include <telemetry_busmessage_sender.h>
