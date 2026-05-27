@@ -2,32 +2,32 @@
 
 ## Subsystem Map
 1. Trigger and orchestration subsystem
-- systemd units, timer/path, optional inotify watcher, uploadDumps.sh dispatcher.
+  - systemd units, timer/path, optional inotify watcher, uploadDumps.sh dispatcher.
 
 2. Initialization and config subsystem
-- system_init, config_manager, platform.
+  - system_init, config_manager, platform.
 
 3. Intake and qualification subsystem
-- prerequisites, lock_manager, scanner.
+  - prerequisites, lock_manager, scanner.
 
 4. Packaging subsystem
-- archive, file utilities, log mapping in scanner.
+  - archive, file utilities, log mapping in scanner.
 
 5. Transport subsystem
-- upload module with endpoint discovery, metadata POST, S3 PUT.
+  - upload module with endpoint discovery, metadata POST, S3 PUT.
 
 6. Policy subsystem
-- ratelimit, privacy mode check, reboot flag behavior.
+  - ratelimit, privacy mode check, reboot flag behavior.
 
 7. Operations and observability subsystem
-- logger and telemetry interface wrappers.
+  - logger and telemetry interface wrappers.
 
 ## Subsystem A: Trigger and orchestration
 - Facts:
   - systemd timer and path units invoke uploadDumps.sh.
   - uploadDumps.sh chooses C vs legacy runtime branch and fallback.
 - Inferences:
-  - this layer is the primary operational policy switch for migration strategy.
+  - This layer is the primary operational policy switch for migration strategy.
 - Unknowns:
   - exact service installation/enabling matrix per platform SKU.
 
