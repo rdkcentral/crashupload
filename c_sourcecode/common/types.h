@@ -51,6 +51,7 @@ typedef enum {
     DEVICE_TYPE_VIDEO,
     DEVICE_TYPE_EXTENDER,
     DEVICE_TYPE_MEDIACLIENT,
+    DEVICE_TYPE_XHC1,
     DEVICE_TYPE_UNKNOWN
 } device_type_t;
 

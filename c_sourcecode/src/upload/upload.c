@@ -422,6 +422,25 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
             CRASHUPLOAD_INFO("Read rfc Success crashportalEndpointUrl:\n Overriding the S3 Amazon Signing URL:%s\n", crashportalEndpointUrl);
         }
     }
+    else if (config->device_type == DEVICE_TYPE_XHC1)
+    {
+        /* XHC1 (RDKC Camera) upload flow:
+         * Matches script uploadDumps.sh - encryptionEnable=false (no /etc/os-release)
+         * S3 URL from device.properties S3_AMAZON_SIGNING_URL
+         * Portal URL: crashportal.stb.r53.xcal.tv
+         */
+        strcpy(encryptionEnable, "false");
+        strcpy(portal_url, "crashportal.stb.r53.xcal.tv");
+        request_type = 17;
+        CRASHUPLOAD_INFO("XHC1: request_type=%d\n", request_type);
+        ret = get_crashupload_s3signed_url(crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
+        if (ret < 0)
+        {
+            CRASHUPLOAD_ERROR("XHC1: Unable to get the S3 server url. So exit\n");
+            return ret;
+        }
+        CRASHUPLOAD_INFO("XHC1: S3 signing URL=%s\n", crashportalEndpointUrl);
+    }
     else if (config->device_type == DEVICE_TYPE_BROADBAND)
     {
         ret = -1;

@@ -44,7 +44,7 @@ void defer_upload_if_needed(device_type_t device_type)
 {
     int ret = -1;
 
-    if (device_type == DEVICE_TYPE_MEDIACLIENT)
+    if (device_type == DEVICE_TYPE_MEDIACLIENT || device_type == DEVICE_TYPE_XHC1)
     {
         FILE *fp = fopen(UPTIME_FILE, "r");
         if (!fp)

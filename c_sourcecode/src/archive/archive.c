@@ -396,6 +396,39 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
             CRASHUPLOAD_INFO("core log file=%s\n", arch_files_list[2]);
             tar_status = create_tarball(true, target_file_name, arch_files_list, no_of_files);
         }
+        else if (config->device_type == DEVICE_TYPE_XHC1)
+        {
+            /* XHC1 (RDKC Camera) minidump archive:
+             * Matches script uploadDumps.sh line 917 for DEVICE_TYPE=XHC1
+             * Archive: dumpName + version.txt + core_log.txt
+             * Non-prod: also receiver.log and thread.log if present
+             */
+            snprintf(arch_files_list[0], 256, "%s", new_dump_name);
+            snprintf(arch_files_list[1], 256, "%s", "/version.txt");
+            snprintf(arch_files_list[2], 256, "%s", config->core_log_file);
+
+            if (config->build_type != BUILD_TYPE_PROD)
+            {
+                char receiver_log[64] = {0};
+                char thread_log[64] = {0};
+                snprintf(receiver_log, sizeof(receiver_log), "%s/receiver.log", config->log_path);
+                snprintf(thread_log, sizeof(thread_log), "%s/thread.log", config->log_path);
+                if (0 == (filePresentCheck(receiver_log)))
+                {
+                    snprintf(arch_files_list[no_of_files], 256, "%s", receiver_log);
+                    CRASHUPLOAD_INFO("XHC1 adding receiver.log=%s\n", arch_files_list[no_of_files]);
+                    no_of_files++;
+                }
+                if (0 == (filePresentCheck(thread_log)))
+                {
+                    snprintf(arch_files_list[no_of_files], 256, "%s", thread_log);
+                    CRASHUPLOAD_INFO("XHC1 adding thread.log=%s\n", arch_files_list[no_of_files]);
+                    no_of_files++;
+                }
+            }
+            CRASHUPLOAD_INFO("XHC1 tar file:%s files=%d\n", target_file_name, no_of_files);
+            tar_status = create_tarball(true, target_file_name, arch_files_list, no_of_files);
+        }
     }
     if (!tar_status)
     {

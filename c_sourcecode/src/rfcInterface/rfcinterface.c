@@ -24,13 +24,61 @@
 #endif
 
 #if defined(RFC_API_ENABLED)
+
+#if defined(RDKC)
+/* RDKC uses 2-param getRFCParameter that reads from ini files.
+ * Returns int: SUCCESS(0) or FAILURE(1). No setRFCParameter available. */
+int read_RFCProperty(const char *type, const char *key, char *out_value, size_t datasize)
+{
+    RFC_ParamData_t param;
+    int data_len;
+    int ret = READ_RFC_FAILURE;
+
+    if (key == NULL || out_value == NULL || datasize == 0)
+    {
+        CRASHUPLOAD_ERROR("read_RFCProperty() one or more input values are invalid\n");
+        return ret;
+    }
+    int status = getRFCParameter(key, &param);
+    if (status == SUCCESS)
+    {
+        data_len = strlen(param.value);
+        if (data_len >= 2 && (param.value[0] == '"') && (param.value[data_len - 1] == '"'))
+        {
+            // remove quotes around data
+            snprintf(out_value, datasize, "%s", &param.value[1]);
+            *(out_value + data_len - 2) = 0;
+        }
+        else
+        {
+            snprintf(out_value, datasize, "%s", param.value);
+        }
+        CRASHUPLOAD_INFO("read_RFCProperty() name=%s,value=%s\n", param.name, param.value);
+        ret = READ_RFC_SUCCESS;
+    }
+    else
+    {
+        CRASHUPLOAD_ERROR("error:read_RFCProperty(): status=%d key=%s\n", status, key);
+        *out_value = 0;
+    }
+    return ret;
+}
+
+int write_RFCProperty(const char *type, const char *key, const char *value, RFCVALDATATYPE datatype)
+{
+    /* RDKC rfcapi does not support setRFCParameter */
+    CRASHUPLOAD_INFO("%s: Not supported on RDKC\n", __FUNCTION__);
+    return WRITE_RFC_NOTAPPLICABLE;
+}
+
+#else /* !RDKC — Standard STB path (3-param version with WDMP_STATUS) */
 /* Description: Reading rfc data
  * @param type : rfc type
  * @param key: rfc key
  * @param data : Store rfc value
  * @return int 1 READ_RFC_SUCCESS on success and READ_RFC_FAILURE -1 on failure
  * */
-int read_RFCProperty(char *type, const char *key, char *out_value, size_t datasize)
+int read_RFCProperty(const char *type, const char *key, char *out_value, size_t datasize)
 {
     RFC_ParamData_t param;
     int data_len;
@@ -74,7 +122,7 @@ int read_RFCProperty(char *type, const char *key, char *out_value, size_t datasi
  * @param datatype: data type of value parameter
  * @return int 1 WRITE_RFC_SUCCESS on success and WRITE_RFC_FAILURE -1 on failure
  * */
-int write_RFCProperty(char *type, const char *key, const char *value, RFCVALDATATYPE datatype)
+int write_RFCProperty(const char *type, const char *key, const char *value, RFCVALDATATYPE datatype)
 {
     WDMP_STATUS status = WDMP_FAILURE;
     int ret = WRITE_RFC_FAILURE;
@@ -106,7 +154,9 @@ int write_RFCProperty(char *type, const char *key, const char *value, RFCVALDATA
     }
     return ret;
 }
-#else
+#endif /* RDKC */
+
+#else /* !RFC_API_ENABLED */
 /* Description: Below function should be implement Reading rfc data for RDK-M
  * @param type : rfc type
  * @param key: rfc key
