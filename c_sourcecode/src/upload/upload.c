@@ -26,6 +26,8 @@
 #include "common_device_api.h"
 #endif
 #include "mtls_upload.h"
+#include "uploadUtil.h"
+#include "downloadUtil.h"
 #include "upload_status.h"
 #include "ratelimit.h"
 #include <unistd.h>
@@ -36,6 +38,10 @@
 #define TIMEOUT_SECONDS 45
 #define RETRY_DELAY_SECONDS 5
 #define SIZE_POSTFIELD_BUF 2048
+
+#ifdef RDKC
+#define RDKC_PARTNER_ID_FILE "/opt/usr_config/partnerid.txt"
+#endif
 
 #if 0
 /* FULL IMPLEMENTATION - Progress callback for upload monitoring */
@@ -61,7 +67,7 @@ int get_crashupload_s3signed_url(char *url, size_t size_buf)
     ret = read_RFCProperty("S3SignedUrl", RFC_CRASHUPLOAD_S3URL, url, size_buf);
     if ((ret == READ_RFC_FAILURE) || (url[0] == '\0'))
     {
-        CRASHUPLOAD_WARN("Read rfc failed For S3SignedUrl. Reading From device.properies file\n");
+        CRASHUPLOAD_WARN("Read rfc failed For S3SignedUrl. Reading From device.properties file\n");
         ret = getDevicePropertyData("S3_AMAZON_SIGNING_URL", url, size_buf);
         if (ret == UTILS_SUCCESS)
         {
@@ -220,12 +226,39 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
             char s3_url_file_saved[sizeof(s3_url_file)];
             memcpy(s3_url_file_saved, s3_url_file, sizeof(s3_url_file));
 #endif
-            ret = performMetadataPostWithCertRotationEx(url, s3_url_file, post_filed, &sec_out, &http_code);
+            if (device_type == DEVICE_TYPE_XHC1)
+            {
+                /* XHC1/RDKC: Plain HTTPS POST without mTLS client cert
+                 * (matches shell script uploadDumps.sh behavior) */
+                void *curl_handle = doCurlInit();
+                if (curl_handle)
+                {
+                    FileUpload_t file_upload;
+                    memset(&file_upload, 0, sizeof(FileUpload_t));
+                    file_upload.url = (char *)url;
+                    file_upload.pathname = s3_url_file;
+                    file_upload.pPostFields = post_filed;
+                    file_upload.sslverify = 0;
+                    file_upload.hashData = NULL;
+                    ret = performHttpMetadataPost(curl_handle, &file_upload, NULL, &http_code);
+                    doStopUpload(curl_handle);
+                    CRASHUPLOAD_INFO("After performHttpMetadataPost (no mTLS) ret=%d=>http code=%lu\n", ret, http_code);
+                }
+                else
+                {
+                    ret = -1;
+                    CRASHUPLOAD_ERROR("XHC1: doCurlInit failed\n");
+                }
+            }
+            else
+            {
+                ret = performMetadataPostWithCertRotationEx(url, s3_url_file, post_filed, &sec_out, &http_code);
 #if defined(L2_TEST)
-            if (s3_url_file[0] == '\0')
-                memcpy(s3_url_file, s3_url_file_saved, sizeof(s3_url_file));
+                if (s3_url_file[0] == '\0')
+                    memcpy(s3_url_file, s3_url_file_saved, sizeof(s3_url_file));
 #endif
-            CRASHUPLOAD_INFO("After performMetadataPostWithCertRotationEx ret=%d=>http code=%lu\n", ret, http_code);
+                CRASHUPLOAD_INFO("After performMetadataPostWithCertRotationEx ret=%d=>http code=%lu\n", ret, http_code);
+            }
             __uploadutil_get_status(&http_code, &curl_ret);
             CRASHUPLOAD_INFO("Curl Connected to $FQDN:%s\n", url);
             CRASHUPLOAD_INFO("Curl return code :%d, HTTP SIGN URL Response:%lu\n", curl_ret, http_code);
@@ -262,7 +295,9 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                 CRASHUPLOAD_INFO("extractS3PresignedUrl ret=%d=>out_url=%s\n", ret, out_url);
                 if (ret == 0 && out_url[0] != '\0')
                 {
-                    ret = performS3PutUpload(out_url, filepath, &sec_out);
+                    /* XHC1: plain HTTPS PUT (no mTLS), others: use cert from Stage 1 */
+                    ret = performS3PutUpload(out_url, filepath,
+                              (device_type == DEVICE_TYPE_XHC1) ? NULL : &sec_out);
                     CRASHUPLOAD_INFO("performS3PutUpload return ret=%d\n", ret);
                     http_code = 0;
                     curl_ret = -1;
@@ -369,8 +404,24 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
     char md5sum[128] = {0};
     char dump_name[16] = {0};
     char crash_fw_version[128] = {0};
-    // size_t GetPartnerId( char *pPartnerId, size_t szBufSize );
+#ifdef RDKC
+    {
+        FILE *fp = fopen(RDKC_PARTNER_ID_FILE, "r");
+        if (fp)
+        {
+            if (fgets(pPartnerId, sizeof(pPartnerId), fp))
+            {
+                size_t plen = strlen(pPartnerId);
+                if (plen > 0 && pPartnerId[plen - 1] == '\n')
+                    pPartnerId[plen - 1] = '\0';
+            }
+            fclose(fp);
+        }
+        ret = (pPartnerId[0] != '\0') ? 1 : 0;
+    }
+#else
     ret = GetPartnerId(pPartnerId, sizeof(pPartnerId));
+#endif
     if (ret == 0)
     {
         strcpy(pPartnerId, "comcast");
