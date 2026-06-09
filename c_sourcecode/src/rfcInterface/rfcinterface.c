@@ -78,7 +78,7 @@ int write_RFCProperty(const char *type, const char *key, const char *value, RFCV
  * @param data : Store rfc value
  * @return int 1 READ_RFC_SUCCESS on success and READ_RFC_FAILURE -1 on failure
  * */
-int read_RFCProperty(const char *type, const char *key, char *out_value, size_t datasize)
+int read_RFCProperty(char *type, const char *key, char *out_value, size_t datasize)
 {
     RFC_ParamData_t param;
     int data_len;
@@ -122,7 +122,7 @@ int read_RFCProperty(const char *type, const char *key, char *out_value, size_t 
  * @param datatype: data type of value parameter
  * @return int 1 WRITE_RFC_SUCCESS on success and WRITE_RFC_FAILURE -1 on failure
  * */
-int write_RFCProperty(const char *type, const char *key, const char *value, RFCVALDATATYPE datatype)
+int write_RFCProperty(char *type, const char *key, const char *value, RFCVALDATATYPE datatype)
 {
     WDMP_STATUS status = WDMP_FAILURE;
     int ret = WRITE_RFC_FAILURE;

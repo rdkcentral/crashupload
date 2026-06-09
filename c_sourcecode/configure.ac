@@ -47,7 +47,7 @@ AC_FUNC_MALLOC
 AC_CHECK_FUNCS([gettimeofday memset strchr strdup strerror])
 
 # Compiler flags
-CFLAGS="$CFLAGS -Wall -Werror -O2"
+CFLAGS="$CFLAGS -Wall -Werror -O2 -DT2_EVENT_ENABLED"
 #CFLAGS="$CFLAGS -Wall -Werror -O2 -std=c11"
 #CFLAGS="$CFLAGS -D_POSIX_C_SOURCE=200809L"
 

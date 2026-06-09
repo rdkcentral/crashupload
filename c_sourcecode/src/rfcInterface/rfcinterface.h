@@ -24,23 +24,7 @@
 // platforms without this api or an alternative interface such as rbus or ccspbus or xmidt
 #if defined(RFC_API_ENABLED)
 #ifndef GTEST_ENABLE
-#if defined(RDKC)
-/* RDKC rfcapi: 2-param ini-file-based API (from rfc-fork).
- * We declare the interface directly to avoid rfcapi.h header issues
- * (header declares 3-param WDMP_STATUS version but library exports 2-param int). */
-#ifndef MAX_PARAM_LEN
-#define MAX_PARAM_LEN (2*1024)
-#endif
-typedef enum { SUCCESS=0, FAILURE, NONE, EMPTY } DATA_TYPE;
-typedef struct _RFC_Param_t {
-    char name[MAX_PARAM_LEN];
-    char value[MAX_PARAM_LEN];
-    DATA_TYPE type;
-} RFC_ParamData_t;
-int getRFCParameter(const char* pcParameterName, RFC_ParamData_t *pstParamData);
-#else
 #include "rfcapi.h"
-#endif
 #endif
 #endif
 
@@ -91,8 +75,13 @@ typedef enum
 #define RFC_CRASH_PORTAL_ENDPOINT_URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CrashportalEndpoint.URL"
 
 #if defined(RFC_API_ENABLED)
+#if defined(RDKC)
 int read_RFCProperty(const char *type, const char *key, char *data, size_t datasize);
 int write_RFCProperty(const char *type, const char *key, const char *data, RFCVALDATATYPE datatype);
+#else
+int read_RFCProperty(char *type, const char *key, char *data, size_t datasize);
+int write_RFCProperty(char *type, const char *key, const char *data, RFCVALDATATYPE datatype);
+#endif
 #else
 int read_RFCProperty(const char *type, const char *key, char *data, size_t datasize);
 int write_RFCProperty(const char *type, const char *key, const char *data, RFCVALDATATYPE datatype);
