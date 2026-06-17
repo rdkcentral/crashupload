@@ -33,6 +33,7 @@ int read_RFCProperty(const char *type, const char *key, char *out_value, size_t 
     RFC_ParamData_t param;
     int data_len;
     int ret = READ_RFC_FAILURE;
+    (void)type;
 
     if (key == NULL || out_value == NULL || datasize == 0)
     {
@@ -47,7 +48,8 @@ int read_RFCProperty(const char *type, const char *key, char *out_value, size_t 
         {
             // remove quotes around data
             snprintf(out_value, datasize, "%s", &param.value[1]);
-            *(out_value + data_len - 2) = 0;
+            size_t term_idx = (size_t)(data_len - 2) < (datasize - 1) ? (size_t)(data_len - 2) : (datasize - 1);
+            out_value[term_idx] = '\0';
         }
         else
         {
@@ -66,6 +68,10 @@ int read_RFCProperty(const char *type, const char *key, char *out_value, size_t 
 
 int write_RFCProperty(const char *type, const char *key, const char *value, RFCVALDATATYPE datatype)
 {
+    (void)type;
+    (void)key;
+    (void)value;
+    (void)datatype;
     /* RDKC rfcapi does not support setRFCParameter */
     CRASHUPLOAD_INFO("%s: Not supported on RDKC\n", __FUNCTION__);
     return WRITE_RFC_NOTAPPLICABLE;

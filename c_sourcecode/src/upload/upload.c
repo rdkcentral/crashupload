@@ -226,9 +226,9 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
             char s3_url_file_saved[sizeof(s3_url_file)];
             memcpy(s3_url_file_saved, s3_url_file, sizeof(s3_url_file));
 #endif
-            if (device_type == DEVICE_TYPE_XHC1)
+            if (device_type == DEVICE_TYPE_RDKC)
             {
-                /* XHC1/RDKC: Plain HTTPS POST without mTLS client cert
+                /* RDKC: Plain HTTPS POST without mTLS client cert
                  * (matches shell script uploadDumps.sh behavior) */
                 void *curl_handle = doCurlInit();
                 if (curl_handle)
@@ -247,7 +247,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                 else
                 {
                     ret = -1;
-                    CRASHUPLOAD_ERROR("XHC1: doCurlInit failed\n");
+                    CRASHUPLOAD_ERROR("RDKC: doCurlInit failed\n");
                 }
             }
             else
@@ -295,9 +295,9 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                 CRASHUPLOAD_INFO("extractS3PresignedUrl ret=%d=>out_url=%s\n", ret, out_url);
                 if (ret == 0 && out_url[0] != '\0')
                 {
-                    /* XHC1: plain HTTPS PUT (no mTLS), others: use cert from Stage 1 */
+                    /* RDKC: plain HTTPS PUT (no mTLS), others: use cert from Stage 1 */
                     ret = performS3PutUpload(out_url, filepath,
-                              (device_type == DEVICE_TYPE_XHC1) ? NULL : &sec_out);
+                              (device_type == DEVICE_TYPE_RDKC) ? NULL : &sec_out);
                     CRASHUPLOAD_INFO("performS3PutUpload return ret=%d\n", ret);
                     http_code = 0;
                     curl_ret = -1;
@@ -473,9 +473,9 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
             CRASHUPLOAD_INFO("Read rfc Success crashportalEndpointUrl:\n Overriding the S3 Amazon Signing URL:%s\n", crashportalEndpointUrl);
         }
     }
-    else if (config->device_type == DEVICE_TYPE_XHC1)
+    else if (config->device_type == DEVICE_TYPE_RDKC)
     {
-        /* XHC1 (RDKC Camera) upload flow:
+        /* RDKC Camera upload flow:
          * Matches script uploadDumps.sh - encryptionEnable=false (no /etc/os-release)
          * S3 URL from device.properties S3_AMAZON_SIGNING_URL
          * Portal URL: crashportal.stb.r53.xcal.tv
@@ -483,14 +483,14 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         strcpy(encryptionEnable, "false");
         strcpy(portal_url, "crashportal.stb.r53.xcal.tv");
         request_type = 17;
-        CRASHUPLOAD_INFO("XHC1: request_type=%d\n", request_type);
+        CRASHUPLOAD_INFO("RDKC: request_type=%d\n", request_type);
         ret = get_crashupload_s3signed_url(crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
         if (ret < 0)
         {
-            CRASHUPLOAD_ERROR("XHC1: Unable to get the S3 server url. So exit\n");
+            CRASHUPLOAD_ERROR("RDKC: Unable to get the S3 server url. So exit\n");
             return ret;
         }
-        CRASHUPLOAD_INFO("XHC1: S3 signing URL=%s\n", crashportalEndpointUrl);
+        CRASHUPLOAD_INFO("RDKC: S3 signing URL=%s\n", crashportalEndpointUrl);
     }
     else if (config->device_type == DEVICE_TYPE_BROADBAND)
     {
