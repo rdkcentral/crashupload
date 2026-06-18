@@ -226,39 +226,12 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
             char s3_url_file_saved[sizeof(s3_url_file)];
             memcpy(s3_url_file_saved, s3_url_file, sizeof(s3_url_file));
 #endif
-            if (device_type == DEVICE_TYPE_RDKC)
-            {
-                /* RDKC: Plain HTTPS POST without mTLS client cert
-                 * (matches shell script uploadDumps.sh behavior) */
-                void *curl_handle = doCurlInit();
-                if (curl_handle)
-                {
-                    FileUpload_t file_upload;
-                    memset(&file_upload, 0, sizeof(FileUpload_t));
-                    file_upload.url = (char *)url;
-                    file_upload.pathname = s3_url_file;
-                    file_upload.pPostFields = post_filed;
-                    file_upload.sslverify = 0;
-                    file_upload.hashData = NULL;
-                    ret = performHttpMetadataPost(curl_handle, &file_upload, NULL, &http_code);
-                    doStopUpload(curl_handle);
-                    CRASHUPLOAD_INFO("After performHttpMetadataPost (no mTLS) ret=%d=>http code=%lu\n", ret, http_code);
-                }
-                else
-                {
-                    ret = -1;
-                    CRASHUPLOAD_ERROR("RDKC: doCurlInit failed\n");
-                }
-            }
-            else
-            {
-                ret = performMetadataPostWithCertRotationEx(url, s3_url_file, post_filed, &sec_out, &http_code);
+            ret = performMetadataPostWithCertRotationEx(url, s3_url_file, post_filed, &sec_out, &http_code);
 #if defined(L2_TEST)
-                if (s3_url_file[0] == '\0')
-                    memcpy(s3_url_file, s3_url_file_saved, sizeof(s3_url_file));
+            if (s3_url_file[0] == '\0')
+                memcpy(s3_url_file, s3_url_file_saved, sizeof(s3_url_file));
 #endif
-                CRASHUPLOAD_INFO("After performMetadataPostWithCertRotationEx ret=%d=>http code=%lu\n", ret, http_code);
-            }
+            CRASHUPLOAD_INFO("After performMetadataPostWithCertRotationEx ret=%d=>http code=%lu\n", ret, http_code);
             __uploadutil_get_status(&http_code, &curl_ret);
             CRASHUPLOAD_INFO("Curl Connected to $FQDN:%s\n", url);
             CRASHUPLOAD_INFO("Curl return code :%d, HTTP SIGN URL Response:%lu\n", curl_ret, http_code);
@@ -295,9 +268,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                 CRASHUPLOAD_INFO("extractS3PresignedUrl ret=%d=>out_url=%s\n", ret, out_url);
                 if (ret == 0 && out_url[0] != '\0')
                 {
-                    /* RDKC: plain HTTPS PUT (no mTLS), others: use cert from Stage 1 */
-                    ret = performS3PutUpload(out_url, filepath,
-                              (device_type == DEVICE_TYPE_RDKC) ? NULL : &sec_out);
+                    ret = performS3PutUpload(out_url, filepath, &sec_out);
                     CRASHUPLOAD_INFO("performS3PutUpload return ret=%d\n", ret);
                     http_code = 0;
                     curl_ret = -1;
