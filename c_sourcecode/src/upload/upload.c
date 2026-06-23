@@ -26,8 +26,6 @@
 #include "common_device_api.h"
 #endif
 #include "mtls_upload.h"
-#include "uploadUtil.h"
-#include "downloadUtil.h"
 #include "upload_status.h"
 #include "ratelimit.h"
 #include <unistd.h>
