@@ -298,7 +298,7 @@ TEST_F(RateLimitTest, RatelimitCheckUnified_NoFiles_AllowUpload) {
 
 TEST_F(RateLimitTest, RatelimitCheckUnified_RecoveryNotReached_BlockUpload) {
     // Set recovery time in future
-    time_t future = time(NULL) + 600;
+    long future = (long)time(NULL) + 600L;
     CreateDenyFile("/tmp/.deny_dump_uploads_till", future);
     
     int ret = ratelimit_check_unified(DUMP_TYPE_MINIDUMP);
@@ -325,7 +325,7 @@ TEST_F(RateLimitTest, RatelimitCheckUnified_CoredumpType_AllowUpload) {
 
 TEST_F(RateLimitTest, RatelimitCheckUnified_CoredumpType_RecoveryWindow_BlockUpload) {
     // The recovery window is global, so coredumps are blocked while it is active.
-    time_t future = time(NULL) + 600;
+    long future = (long)time(NULL) + 600L;
     CreateDenyFile("/tmp/.deny_dump_uploads_till", future);
 
     int ret = ratelimit_check_unified(DUMP_TYPE_COREDUMP);
