@@ -23,7 +23,7 @@ Feature: Rate limiting — allow and block upload paths
   ratelimit_check_unified() enforces two independent limits:
     1. Deny-window check (is_recovery_time_reached): reads /tmp/.deny_dump_uploads_till.
     2. Per-minidump upload-count check (is_upload_limit_reached): reads
-       /tmp/.minidump_upload_timestamps (minidump path only).
+       /tmp/.minidump_upload_timestamps (counter check only for minidump mode).
   When either check returns BLOCK, remove_pending_dumps() cleans the working dir.
 
   Background:
@@ -53,8 +53,9 @@ Feature: Rate limiting — allow and block upload paths
     And the binary exits with return code 0
 
   # TC-050
-  Scenario: Rate-limit upload-count check is skipped for coredump mode
+  Scenario: Rate-limit upload-count check is skipped for coredump mode when deny-window is inactive
     Given /tmp/.minidump_upload_timestamps has 11 lines (would block a minidump run)
+    And /tmp/.deny_dump_uploads_till does not exist
     When the binary runs in coredump mode
     Then the upload-count else-branch returns ALLOW_UPLOAD immediately
     And /tmp/.deny_dump_uploads_till is NOT created by the rate limiter

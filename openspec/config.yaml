@@ -7,7 +7,7 @@ context: |
   - Read OpenSpec docs first: openspec/project.md, openspec/runtime/**, openspec/pipeline/**, openspec/subsystems/**, openspec/integrations/**, openspec/diagrams/**, openspec/gaps/**.
   - Read documentation second: README.md, c_sourcecode/README.md, unittest/README.md, docs/migration/**, and other repo README files relevant to the touched area.
   - Read implementation third, but only the narrow slice needed for the task: uploadDumps.sh, runDumpUpload.sh, uploadDumpsUtils.sh, c_sourcecode/src/**, c_sourcecode/include/**, c_sourcecode/common/**, src/inotify-minidump-watcher.c, and related service files.
-  - Read verification and delivery context only when relevant: run_ut.sh, run_l2.sh, cov_build.sh, rdk_build.sh, L2_TESTS.md, unittest/**, test/functional-tests/**, and .github/workflows/*.yml.
+  - Read verification and delivery context only when relevant: run_ut.sh, run_l2.sh, cov_build.sh, rdk_build.sh, test/L2_TESTS.md, unittest/**, test/functional-tests/**, and .github/workflows/*.yml.
 
   Repository reality to preserve in artifacts:
   - Runtime is event/timer/script driven, not a single long-running daemon.
@@ -15,7 +15,7 @@ context: |
   - mediaclient is binary-first when /usr/bin/crashupload is present; broadband and extender still rely on the legacy shell path.
   - C implementation lives under c_sourcecode/ and legacy shell behavior remains authoritative for some device types.
   - L1 means unit-test coverage centered on unittest/ and ./run_ut.sh.
-  - L2 means functional coverage centered on test/functional-tests/, L2_TESTS.md, and ./run_l2.sh after ./cov_build.sh --l2-test.
+  - L2 means functional coverage centered on test/functional-tests/, test/L2_TESTS.md, and ./run_l2.sh after ./cov_build.sh --l2-test.
   - CI context comes from .github/workflows/*.yml plus build/test entry scripts at repo root.
 
   Context minimization rules:
