@@ -48,7 +48,7 @@ Tracks which applicable TCs still need L2 functional tests.
 | TC-047 | Upload-on-startup mode — `/opt/.upload_on_startup` removed on coredump run |
 | TC-048 | Upload count ≤ 10 → ALLOW_UPLOAD |
 | TC-049 | Upload count > 10 within window → STOP_UPLOAD |
-| TC-050 | Rate limiting applied to minidump path only |
+| TC-050 | Minidump counter check is minidump-only |
 | TC-051 | Recovery time not yet reached → uploads still blocked |
 | TC-052 | Recovery time expired → uploads unblocked |
 | TC-054 | Rate-limit counter reset after recovery period |

@@ -24,8 +24,10 @@ Background
 ----------
 `ratelimit_check_unified()` in `ratelimit.c` enforces two checks in sequence:
 
-  Step 1 — deny-window check (is_recovery_time_reached):
-    Reads `/tmp/.deny_dump_uploads_till`.  If absent OR expired → ALLOW_UPLOAD.
+    Step 1 — deny-window check (is_recovery_time_reached):
+        Reads `/tmp/.deny_dump_uploads_till`.
+            • If absent OR expired → ALLOW_UPLOAD
+            • If active (future timestamp) → STOP_UPLOAD for both minidump and coredump
 
   Step 2 — per-minidump count check (is_upload_limit_reached):
     Reads `/tmp/.minidump_upload_timestamps`.
@@ -49,11 +51,11 @@ TC-048  Upload count ≤ 10 → ALLOW_UPLOAD
   (boundary condition: the rate-limiter should NOT trigger at 10 or fewer).
   is_upload_limit_reached() returns ALLOW_UPLOAD → rate limit not triggered.
 
-TC-050  Rate limiting applied to minidump path only
-  ────────────────────────────────────────────────────
+TC-050  Minidump upload-count check is minidump-only
+    ─────────────────────────────────────────────────────
   Even when `/tmp/.minidump_upload_timestamps` has 11 lines (which would block
-  a minidump run), a coredump run (argv[2]="1") skips the count check entirely
-  inside ratelimit_check_unified() → ALLOW_UPLOAD returned → not blocked.
+    a minidump run), a coredump run (argv[2]="1") skips the count check entirely
+    inside ratelimit_check_unified() and is allowed when no deny-window is active.
 """
 
 import os
@@ -186,8 +188,8 @@ class TestRateLimitAllow:
         and sets `status = ALLOW_UPLOAD` without reading MINIDUMP_TIMESTAMPS_FILE.
 
         A minidump run with the same precondition (11 entries, within window)
-        WOULD be blocked (TC-049 verifies this).  This test confirms the
-        symmetry: coredump ignores the minidump counters completely.
+        WOULD be blocked (TC-049 verifies this). This test confirms that
+        coredump ignores the minidump counter file itself.
 
         Setup:
           • DENY_UPLOADS_FILE absent — deny-window check passes.
@@ -198,8 +200,9 @@ class TestRateLimitAllow:
 
         Assertions:
           • exit(0)
-          • DENY_UPLOADS_FILE was NOT created by the rate limiter.
-            (For coredump ALLOW_UPLOAD path, set_time() is never called.)
+                    • DENY_UPLOADS_FILE was NOT created by the rate limiter.
+                        (This case validates the minidump counter bypass when deny-window
+                         is absent; active deny-window behavior is validated separately.)
         """
         _ensure_system_init_prereqs()
         os.makedirs(SECURE_COREDUMP_PATH, exist_ok=True)
@@ -227,11 +230,12 @@ class TestRateLimitAllow:
                 f"counter, got {result.returncode}\n"
                 f"stdout={result.stdout}\nstderr={result.stderr}"
             )
-            # Rate limiter must NOT have fired for coredump
+            # In this no-deny-window setup, counter-based rate limiting must not
+            # fire for coredump mode.
             assert not os.path.exists(DENY_UPLOADS_FILE), (
                 "TC-050: DENY_UPLOADS_FILE was created for a coredump run — "
-                "ratelimit_check_unified(COREDUMP) should return ALLOW_UPLOAD "
-                "regardless of minidump timestamp count"
+                "ratelimit_check_unified(COREDUMP) should bypass the minidump "
+                "counter check when deny-window is absent"
             )
         finally:
             Path(dump_path).unlink(missing_ok=True)
