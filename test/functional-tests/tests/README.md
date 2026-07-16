@@ -1,8 +1,8 @@
 # Functional Test Implementations
 
 This directory contains the pytest-based L2 functional test suite for the
-crasupload C binary.  Each `.py` file exercises one or more TC-IDs from
-[uploadDumps_TestCases.md](../../../uploadDumps_TestCases.md) by running the
+crashupload C binary.  Each `.py` file exercises one or more TC-IDs from
+[uploadDumps_TestCases.md](../../uploadDumps_TestCases.md) by running the
 compiled binary directly against a set of controlled filesystem conditions.
 
 Gherkin-format specifications for all tests are in [../features/](../features/).
@@ -119,4 +119,4 @@ The `CRASHUPLOAD_BINARY` environment variable overrides the path.
 - **Implemented**: 66 / 66 (100%)
 - **Not applicable** (shell-only / unimplemented stubs): 19
 
-See [../../../L2_TESTS.md](../../../L2_TESTS.md) for the full applicability matrix.
+See [../../L2_TESTS.md](../../L2_TESTS.md) for the full applicability matrix.
