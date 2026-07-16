@@ -1,0 +1,43 @@
+schema: spec-driven
+
+context: |
+  Repo: crashupload, an RDK crash dump discovery, packaging, and upload system with two active implementation paths: legacy shell scripts and a newer C binary.
+
+  Use this context strategy to keep SDLC artifact generation accurate and token-efficient:
+  - Read OpenSpec docs first: openspec/project.md, openspec/runtime/**, openspec/pipeline/**, openspec/subsystems/**, openspec/integrations/**, openspec/diagrams/**, openspec/gaps/**.
+  - Read documentation second: README.md, c_sourcecode/README.md, unittest/README.md, docs/migration/**, and other repo README files relevant to the touched area.
+  - Read implementation third, but only the narrow slice needed for the task: uploadDumps.sh, runDumpUpload.sh, uploadDumpsUtils.sh, c_sourcecode/src/**, c_sourcecode/include/**, c_sourcecode/common/**, src/inotify-minidump-watcher.c, and related service files.
+  - Read verification and delivery context only when relevant: run_ut.sh, run_l2.sh, cov_build.sh, rdk_build.sh, test/L2_TESTS.md, unittest/**, test/functional-tests/**, and .github/workflows/*.yml.
+
+  Repository reality to preserve in artifacts:
+  - Runtime is event/timer/script driven, not a single long-running daemon.
+  - uploadDumps.sh is the top-level dispatcher.
+  - mediaclient is binary-first when /usr/bin/crashupload is present; broadband and extender still rely on the legacy shell path.
+  - C implementation lives under c_sourcecode/ and legacy shell behavior remains authoritative for some device types.
+  - L1 means unit-test coverage centered on unittest/ and ./run_ut.sh.
+  - L2 means functional coverage centered on test/functional-tests/, test/L2_TESTS.md, and ./run_l2.sh after ./cov_build.sh --l2-test.
+  - CI context comes from .github/workflows/*.yml plus build/test entry scripts at repo root.
+
+  Context minimization rules:
+  - Prefer the existing OpenSpec artifacts as the summary layer instead of re-reading large code trees.
+  - Pull only the docs and code slices directly related to the subsystem being changed.
+  - Do not load all docs or all source files by default; start with the nearest README or OpenSpec doc, then drill into exact code paths.
+  - Separate shell-path behavior, C-path behavior, test impact, and CI impact instead of merging them into a generic summary.
+
+rules:
+  proposal:
+    - Start from openspec/project.md and only add the specific OpenSpec/doc/code files needed for the affected subsystem.
+    - State whether the change touches shell runtime, C runtime, test harness, CI, documentation, or a combination.
+    - Keep repository background concise; prefer explicit file anchors over broad repo summaries.
+  design:
+    - Prefer openspec/runtime, openspec/pipeline, openspec/subsystems, and openspec/diagrams before raw implementation files.
+    - Pull docs/migration/** and relevant README files when they add architecture, deployment, or migration detail.
+    - Call out device-type routing differences and any shell-versus-C divergence.
+  specs:
+    - Use code-truth for behavioral claims: uploadDumps.sh, runDumpUpload.sh, c_sourcecode/src/**, service units, and workflows when behavior depends on them.
+    - Separate L1 unit-test expectations from L2 functional-test expectations.
+    - Mention CI behavior only if workflows, build scripts, or test scripts are affected.
+  tasks:
+    - Generate file-scoped, validation-oriented tasks.
+    - Reference the smallest sufficient context set for each task.
+    - Include concrete verification commands when applicable, choosing from ./cov_build.sh, ./run_ut.sh, ./cov_build.sh --l2-test, and ./run_l2.sh.
