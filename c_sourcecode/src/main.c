@@ -155,7 +155,6 @@ int main_test(int argc, char *argv[])
 #endif
     }
     CRASHUPLOAD_INFO("System initialization successful\n");
-    CRASHUPLOAD_INFO("CrashUpload build includes RDKC platform support for regression testing\n");
     /* Step 2: Lock Acquisition */
     int lock_sec = (config.lock_mode == LOCK_MODE_WAIT) ? 5 : 0;
     lock_fd = lock_acquire(lock_file_path, lock_sec, config.t2_enabled);
