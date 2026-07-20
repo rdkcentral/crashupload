@@ -231,7 +231,7 @@ cd test/functional-tests
 | Single successful upload (TC-081) | `upload.feature` | ✅ Complete |
 | Upload retry (TC-082/083) | `upload_retry.feature` | ✅ Complete |
 
-**Coverage**: 66 / 66 applicable TCs implemented (19 not applicable — see `L2_TESTS.md`)
+**Coverage**: 66 / 66 applicable TCs implemented (19 not applicable — see `test/L2_TESTS.md`)
 
 ## Rate Limiting & Recovery Mode
 
