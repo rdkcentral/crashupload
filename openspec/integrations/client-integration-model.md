@@ -60,6 +60,10 @@
   - /tmp/set_crash_reboot_flag
   - /opt/.upload_on_startup
 
+## Rate-Limit State Semantics
+- /tmp/.deny_dump_uploads_till: global cooldown gate; if active, upload processing is blocked regardless of dump type.
+- /tmp/.minidump_upload_timestamps: minidump-only rolling counter used to trigger cooldown when upload volume exceeds threshold.
+
 ## Device-Side vs External Integration Boundaries
 - Device-side only:
   - file scanning, archive composition, local policy gates, cleanup.

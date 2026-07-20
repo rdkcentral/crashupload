@@ -334,7 +334,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
             }
             else
             {
-                CRASHUPLOAD_INFO("S3 %s Upload is successful\n", filepath);
+                CRASHUPLOAD_INFO("Upload is successful with TLS1.2 for %s\n", filepath);
                 if (t2_enabled)
                 {
                     t2CountNotify("SYS_INFO_S3CoreUploaded", 1);

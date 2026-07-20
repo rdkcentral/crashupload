@@ -46,7 +46,9 @@
 
 8. Rate limit and reboot checks
 - skip upload if reboot flag present.
-- minidump rate-limit blocks can delete pending dumps.
+- global deny-window (`/tmp/.deny_dump_uploads_till`) is evaluated before dump-type specific checks and can block both minidump and coredump uploads while active.
+- minidump upload-counter check (`/tmp/.minidump_upload_timestamps`) is only evaluated for minidump runs.
+- when blocked, pending dumps in the active working directory can be removed.
 
 9. Upload loop
 - sequential upload per archive.
@@ -70,6 +72,7 @@
 ### Rate limit and deny windows
 - /tmp/.minidump_upload_timestamps
 - /tmp/.deny_dump_uploads_till
+- policy note: deny-window is global cooldown; minidump timestamp file is minidump-only counter state.
 
 ### Startup/cleanup markers
 - /tmp/.on_startup_dumps_cleaned_up_<flag>

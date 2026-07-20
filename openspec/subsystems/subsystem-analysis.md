@@ -63,6 +63,8 @@
 ## Subsystem F: Policy (rate limit/privacy/reboot)
 - Facts:
   - deny-window and upload timestamp files in /tmp govern upload throttling.
+  - deny-window (`/tmp/.deny_dump_uploads_till`) is a global cooldown gate and can block both minidump and coredump uploads while active.
+  - upload timestamp counter (`/tmp/.minidump_upload_timestamps`) is only used for minidump rate-threshold evaluation.
   - reboot flag can skip upload to avoid conflict during reboot transitions.
   - privacy DO_NOT_SHARE bypasses upload for mediaclient path.
 - Assumption:
