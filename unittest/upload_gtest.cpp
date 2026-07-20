@@ -1077,7 +1077,7 @@ TEST_F(UploadTest, UploadProcess_RDKCDevice_SuccessMinidump) {
     test_config.dump_type = DUMP_TYPE_MINIDUMP;
     test_config.t2_enabled = false;
 
-    // RDKC reads partner ID from file - mock returns success
+    // Partner ID is retrieved via GetPartnerId() in unit tests (RDKC builds read it from a file)
     set_mock_partner_id_behavior(1, "rdkc_partner");
     // RDKC gets S3 URL from device.properties (RFC fails, fallback works)
     set_mock_read_rfc_property_behavior(-1, "");

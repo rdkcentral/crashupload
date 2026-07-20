@@ -136,7 +136,7 @@ typedef struct {
 | Upload Auth | mTLS | mTLS | mTLS | mTLS | mTLS via rdkcertselector |
 | Encryption | configurable | configurable | configurable | configurable | disabled |
 | RFC Variant | 3-param (WDMP) | 3-param (WDMP) | 3-param (WDMP) | 3-param (WDMP) | 2-param (INI-backed) |
-| Request Type | — | — | — | 18 | 17 |
+| Request Type | — | — | — | 17 | 17 |
 | Partner ID Source | account file | account file | device props | device props | /opt/usr_config/partnerid.txt |
 
 #### 2.2.1 RDK-C Platform Characteristics

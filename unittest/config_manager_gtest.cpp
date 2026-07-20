@@ -820,7 +820,7 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_RDKCDevice_CorePathOverride) {
     EXPECT_STREQ(test_config.minidump_path, "/opt/minidumps");
 }
 
-TEST_F(ConfigManagerTest, ConfigInitLoad_RDKCDevice_BoxTypeFallbackXcam) {
+TEST_F(ConfigManagerTest, ConfigInitLoad_RDKCDevice_BoxTypeNoFallbackWhenSet) {
     set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
     // Mock returns "XHC1" for all getDevicePropertyData calls (BOX_TYPE, BUILD_TYPE, DEVICE_TYPE)
     // BOX_TYPE="XHC1" is not "UNKNOWN", so fallback to "xcam" won't trigger
