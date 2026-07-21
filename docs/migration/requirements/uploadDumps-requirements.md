@@ -60,6 +60,27 @@ The `uploadDumps.sh` script is responsible for processing and uploading crash du
   - Extender devices
   - Hybrid devices
   - Media client devices
+  - RDK-C (camera) devices
+- **Priority**: High
+
+##### FR-5.1: RDK-C (Camera) Platform Requirements
+- **Device Detection**: Identified by `XHC1` value in the `DEVICE_TYPE` field of `/etc/device.properties`
+- **Filesystem Paths**:
+  - Coredumps: `/opt/corefiles`
+  - Minidumps: `/opt/minidumps`
+  - Core log: `$LOG_PATH/core_log.txt`
+- **Partner ID**: Read from `/opt/usr_config/partnerid.txt`
+- **BOX_TYPE**: Defaults to `xcam` when not explicitly set
+- **Upload Configuration**:
+  - S3 signed URL from RFC (`CrashUpload.S3SigningUrl`) or device.properties (`S3_AMAZON_SIGNING_URL`)
+  - Request type: 17
+  - Portal: `crashportal.stb.r53.xcal.tv`
+  - Encryption: disabled (`encryptionEnable=false`)
+  - Authentication: mTLS via `rdkcertselector` (cert rotation supported)
+- **RFC Interface**: 2-parameter `getRFCParameter` variant reading from INI files; `setRFCParameter` not supported
+- **Archive Contents**:
+  - Base: dump file + `/version.txt` + `core_log.txt`
+  - Non-production builds: additionally includes `receiver.log` and `thread.log` (if present in `$LOG_PATH`)
 - **Priority**: High
 
 #### FR-6: Configuration Loading
@@ -328,7 +349,7 @@ The `uploadDumps.sh` script is responsible for processing and uploading crash du
 
 #### EC-4: Long Filenames
 - **Scenario**: Generated filename exceeds 135 characters
-- **Handling**: 
+- **Handling**:
   - Remove SHA1 prefix
   - Truncate process name to 20 characters if still too long
 
@@ -378,7 +399,7 @@ The `uploadDumps.sh` script is responsible for processing and uploading crash du
 
 #### ERR-4: Compression Failure
 - **Error**: tar/gzip command fails
-- **Handling**: 
+- **Handling**:
   - First: Copy files to /tmp and retry
   - Second: Log error, send telemetry event
 - **Recovery**: Continue processing other dumps
@@ -390,7 +411,7 @@ The `uploadDumps.sh` script is responsible for processing and uploading crash du
 
 #### ERR-6: Rate Limit Exceeded
 - **Error**: More than 10 uploads in 10 minutes
-- **Handling**: 
+- **Handling**:
   - Create crashloop marker dump
   - Upload crashloop dump to portal
   - Set 10-minute recovery time

@@ -37,6 +37,10 @@
 #define RETRY_DELAY_SECONDS 5
 #define SIZE_POSTFIELD_BUF 2048
 
+#ifdef RDKC
+#define RDKC_PARTNER_ID_FILE "/opt/usr_config/partnerid.txt"
+#endif
+
 #if 0
 /* FULL IMPLEMENTATION - Progress callback for upload monitoring */
 static int upload_progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow,
@@ -61,7 +65,7 @@ int get_crashupload_s3signed_url(char *url, size_t size_buf)
     ret = read_RFCProperty("S3SignedUrl", RFC_CRASHUPLOAD_S3URL, url, size_buf);
     if ((ret == READ_RFC_FAILURE) || (url[0] == '\0'))
     {
-        CRASHUPLOAD_WARN("Read rfc failed For S3SignedUrl. Reading From device.properies file\n");
+        CRASHUPLOAD_WARN("Read rfc failed For S3SignedUrl. Reading From device.properties file\n");
         ret = getDevicePropertyData("S3_AMAZON_SIGNING_URL", url, size_buf);
         if (ret == UTILS_SUCCESS)
         {
@@ -369,8 +373,24 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
     char md5sum[128] = {0};
     char dump_name[16] = {0};
     char crash_fw_version[128] = {0};
-    // size_t GetPartnerId( char *pPartnerId, size_t szBufSize );
+#ifdef RDKC
+    {
+        FILE *fp = fopen(RDKC_PARTNER_ID_FILE, "r");
+        if (fp)
+        {
+            if (fgets(pPartnerId, sizeof(pPartnerId), fp))
+            {
+                size_t plen = strlen(pPartnerId);
+                if (plen > 0 && pPartnerId[plen - 1] == '\n')
+                    pPartnerId[plen - 1] = '\0';
+            }
+            fclose(fp);
+        }
+        ret = (pPartnerId[0] != '\0') ? 1 : 0;
+    }
+#else
     ret = GetPartnerId(pPartnerId, sizeof(pPartnerId));
+#endif
     if (ret == 0)
     {
         strcpy(pPartnerId, "comcast");
@@ -421,6 +441,25 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         {
             CRASHUPLOAD_INFO("Read rfc Success crashportalEndpointUrl:\n Overriding the S3 Amazon Signing URL:%s\n", crashportalEndpointUrl);
         }
+    }
+    else if (config->device_type == DEVICE_TYPE_RDKC)
+    {
+        /* RDKC Camera upload flow:
+         * Matches script uploadDumps.sh - encryptionEnable=false (no /etc/os-release)
+         * S3 URL from device.properties S3_AMAZON_SIGNING_URL
+         * Portal URL: crashportal.stb.r53.xcal.tv
+         */
+        strcpy(encryptionEnable, "false");
+        strcpy(portal_url, "crashportal.stb.r53.xcal.tv");
+        request_type = 17;
+        CRASHUPLOAD_INFO("RDKC: request_type=%d\n", request_type);
+        ret = get_crashupload_s3signed_url(crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
+        if (ret < 0)
+        {
+            CRASHUPLOAD_ERROR("RDKC: Unable to get the S3 server url. So exit\n");
+            return ret;
+        }
+        CRASHUPLOAD_INFO("RDKC: S3 signing URL=%s\n", crashportalEndpointUrl);
     }
     else if (config->device_type == DEVICE_TYPE_BROADBAND)
     {

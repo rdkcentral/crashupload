@@ -96,7 +96,7 @@ typedef struct {
 **Purpose**: Isolate platform-specific code and provide unified interface
 
 **Responsibilities**:
-- Device type detection (broadband, extender, hybrid, mediaclient)
+- Device type detection (broadband, extender, hybrid, mediaclient, rdkc)
 - Platform-specific path configuration
 - Interface name resolution
 - Platform-specific feature flags
@@ -124,6 +124,30 @@ typedef struct {
     char *interface_name;
 } platform_config_t;
 ```
+
+**Platform Support Matrix**:
+
+| Aspect | Broadband | Extender | Hybrid | Mediaclient | RDK-C (Camera) |
+|--------|-----------|----------|--------|-------------|----------------|
+| Detection Key | — | — | — | — | XHC1 |
+| Core Path | /minidumps | /minidumps | systemd default | systemd default | /opt/corefiles |
+| Minidump Path | /minidumps | /minidumps | /opt/minidumps | /opt/minidumps | /opt/minidumps |
+| BOX_TYPE | from props | from props | from props | from props | defaults to "xcam" |
+| Upload Auth | mTLS | mTLS | mTLS | mTLS | mTLS via rdkcertselector |
+| Encryption | configurable | configurable | configurable | configurable | disabled |
+| RFC Variant | 3-param (WDMP) | 3-param (WDMP) | 3-param (WDMP) | 3-param (WDMP) | 2-param (INI-backed) |
+| Request Type | — | — | — | 17 | 17 |
+| Partner ID Source | account file | account file | device props | device props | /opt/usr_config/partnerid.txt |
+
+#### 2.2.1 RDK-C Platform Characteristics
+
+The RDK-C (camera) platform is identified by the `XHC1` value in the `DEVICE_TYPE` field of `/etc/device.properties`. Key platform-specific behaviors:
+
+- **Path Configuration**: Uses `/opt/corefiles` for coredumps (non-systemd) and `/opt/minidumps` for minidumps.
+- **RFC Interface**: Uses a 2-parameter `getRFCParameter` variant that reads from INI files. `setRFCParameter` is not supported on this platform.
+- **Upload Flow**: Uses S3 signed URL with `request_type=17`, portal `crashportal.stb.r53.xcal.tv`, encryption disabled. Authentication via mTLS with cert rotation managed by `rdkcertselector`.
+- **Archive Composition**: Base archive includes dump + `/version.txt` + `core_log.txt`. Non-production builds additionally include `receiver.log` and `thread.log` from `$LOG_PATH` if present.
+- **BOX_TYPE Default**: Falls back to `"xcam"` if not explicitly set in device properties.
 
 ### 2.3 Configuration Manager
 
@@ -202,7 +226,7 @@ typedef struct {
 
 **Key Interfaces**:
 ```c
-int archive_create(const dump_file_t *dump, const config_t *config, 
+int archive_create(const dump_file_t *dump, const config_t *config,
                    char *archive_path, size_t path_len);
 int archive_add_metadata(archive_t *archive, const config_t *config);
 int archive_add_logs(archive_t *archive, const char *process_name);
@@ -238,9 +262,9 @@ typedef struct {
 **Key Interfaces**:
 ```c
 int upload_init(upload_config_t *config);
-int upload_file(const char *filepath, const upload_config_t *config, 
+int upload_file(const char *filepath, const upload_config_t *config,
                 upload_result_t *result);
-int upload_retry(const char *filepath, const upload_config_t *config, 
+int upload_retry(const char *filepath, const upload_config_t *config,
                  int max_retries, upload_result_t *result);
 bool upload_check_privacy_mode(void);
 void upload_cleanup(upload_config_t *config);
@@ -359,7 +383,7 @@ int file_get_sha1(const char *path, char *hash, size_t len);
 int string_sanitize(const char *input, char *output, size_t len);
 int string_format_mac(const char *mac, char *output, size_t len);
 int string_format_timestamp(time_t time, char *output, size_t len);
-int string_generate_filename(const char *sha1, const char *mac, 
+int string_generate_filename(const char *sha1, const char *mac,
                             const char *timestamp, const char *box_type,
                             const char *model, const char *original,
                             char *output, size_t len);
@@ -596,7 +620,7 @@ function create_lock_or_wait(lock_path, mode):
                 log("Waiting for lock...")
                 sleep(2)
                 continue
-        
+
         if create_directory(lock_path) == SUCCESS:
             return SUCCESS
         else:
@@ -613,27 +637,27 @@ function create_lock_or_wait(lock_path, mode):
 ```
 function generate_dump_filename(sha1, mac, timestamp, box_type, model, original):
     # Format: sha1_macMAC_datDATE_boxTYPE_modMODEL_original
-    
+
     # Check if already processed
     if original contains "_mac" and "_dat" and "_box" and "_mod":
         return original  # Already has metadata
-    
+
     # Generate base name
-    filename = sha1 + "_mac" + mac + "_dat" + timestamp + 
+    filename = sha1 + "_mac" + mac + "_dat" + timestamp +
                "_box" + box_type + "_mod" + model + "_" + original
-    
+
     # Handle filename length limit (135 chars for ecryptfs)
     if length(filename) >= 135:
         # Remove SHA1 prefix
         filename = remove_prefix(filename, sha1 + "_")
-    
+
     if length(filename) >= 135:
         # Truncate process name to 20 chars
         filename = truncate_process_name(filename, 20)
-    
+
     # Sanitize
     filename = sanitize(filename)
-    
+
     return filename
 ```
 
@@ -642,13 +666,13 @@ function generate_dump_filename(sha1, mac, timestamp, box_type, model, original)
 ```
 function is_upload_limit_reached():
     timestamps = read_timestamp_file()
-    
+
     if count(timestamps) < 10:
         return false  # Not enough uploads yet
-    
+
     oldest_timestamp = timestamps[0]  # First entry
     current_time = now()
-    
+
     if (current_time - oldest_timestamp) < 600:  # 10 minutes
         return true  # Rate limit exceeded
     else:
@@ -661,22 +685,22 @@ function is_upload_limit_reached():
 function create_archive(dump_file, config):
     # Generate archive name
     archive_name = generate_dump_filename(...)
-    
+
     # Parse container info if present
     if dump_file contains "<#=#>":
         container_info = parse_container_crash(dump_file)
         send_telemetry(container_info)
-    
+
     # Collect files to archive
     files = []
     files.add(dump_file)
     files.add("version.txt")
     files.add("core_log.txt")
-    
+
     if dump_type == MINIDUMP:
         log_files = get_crashed_log_files(dump_file)
         files.add(log_files)
-    
+
     # Check /tmp usage
     tmp_usage = get_disk_usage("/tmp")
     if tmp_usage > 70%:
@@ -686,7 +710,7 @@ function create_archive(dump_file, config):
         temp_dir = create_temp_directory()
         copy_files_to_temp(files, temp_dir)
         files = temp_dir_files
-    
+
     # Create compressed archive
     try:
         create_tar_gz(archive_name, files)
@@ -698,10 +722,10 @@ function create_archive(dump_file, config):
             create_tar_gz(archive_name, temp_dir_files)
         else:
             raise error
-    
+
     # Cleanup
     remove_temp_files()
-    
+
     return archive_name
 ```
 
@@ -711,13 +735,13 @@ function create_archive(dump_file, config):
 function parse_container_crash(filename):
     delimiter = "<#=#>"
     backward_delimiter = "-"
-    
+
     if not contains(filename, delimiter):
         return null  # Not a container crash
-    
+
     # Split by delimiter
     parts = split(filename, delimiter)
-    
+
     if count(parts) == 3:
         # Format: processname_appname<#=#>status<#=#>timestamp.dmp
         container_name = parts[0]
@@ -728,15 +752,15 @@ function parse_container_crash(filename):
         container_name = parts[0]
         container_status = "unknown"
         container_time = parts[1]
-    
+
     # Extract app name and process name
     name_parts = split(container_name, "_")
     process_name = name_parts[0]
     app_name = join(name_parts[1:], "_")
-    
+
     # Create normalized filename
     normalized = container_name + backward_delimiter + container_time
-    
+
     return {
         container_name: container_name,
         container_status: container_status,
@@ -865,7 +889,7 @@ if (device_type == DEVICE_TYPE_BROADBAND) {
 
 #### 5.5.2 Video Platform
 ```c
-if (device_type == DEVICE_TYPE_HYBRID || 
+if (device_type == DEVICE_TYPE_HYBRID ||
     device_type == DEVICE_TYPE_MEDIACLIENT) {
     // Defer processing if uptime < 480 seconds
     if (get_uptime() < 480) {
@@ -915,21 +939,21 @@ typedef enum {
 void cleanup_and_exit(int exit_code) {
     // Remove lock
     lock_remove(lock_path);
-    
+
     // Close log file
     log_cleanup();
-    
+
     // Free allocated memory
     config_cleanup(&config);
-    
+
     // Remove temp files
     file_cleanup_temp_dir(temp_dir);
-    
+
     // Set crash reboot flag if broadband
     if (device_type == DEVICE_TYPE_BROADBAND) {
         touch("/tmp/crash_reboot");
     }
-    
+
     exit(exit_code);
 }
 ```

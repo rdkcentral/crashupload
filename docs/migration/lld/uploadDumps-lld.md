@@ -60,6 +60,7 @@ typedef enum {
     DEVICE_TYPE_EXTENDER,
     DEVICE_TYPE_HYBRID,
     DEVICE_TYPE_MEDIACLIENT,
+    DEVICE_TYPE_RDKC,
     DEVICE_TYPE_UNKNOWN
 } device_type_t;
 
@@ -90,21 +91,21 @@ typedef struct {
     dump_type_t dump_type;
     upload_mode_t upload_mode;
     lock_mode_t lock_mode;
-    
+
     char working_dir[PATH_MAX];
     char log_path[PATH_MAX];
     char core_path[PATH_MAX];
     char minidumps_path[PATH_MAX];
-    
+
     char portal_url[URL_MAX_LEN];
     char partner_id[PARTNER_ID_LEN];
     char rdk_path[PATH_MAX];
-    
+
     bool telemetry_enabled;
     bool multi_core;
     bool enable_ocsp;
     bool enable_ocsp_stapling;
-    
+
     int max_core_files;
     int upload_timeout;
     int max_retries;
@@ -225,7 +226,7 @@ typedef struct {
 
 /**
  * @brief Main entry point
- * 
+ *
  * @param argc Argument count
  * @param argv Argument vector
  *        argv[1]: Reserved (not used, previously CRASHTS)
@@ -238,7 +239,7 @@ int main(int argc, char *argv[]);
 
 /**
  * @brief Parse command line arguments
- * 
+ *
  * @param argc Argument count
  * @param argv Argument vector
  * @param config Configuration structure to populate
@@ -248,7 +249,7 @@ int parse_arguments(int argc, char *argv[], config_t *config);
 
 /**
  * @brief Initialize all subsystems
- * 
+ *
  * @param config Configuration structure
  * @param platform Platform configuration
  * @return 0 on success, error code on failure
@@ -257,7 +258,7 @@ int initialize_system(const config_t *config, platform_config_t *platform);
 
 /**
  * @brief Main processing loop
- * 
+ *
  * @param config Configuration structure
  * @param platform Platform configuration
  * @return 0 on success, error code on failure
@@ -266,14 +267,14 @@ int process_dumps_loop(const config_t *config, const platform_config_t *platform
 
 /**
  * @brief Cleanup and exit
- * 
+ *
  * @param exit_code Exit code to return
  */
 void cleanup_and_exit(int exit_code) __attribute__((noreturn));
 
 /**
  * @brief Signal handler
- * 
+ *
  * @param signum Signal number
  */
 void signal_handler(int signum);
@@ -286,7 +287,7 @@ void signal_handler(int signum);
 
 /**
  * @brief Load configuration from all sources
- * 
+ *
  * @param config Configuration structure to populate
  * @return 0 on success, error code on failure
  */
@@ -294,7 +295,7 @@ int config_load(config_t *config);
 
 /**
  * @brief Load configuration from a file
- * 
+ *
  * @param path File path
  * @param config Configuration structure to update
  * @return 0 on success, error code on failure
@@ -303,7 +304,7 @@ int config_load_file(const char *path, config_t *config);
 
 /**
  * @brief Load configuration from environment variables
- * 
+ *
  * @param config Configuration structure to update
  * @return 0 on success, error code on failure
  */
@@ -311,7 +312,7 @@ int config_load_environment(config_t *config);
 
 /**
  * @brief Validate configuration
- * 
+ *
  * @param config Configuration structure to validate
  * @return 0 if valid, error code otherwise
  */
@@ -319,18 +320,18 @@ int config_validate(const config_t *config);
 
 /**
  * @brief Get string value from configuration
- * 
+ *
  * @param config Configuration structure
  * @param key Configuration key
  * @param default_val Default value if not found
  * @return Configuration value or default
  */
-const char* config_get_string(const config_t *config, const char *key, 
+const char* config_get_string(const config_t *config, const char *key,
                                const char *default_val);
 
 /**
  * @brief Get integer value from configuration
- * 
+ *
  * @param config Configuration structure
  * @param key Configuration key
  * @param default_val Default value if not found
@@ -340,7 +341,7 @@ int config_get_int(const config_t *config, const char *key, int default_val);
 
 /**
  * @brief Free configuration resources
- * 
+ *
  * @param config Configuration structure to free
  */
 void config_cleanup(config_t *config);
@@ -353,7 +354,7 @@ void config_cleanup(config_t *config);
 
 /**
  * @brief Initialize platform configuration
- * 
+ *
  * @param config Global configuration
  * @param platform Platform configuration to populate
  * @return 0 on success, error code on failure
@@ -362,19 +363,19 @@ int platform_init(const config_t *config, platform_config_t *platform);
 
 /**
  * @brief Get dump directory path for device type
- * 
+ *
  * @param device_type Device type
  * @param secure Secure mode flag
  * @param path Buffer to store path
  * @param len Buffer length
  * @return 0 on success, error code on failure
  */
-int platform_get_dump_path(device_type_t device_type, bool secure, 
+int platform_get_dump_path(device_type_t device_type, bool secure,
                            char *path, size_t len);
 
 /**
  * @brief Get log directory path for device type
- * 
+ *
  * @param device_type Device type
  * @param path Buffer to store path
  * @param len Buffer length
@@ -384,18 +385,18 @@ int platform_get_log_path(device_type_t device_type, char *path, size_t len);
 
 /**
  * @brief Get network interface name for device type
- * 
+ *
  * @param device_type Device type
  * @param interface Buffer to store interface name
  * @param len Buffer length
  * @return 0 on success, error code on failure
  */
-int platform_get_interface_name(device_type_t device_type, 
+int platform_get_interface_name(device_type_t device_type,
                                 char *interface, size_t len);
 
 /**
  * @brief Check if platform supports a feature
- * 
+ *
  * @param feature Feature to check
  * @return true if supported, false otherwise
  */
@@ -403,7 +404,7 @@ bool platform_supports_feature(platform_feature_t feature);
 
 /**
  * @brief Get device MAC address
- * 
+ *
  * @param platform Platform configuration
  * @return 0 on success, error code on failure
  */
@@ -411,7 +412,7 @@ int platform_get_mac_address(platform_config_t *platform);
 
 /**
  * @brief Get device model number
- * 
+ *
  * @param platform Platform configuration
  * @return 0 on success, error code on failure
  */
@@ -419,12 +420,93 @@ int platform_get_model_number(platform_config_t *platform);
 
 /**
  * @brief Get build SHA1 hash
- * 
+ *
  * @param platform Platform configuration
  * @return 0 on success, error code on failure
  */
 int platform_get_sha1(platform_config_t *platform);
 ```
+
+#### 3.3.1 RDK-C Platform Configuration
+
+The RDK-C (camera) platform uses the following configuration values when `DEVICE_TYPE_RDKC` is detected:
+
+| Field | Value | Notes |
+|-------|-------|-------|
+| `core_path` | `/opt/corefiles` | Non-systemd coredump location |
+| `minidumps_path` | `/opt/minidumps` | Standard minidump location |
+| `core_log_file` | `$LOG_PATH/core_log.txt` | Same convention as mediaclient |
+| `box_type` | `xcam` | Default when not set in device.properties |
+| Partner ID file | `/opt/usr_config/partnerid.txt` | RDKC-specific location |
+
+**Detection Logic** (in `config_manager.c`):
+```c
+// XHC1 prefix in DEVICE_TYPE field triggers RDKC classification
+if (strncmp(device_prop_data, "XHC1", 4) == 0) {
+    config->device_type = DEVICE_TYPE_RDKC;
+}
+```
+
+**Path Override** (applied after initial config load):
+```c
+if (config->upload_mode == UPLOAD_MODE_NORMAL &&
+    config->device_type == DEVICE_TYPE_RDKC) {
+    strcpy(config->core_path, "/opt/corefiles");
+    /* minidump_path remains /opt/minidumps */
+}
+```
+
+**BOX_TYPE Fallback**:
+```c
+if (strcmp(config->box_type, "UNKNOWN") == 0 &&
+    config->device_type == DEVICE_TYPE_RDKC) {
+    strcpy(config->box_type, "xcam");
+}
+```
+
+#### 3.3.2 RDK-C RFC Interface
+
+RDK-C uses a 2-parameter `getRFCParameter` variant (INI-file backed). The standard 3-parameter WDMP-based version used by STB platforms is not available.
+
+```c
+#if defined(RDKC)
+/* 2-param: getRFCParameter(param_name, output_buf) — reads from INI files */
+int read_RFCProperty(const char *key, const char *rfc_param, char *value, size_t len);
+/* setRFCParameter is NOT supported on RDKC */
+#else
+/* 3-param: getRFCParameter(param_name, output_buf, wdmp_status) — TR-181 based */
+int read_RFCProperty(const char *key, const char *rfc_param, char *value, size_t len);
+int write_RFCProperty(const char *rfc_param, const char *value);
+#endif
+```
+
+#### 3.3.3 RDK-C Archive Composition
+
+For `DEVICE_TYPE_RDKC` minidump archives:
+
+```
+Archive contents (production):
+  [0] dump file (renamed with metadata prefix)
+  [1] /version.txt
+  [2] $LOG_PATH/core_log.txt
+
+Archive contents (non-production, additional):
+  [3] $LOG_PATH/receiver.log  (if file exists)
+  [4] $LOG_PATH/thread.log    (if file exists)
+```
+
+#### 3.3.4 RDK-C Upload Flow
+
+```c
+/* RDKC upload parameters */
+encryptionEnable = "false";
+portal_url = "crashportal.stb.r53.xcal.tv";
+request_type = 17;
+/* S3 signing URL from RFC (CrashUpload.S3SigningUrl) or
+   device.properties (S3_AMAZON_SIGNING_URL) */
+```
+
+Authentication uses mTLS with certificate rotation via `rdkcertselector`.
 
 ### 3.4 Scanner Module
 
@@ -433,7 +515,7 @@ int platform_get_sha1(platform_config_t *platform);
 
 /**
  * @brief Initialize scanner
- * 
+ *
  * @param directory Directory to scan
  * @return Scanner handle or NULL on error
  */
@@ -441,18 +523,18 @@ scanner_t* scanner_init(const char *directory);
 
 /**
  * @brief Find dump files matching pattern
- * 
+ *
  * @param scanner Scanner handle
  * @param pattern File pattern (e.g., "*.dmp*")
  * @param list List to populate with results
  * @return 0 on success, error code on failure
  */
-int scanner_find_dumps(scanner_t *scanner, const char *pattern, 
+int scanner_find_dumps(scanner_t *scanner, const char *pattern,
                        dump_list_t *list);
 
 /**
  * @brief Check if file is already processed
- * 
+ *
  * @param filename Filename to check
  * @return true if processed, false otherwise
  */
@@ -460,7 +542,7 @@ bool scanner_is_processed(const char *filename);
 
 /**
  * @brief Filter dump list by criteria
- * 
+ *
  * @param list Dump list
  * @param filter_func Filter function
  * @return Number of items remaining
@@ -469,21 +551,21 @@ int scanner_filter(dump_list_t *list, bool (*filter_func)(const dump_file_t*));
 
 /**
  * @brief Sort dump list by modification time
- * 
+ *
  * @param list Dump list to sort
  */
 void scanner_sort_by_time(dump_list_t *list);
 
 /**
  * @brief Free scanner resources
- * 
+ *
  * @param scanner Scanner handle
  */
 void scanner_cleanup(scanner_t *scanner);
 
 /**
  * @brief Free dump list
- * 
+ *
  * @param list Dump list to free
  */
 void dump_list_free(dump_list_t *list);
@@ -496,19 +578,19 @@ void dump_list_free(dump_list_t *list);
 
 /**
  * @brief Create new archive
- * 
+ *
  * @param dump Dump file to archive
  * @param config Global configuration
  * @param platform Platform configuration
  * @return Archive handle or NULL on error
  */
-archive_t* archive_create(const dump_file_t *dump, 
+archive_t* archive_create(const dump_file_t *dump,
                           const config_t *config,
                           const platform_config_t *platform);
 
 /**
  * @brief Parse container information from filename
- * 
+ *
  * @param filename Dump filename
  * @param info Container info structure to populate
  * @return 0 on success, error code on failure
@@ -517,7 +599,7 @@ int archive_parse_container_info(const char *filename, container_info_t *info);
 
 /**
  * @brief Generate archive filename with metadata
- * 
+ *
  * @param dump Dump file
  * @param platform Platform configuration
  * @param filename Buffer to store filename
@@ -530,7 +612,7 @@ int archive_generate_filename(const dump_file_t *dump,
 
 /**
  * @brief Add file to archive
- * 
+ *
  * @param archive Archive handle
  * @param filepath File to add
  * @return 0 on success, error code on failure
@@ -539,7 +621,7 @@ int archive_add_file(archive_t *archive, const char *filepath);
 
 /**
  * @brief Add log files for crashed process
- * 
+ *
  * @param archive Archive handle
  * @param process_name Process name
  * @param config Global configuration
@@ -550,7 +632,7 @@ int archive_add_log_files(archive_t *archive, const char *process_name,
 
 /**
  * @brief Finalize and compress archive
- * 
+ *
  * @param archive Archive handle
  * @return 0 on success, error code on failure
  */
@@ -558,7 +640,7 @@ int archive_finalize(archive_t *archive);
 
 /**
  * @brief Get archive path
- * 
+ *
  * @param archive Archive handle
  * @return Archive file path
  */
@@ -566,7 +648,7 @@ const char* archive_get_path(const archive_t *archive);
 
 /**
  * @brief Free archive resources
- * 
+ *
  * @param archive Archive handle
  */
 void archive_cleanup(archive_t *archive);
@@ -579,7 +661,7 @@ void archive_cleanup(archive_t *archive);
 
 /**
  * @brief Initialize upload configuration
- * 
+ *
  * @param config Upload configuration
  * @param global_config Global configuration
  * @return 0 on success, error code on failure
@@ -588,7 +670,7 @@ int upload_init(upload_config_t *config, const config_t *global_config);
 
 /**
  * @brief Upload file to server
- * 
+ *
  * @param filepath File to upload
  * @param config Upload configuration
  * @param result Upload result structure
@@ -599,7 +681,7 @@ int upload_file(const char *filepath, const upload_config_t *config,
 
 /**
  * @brief Upload file with retry logic
- * 
+ *
  * @param filepath File to upload
  * @param config Upload configuration
  * @param max_retries Maximum retry attempts
@@ -611,14 +693,14 @@ int upload_retry(const char *filepath, const upload_config_t *config,
 
 /**
  * @brief Check if privacy mode is enabled
- * 
+ *
  * @return true if enabled, false otherwise
  */
 bool upload_check_privacy_mode(void);
 
 /**
  * @brief Free upload configuration
- * 
+ *
  * @param config Upload configuration
  */
 void upload_cleanup(upload_config_t *config);
@@ -631,7 +713,7 @@ void upload_cleanup(upload_config_t *config);
 
 /**
  * @brief Initialize rate limiter
- * 
+ *
  * @param timestamp_file Timestamp file path
  * @return Rate limiter handle or NULL on error
  */
@@ -639,7 +721,7 @@ ratelimit_t* ratelimit_init(const char *timestamp_file);
 
 /**
  * @brief Check if upload limit is exceeded
- * 
+ *
  * @param limiter Rate limiter handle
  * @return true if exceeded, false otherwise
  */
@@ -647,7 +729,7 @@ bool ratelimit_is_exceeded(ratelimit_t *limiter);
 
 /**
  * @brief Check if recovery time has been reached
- * 
+ *
  * @param limiter Rate limiter handle
  * @return true if reached, false otherwise
  */
@@ -655,7 +737,7 @@ bool ratelimit_is_recovery_time_reached(ratelimit_t *limiter);
 
 /**
  * @brief Record upload timestamp
- * 
+ *
  * @param limiter Rate limiter handle
  * @return 0 on success, error code on failure
  */
@@ -663,7 +745,7 @@ int ratelimit_record_upload(ratelimit_t *limiter);
 
 /**
  * @brief Set recovery time
- * 
+ *
  * @param limiter Rate limiter handle
  * @param seconds Seconds from now
  * @return 0 on success, error code on failure
@@ -672,7 +754,7 @@ int ratelimit_set_recovery_time(ratelimit_t *limiter, int seconds);
 
 /**
  * @brief Free rate limiter resources
- * 
+ *
  * @param limiter Rate limiter handle
  */
 void ratelimit_cleanup(ratelimit_t *limiter);
@@ -685,7 +767,7 @@ void ratelimit_cleanup(ratelimit_t *limiter);
 
 /**
  * @brief Check if network is available
- * 
+ *
  * @param interface Network interface name
  * @return true if available, false otherwise
  */
@@ -693,7 +775,7 @@ bool network_is_available(const char *interface);
 
 /**
  * @brief Wait for network connection
- * 
+ *
  * @param max_iterations Maximum wait iterations
  * @param delay_seconds Delay between iterations
  * @return 0 if available, error code on timeout
@@ -702,14 +784,14 @@ int network_wait_for_connection(int max_iterations, int delay_seconds);
 
 /**
  * @brief Check if route is available
- * 
+ *
  * @return true if available, false otherwise
  */
 bool network_check_route_available(void);
 
 /**
  * @brief Wait for system time synchronization
- * 
+ *
  * @param max_iterations Maximum wait iterations
  * @param delay_seconds Delay between iterations
  * @return 0 if synced, error code on timeout
@@ -718,7 +800,7 @@ int network_wait_for_system_time(int max_iterations, int delay_seconds);
 
 /**
  * @brief Check network communication status (broadband-specific)
- * 
+ *
  * @return 0 if OK, error code otherwise
  */
 int network_commn_status(void);
@@ -731,7 +813,7 @@ int network_commn_status(void);
 
 /**
  * @brief Check if file exists
- * 
+ *
  * @param path File path
  * @return true if exists, false otherwise
  */
@@ -739,7 +821,7 @@ bool file_exists(const char *path);
 
 /**
  * @brief Get file modification time as formatted string
- * 
+ *
  * @param path File path
  * @param timestamp Buffer to store timestamp
  * @param len Buffer length
@@ -749,7 +831,7 @@ int file_get_mtime_string(const char *path, char *timestamp, size_t len);
 
 /**
  * @brief Get file modification time
- * 
+ *
  * @param path File path
  * @return Modification time or 0 on error
  */
@@ -757,7 +839,7 @@ time_t file_get_mtime(const char *path);
 
 /**
  * @brief Delete file safely with validation
- * 
+ *
  * @param path File path
  * @return 0 on success, error code on failure
  */
@@ -765,7 +847,7 @@ int file_delete_safely(const char *path);
 
 /**
  * @brief Sanitize filename (remove invalid characters)
- * 
+ *
  * @param input Input filename
  * @param output Output buffer
  * @param len Buffer length
@@ -775,7 +857,7 @@ int file_sanitize_name(const char *input, char *output, size_t len);
 
 /**
  * @brief Create temporary directory
- * 
+ *
  * @param path Buffer to store path
  * @param len Buffer length
  * @return 0 on success, error code on failure
@@ -784,14 +866,14 @@ int file_create_temp_dir(char *path, size_t len);
 
 /**
  * @brief Cleanup temporary directory
- * 
+ *
  * @param path Directory path
  */
 void file_cleanup_temp_dir(const char *path);
 
 /**
  * @brief Calculate SHA1 hash of file
- * 
+ *
  * @param path File path
  * @param hash Buffer to store hash
  * @param len Buffer length (must be >= 41)
@@ -801,7 +883,7 @@ int file_get_sha1(const char *path, char *hash, size_t len);
 
 /**
  * @brief Get disk usage percentage
- * 
+ *
  * @param path Mount point or directory
  * @return Usage percentage (0-100) or -1 on error
  */
@@ -809,7 +891,7 @@ int file_get_disk_usage(const char *path);
 
 /**
  * @brief Copy file
- * 
+ *
  * @param src Source file path
  * @param dst Destination file path
  * @return 0 on success, error code on failure
@@ -818,7 +900,7 @@ int file_copy(const char *src, const char *dst);
 
 /**
  * @brief Tail file (get last N lines)
- * 
+ *
  * @param path File path
  * @param lines Number of lines
  * @param output Buffer to store output
@@ -835,7 +917,7 @@ int file_tail(const char *path, int lines, char *output, size_t len);
 
 /**
  * @brief Sanitize string (remove non-alphanumeric characters)
- * 
+ *
  * @param input Input string
  * @param output Output buffer
  * @param len Buffer length
@@ -845,19 +927,19 @@ int string_sanitize(const char *input, char *output, size_t len);
 
 /**
  * @brief Format MAC address
- * 
+ *
  * @param mac Input MAC address
  * @param output Output buffer
  * @param len Buffer length
  * @param with_colons Include colons flag
  * @return 0 on success, error code on failure
  */
-int string_format_mac(const char *mac, char *output, size_t len, 
+int string_format_mac(const char *mac, char *output, size_t len,
                       bool with_colons);
 
 /**
  * @brief Format timestamp
- * 
+ *
  * @param time Time value
  * @param output Output buffer
  * @param len Buffer length
@@ -869,7 +951,7 @@ int string_format_timestamp(time_t time, char *output, size_t len,
 
 /**
  * @brief Generate dump filename with metadata
- * 
+ *
  * @param sha1 SHA1 hash
  * @param mac MAC address
  * @param timestamp Timestamp
@@ -887,7 +969,7 @@ int string_generate_filename(const char *sha1, const char *mac,
 
 /**
  * @brief Replace substring in string
- * 
+ *
  * @param str Input/output string
  * @param len String buffer length
  * @param old Old substring
@@ -898,7 +980,7 @@ int string_replace(char *str, size_t len, const char *old, const char *new);
 
 /**
  * @brief Check if string contains substring
- * 
+ *
  * @param str String to search
  * @param substr Substring to find
  * @return true if found, false otherwise
@@ -913,7 +995,7 @@ bool string_contains(const char *str, const char *substr);
 
 /**
  * @brief Create lock
- * 
+ *
  * @param lock_path Lock directory path
  * @param mode Lock mode (exit or wait)
  * @return 0 on success, error code on failure
@@ -922,7 +1004,7 @@ int lock_create(const char *lock_path, lock_mode_t mode);
 
 /**
  * @brief Check if lock exists
- * 
+ *
  * @param lock_path Lock directory path
  * @return true if exists, false otherwise
  */
@@ -930,7 +1012,7 @@ bool lock_exists(const char *lock_path);
 
 /**
  * @brief Remove lock
- * 
+ *
  * @param lock_path Lock directory path
  * @return 0 on success, error code on failure
  */
@@ -938,7 +1020,7 @@ int lock_remove(const char *lock_path);
 
 /**
  * @brief Wait for lock to be released
- * 
+ *
  * @param lock_path Lock directory path
  * @param timeout_seconds Maximum wait time
  * @return 0 on success, error code on timeout
@@ -960,7 +1042,7 @@ typedef enum {
 
 /**
  * @brief Initialize logging system
- * 
+ *
  * @param log_file Log file path
  * @param device_type Device type (affects format)
  * @return 0 on success, error code on failure
@@ -969,7 +1051,7 @@ int log_init(const char *log_file, device_type_t device_type);
 
 /**
  * @brief Log message
- * 
+ *
  * @param level Log level
  * @param format Format string (printf-style)
  * @param ... Variable arguments
@@ -978,7 +1060,7 @@ void log_message(log_level_t level, const char *format, ...);
 
 /**
  * @brief Log TLS error
- * 
+ *
  * @param format Format string (printf-style)
  * @param ... Variable arguments
  */
@@ -986,7 +1068,7 @@ void log_tls_error(const char *format, ...);
 
 /**
  * @brief Send telemetry event
- * 
+ *
  * @param event_name Event name
  * @param value Event value (optional)
  * @return 0 on success, error code on failure
@@ -995,7 +1077,7 @@ int log_telemetry_event(const char *event_name, const char *value);
 
 /**
  * @brief Send telemetry count notification
- * 
+ *
  * @param event_name Event name
  * @return 0 on success, error code on failure
  */
@@ -1003,7 +1085,7 @@ int log_telemetry_count(const char *event_name);
 
 /**
  * @brief Send telemetry value notification
- * 
+ *
  * @param event_name Event name
  * @param value Event value
  * @return 0 on success, error code on failure
@@ -1028,92 +1110,92 @@ function process_dumps_loop(config, platform):
         if config.device_type != BROADBAND:
             # Save dumps for later (video devices)
             return ERROR_NETWORK_UNAVAILABLE
-    
+
     if not network_wait_for_system_time(10, 1):
         log_message("System time not synced")
         # Continue anyway
-    
+
     # Privacy check (MEDIACLIENT only)
     if config.device_type == MEDIACLIENT:
         config.privacy_mode = get_privacy_control_mode()
         # RBUS: Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode
         # Returns SHARE (default) or DO_NOT_SHARE
         # Defaults to SHARE if RBUS is unavailable
-    
+
     # Cleanup old files (always runs, regardless of privacy mode)
     cleanup_old_files(config.working_dir)
-    
+
     # Scan for dumps
     scanner = scanner_init(config.working_dir)
     dump_list = []
-    
+
     if config.dump_type == COREDUMP:
         scanner_find_dumps(scanner, "*_core*.gz*", dump_list)
     else:
         scanner_find_dumps(scanner, "*.dmp*", dump_list)
-    
+
     if dump_list.count == 0:
         log_message("No dumps found")
         return SUCCESS
-    
+
     # Archive phase: process each dump (skip archiving if DO_NOT_SHARE)
     for dump in dump_list:
         get_mtime(dump)
-        
+
         if config.privacy_mode == DO_NOT_SHARE:
             continue  # skip archive creation for this dump
-        
+
         # Rename dump file and create archive
         process_single_dump_archive(dump, config, platform)
-    
+
     # If DO_NOT_SHARE: delete dump files and exit without uploading
     if config.privacy_mode == DO_NOT_SHARE:
         cleanup_dump_files(config.working_dir)  # cleanup_batch(do_not_share_cleanup=true)
         return SUCCESS
-    
+
     # Upload phase: rate limit check then upload each archive
     ratelimiter = ratelimit_init(timestamp_file)
-    
+
     for dump in dump_list:
         # Check if box is rebooting
         if file_exists("/tmp/set_crash_reboot_flag"):
             log_message("Box rebooting, exit")
             break
-        
+
         # Check recovery time
         if not ratelimit_is_recovery_time_reached(ratelimiter):
             log_message("Recovery time not reached")
             ratelimit_set_recovery_time(ratelimiter, 600)
             scanner_remove_pending_dumps()
             break
-        
+
         # Check rate limit
         if ratelimit_is_exceeded(ratelimiter):
             log_message("Rate limit exceeded")
-            
+
             # Create crashloop marker
             crashloop_file = create_crashloop_marker(dump)
-            
+
             # Upload crashloop
             upload_config = upload_init(config)
             upload_result = {}
             upload_file(crashloop_file, upload_config, upload_result)
-            
+
             # Set recovery time
             ratelimit_set_recovery_time(ratelimiter, 600)
             scanner_remove_pending_dumps()
             break
-        
+
         # Upload archived dump
         result = upload_single_dump(dump, config, platform)
-        
+
         if result == SUCCESS:
             ratelimit_record_upload(ratelimiter)
-    
+
     # Cleanup
     scanner_cleanup(scanner)
     ratelimit_cleanup(ratelimiter)
-    
+
     return SUCCESS
 ```
 
@@ -1124,35 +1206,35 @@ function process_single_dump(dump, config, platform):
     # Validate dump file
     if not file_exists(dump.full_path):
         return ERROR_FILE_NOT_FOUND
-    
+
     # Check if already processed
     if scanner_is_processed(dump.filename):
         log_message("Already processed")
         return SUCCESS
-    
+
     # Sanitize filename
     sanitized_name = file_sanitize_name(dump.filename)
-    
+
     # Parse container info if present
     if string_contains(dump.filename, "<#=#>"):
         container_info = archive_parse_container_info(dump.filename)
         log_telemetry_value("crashedContainerName_split", container_info.container_name)
         log_telemetry_value("crashedContainerStatus_split", container_info.container_status)
         # ... more telemetry
-    
+
     # Create archive
     archive = archive_create(dump, config, platform)
     if not archive:
         return ERROR_ARCHIVE_CREATE_FAILED
-    
+
     # Add metadata files
     archive_add_file(archive, "version.txt")
     archive_add_file(archive, config.log_path + "/core_log.txt")
-    
+
     # Add process logs for minidumps
     if config.dump_type == MINIDUMP:
         archive_add_log_files(archive, dump.process_name, config)
-    
+
     # Finalize archive (compress)
     result = archive_finalize(archive)
     if result != SUCCESS:
@@ -1163,15 +1245,15 @@ function process_single_dump(dump, config, platform):
             log_telemetry_count("SYST_ERR_CompFail")
             archive_cleanup(archive)
             return ERROR_COMPRESSION_FAILED
-    
+
     # Get archive path
     archive_path = archive_get_path(archive)
-    
+
     # Upload with retry
     upload_config = upload_init(config)
     upload_result = {}
     result = upload_retry(archive_path, upload_config, 3, upload_result)
-    
+
     if result == SUCCESS:
         log_message("Upload success")
         log_telemetry_count("SYST_INFO_minidumpUpld")
@@ -1185,11 +1267,11 @@ function process_single_dump(dump, config, platform):
         else:
             # Remove coredump
             file_delete_safely(archive_path)
-    
+
     # Cleanup
     archive_cleanup(archive)
     upload_cleanup(upload_config)
-    
+
     return result
 ```
 
@@ -1201,42 +1283,42 @@ function archive_generate_filename(dump, platform):
     mtime_str = file_get_mtime_string(dump.full_path)
     if not mtime_str:
         mtime_str = "2000-01-01-00-00-00"
-    
+
     # Check if already has metadata
-    if string_contains(dump.filename, "_mac") and 
+    if string_contains(dump.filename, "_mac") and
        string_contains(dump.filename, "_dat") and
        string_contains(dump.filename, "_box") and
        string_contains(dump.filename, "_mod"):
         return dump.filename  # Already processed
-    
+
     # Generate filename
-    filename = platform.sha1 + "_mac" + platform.mac_address + 
-               "_dat" + mtime_str + "_box" + platform.box_type + 
+    filename = platform.sha1 + "_mac" + platform.mac_address +
+               "_dat" + mtime_str + "_box" + platform.box_type +
                "_mod" + platform.model_number + "_" + dump.filename
-    
+
     # Check length limit (ecryptfs limitation)
     if len(filename) >= 135:
         # Remove SHA1 prefix
         filename = filename.replace(platform.sha1 + "_", "")
-    
+
     if len(filename) >= 135:
         # Truncate process name
         process_name = extract_process_name(filename)
         truncated = process_name[0:20]
         filename = filename.replace(process_name, truncated)
-    
+
     # Sanitize
     filename = file_sanitize_name(filename)
-    
+
     # Replace container delimiter
     filename = string_replace(filename, "<#=#>", "_")
-    
+
     # Add extension
     if config.dump_type == COREDUMP:
         filename += ".core.tgz"
     else:
         filename += ".tgz"
-    
+
     return filename
 ```
 
@@ -1245,32 +1327,32 @@ function archive_generate_filename(dump, platform):
 ```
 function upload_retry(filepath, config, max_retries, result):
     attempts = 0
-    
+
     while attempts < max_retries:
         attempts += 1
-        
+
         # Initialize CURL
         curl = curl_easy_init()
         if not curl:
             return ERROR_CURL_INIT_FAILED
-        
+
         # Set options
         curl_easy_setopt(curl, CURLOPT_URL, config.portal_url)
         curl_easy_setopt(curl, CURLOPT_UPLOAD, 1)
         curl_easy_setopt(curl, CURLOPT_READDATA, file_handle)
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, config.timeout_seconds)
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2)
-        
+
         if config.enable_ocsp:
             curl_easy_setopt(curl, CURLOPT_SSL_VERIFYSTATUS, 1)
-        
+
         # Perform upload
         res = curl_easy_perform(curl)
-        
+
         if res == CURLE_OK:
             # Get HTTP code
             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &result.http_code)
-            
+
             if result.http_code >= 200 and result.http_code < 300:
                 # Success
                 curl_easy_getinfo(curl, CURLINFO_PRIMARY_IP, result.remote_ip)
@@ -1279,14 +1361,14 @@ function upload_retry(filepath, config, max_retries, result):
                 result.attempts = attempts
                 curl_easy_cleanup(curl)
                 return SUCCESS
-        
+
         # Failed - log and retry
         log_message("Upload attempt %d failed: %s", attempts, curl_easy_strerror(res))
         curl_easy_cleanup(curl)
-        
+
         if attempts < max_retries:
             sleep(2)  # Wait before retry
-    
+
     # All retries failed
     result.success = false
     result.attempts = attempts
@@ -1318,13 +1400,13 @@ Use dynamic allocation only when necessary:
 dump_list_t* dump_list_create(size_t initial_capacity) {
     dump_list_t *list = malloc(sizeof(dump_list_t));
     if (!list) return NULL;
-    
+
     list->files = calloc(initial_capacity, sizeof(dump_file_t));
     if (!list->files) {
         free(list);
         return NULL;
     }
-    
+
     list->count = 0;
     list->capacity = initial_capacity;
     return list;
@@ -1347,25 +1429,25 @@ int process_dump(const dump_file_t *dump) {
     archive_t *archive = NULL;
     upload_config_t upload_cfg = {0};
     int result = ERROR;
-    
+
     archive = archive_create(dump, &config, &platform);
     if (!archive) {
         result = ERROR_ARCHIVE_CREATE_FAILED;
         goto cleanup;
     }
-    
+
     result = archive_finalize(archive);
     if (result != SUCCESS) {
         goto cleanup;
     }
-    
+
     result = upload_init(&upload_cfg, &config);
     if (result != SUCCESS) {
         goto cleanup;
     }
-    
+
     // ... more processing
-    
+
 cleanup:
     if (archive) archive_cleanup(archive);
     upload_cleanup(&upload_cfg);
@@ -1402,19 +1484,19 @@ typedef enum {
 ```c
 int function_that_can_fail() {
     int result;
-    
+
     result = subfunc1();
     if (result != SUCCESS) {
         log_message(LOG_LEVEL_ERROR, "subfunc1 failed: %d", result);
         return result;
     }
-    
+
     result = subfunc2();
     if (result != SUCCESS) {
         log_message(LOG_LEVEL_ERROR, "subfunc2 failed: %d", result);
         return result;
     }
-    
+
     return SUCCESS;
 }
 ```
@@ -1429,13 +1511,13 @@ int function_that_can_fail() {
 void test_generate_filename() {
     char output[PATH_MAX];
     int result;
-    
+
     result = string_generate_filename(
         "abc123", "AABBCCDDEE", "2024-01-01-12-00-00",
         "XG1", "XG1v4", "process.dmp",
         output, sizeof(output)
     );
-    
+
     assert(result == SUCCESS);
     assert(strcmp(output, "abc123_macAABBCCDDEE_dat2024-01-01-12-00-00_boxXG1_modXG1v4_process.dmp") == 0);
 }
@@ -1443,19 +1525,19 @@ void test_generate_filename() {
 void test_filename_length_limit() {
     char output[PATH_MAX];
     char long_process[256];
-    
+
     // Create very long process name
     memset(long_process, 'A', 200);
     long_process[200] = '\0';
     strcat(long_process, ".dmp");
-    
+
     int result = string_generate_filename(
         "1234567890123456789012345678901234567890",  // 40 char SHA1
         "AABBCCDDEE", "2024-01-01-12-00-00",
         "XG1", "XG1v4", long_process,
         output, sizeof(output)
     );
-    
+
     assert(result == SUCCESS);
     assert(strlen(output) < 135);  // Must be under limit
 }
@@ -1472,15 +1554,15 @@ void test_full_dump_processing() {
     config_t config = load_test_config();
     platform_config_t platform = {0};
     platform_init(&config, &platform);
-    
+
     // Execute
     int result = process_dumps_loop(&config, &platform);
-    
+
     // Verify
     assert(result == SUCCESS);
     assert(!file_exists("test.dmp"));  // Original removed
     // Check upload was called (mock verification)
-    
+
     // Cleanup
     cleanup_test_environment();
 }

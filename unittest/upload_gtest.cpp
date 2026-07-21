@@ -1069,6 +1069,133 @@ TEST_F(UploadTest, UploadProcess_T2Enabled_CoredumpSuccess) {
 }
 
 // ============================================================================
+// upload_process Tests - RDKC Device Type
+// ============================================================================
+
+TEST_F(UploadTest, UploadProcess_RDKCDevice_SuccessMinidump) {
+    test_config.device_type = DEVICE_TYPE_RDKC;
+    test_config.dump_type = DUMP_TYPE_MINIDUMP;
+    test_config.t2_enabled = false;
+
+    // Partner ID is retrieved via GetPartnerId() in unit tests (RDKC builds read it from a file)
+    set_mock_partner_id_behavior(1, "rdkc_partner");
+    // RDKC gets S3 URL from device.properties (RFC fails, fallback works)
+    set_mock_read_rfc_property_behavior(-1, "");
+    set_mock_get_device_property_behavior(0, "https://rdkc.s3.signing.url");
+    set_mock_compute_md5_behavior(0, "");
+    set_mock_firmware_version_behavior(10, "1.0.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+
+    create_test_file(test_archive, 2048);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+
+    EXPECT_EQ(result, 0);
+    EXPECT_FALSE(file_exists(test_archive));
+}
+
+TEST_F(UploadTest, UploadProcess_RDKCDevice_SuccessCoredump) {
+    test_config.device_type = DEVICE_TYPE_RDKC;
+    test_config.dump_type = DUMP_TYPE_COREDUMP;
+    test_config.t2_enabled = false;
+
+    set_mock_partner_id_behavior(1, "rdkc_partner");
+    set_mock_read_rfc_property_behavior(1, "https://rdkc.rfc.s3.url");
+    set_mock_compute_md5_behavior(0, "");
+    set_mock_firmware_version_behavior(10, "2.0.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+
+    create_test_file(test_archive, 2048);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+
+    EXPECT_EQ(result, 0);
+    EXPECT_FALSE(file_exists(test_archive));
+}
+
+TEST_F(UploadTest, UploadProcess_RDKCDevice_S3UrlFailure) {
+    test_config.device_type = DEVICE_TYPE_RDKC;
+    test_config.dump_type = DUMP_TYPE_MINIDUMP;
+
+    set_mock_partner_id_behavior(1, "rdkc_partner");
+    // Both RFC and device.properties fail to provide S3 URL
+    set_mock_read_rfc_property_behavior(-1, "");
+    set_mock_get_device_property_behavior(-1, "");
+
+    create_test_file(test_archive, 2048);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+
+    // Should fail since no S3 URL available
+    EXPECT_EQ(result, -1);
+}
+
+TEST_F(UploadTest, UploadProcess_RDKCDevice_PartnerIdEmpty) {
+    test_config.device_type = DEVICE_TYPE_RDKC;
+    test_config.dump_type = DUMP_TYPE_MINIDUMP;
+
+    // Partner ID file is empty/missing - should fallback to "comcast"
+    set_mock_partner_id_behavior(0, "");
+    set_mock_read_rfc_property_behavior(1, "https://rdkc.s3.url");
+    set_mock_compute_md5_behavior(0, "");
+    set_mock_firmware_version_behavior(10, "1.0.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+
+    create_test_file(test_archive, 2048);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(UploadTest, UploadProcess_RDKCDevice_UploadFailRetry) {
+    test_config.device_type = DEVICE_TYPE_RDKC;
+    test_config.dump_type = DUMP_TYPE_MINIDUMP;
+    test_config.t2_enabled = true;
+
+    set_mock_partner_id_behavior(1, "rdkc_partner");
+    set_mock_read_rfc_property_behavior(1, "https://rdkc.s3.url");
+    set_mock_compute_md5_behavior(0, "");
+    set_mock_firmware_version_behavior(10, "1.0.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(500, 7);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(7);
+
+    create_test_file(test_archive, 2048);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+
+    // Should fail after retries - minidump is preserved
+    EXPECT_NE(result, 0);
+    EXPECT_TRUE(file_exists(test_archive));
+}
+
+TEST_F(UploadTest, UploadFile_RDKCDevice_TlsLogPath) {
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(0, 6);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(6);
+
+    int result = upload_file(test_archive, test_url, "minidump", "1.0.0",
+                             "vbn", "XHB1", "md5sum123",
+                             DEVICE_TYPE_RDKC, true);
+
+    // RDKC is not BROADBAND, so it goes through "mediaclient" tls_log path
+    EXPECT_NE(result, 0);
+    EXPECT_GT(get_tls_log_call_count(), 0);
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 

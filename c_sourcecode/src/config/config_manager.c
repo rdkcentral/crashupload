@@ -123,6 +123,13 @@ int config_init_load(config_t *config, int argc, char *argv[])
             config->device_type = DEVICE_TYPE_EXTENDER;
             strcpy(config->core_log_file, "/var/log/messages");
         }
+        else if (0 == (strncmp(device_prop_data, "XHC1", 4)))
+        {
+            config->device_type = DEVICE_TYPE_RDKC;
+            CRASHUPLOAD_INFO("device type RDKC=%d\n", config->device_type);
+            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, "core_log.txt");
+            CRASHUPLOAD_INFO("core log=%s\n", config->core_log_file);
+        }
         else
         {
             config->device_type = DEVICE_TYPE_UNKNOWN;
@@ -146,6 +153,20 @@ int config_init_load(config_t *config, int argc, char *argv[])
         config->upload_mode = UPLOAD_MODE_NORMAL;
         strcpy(config->core_path, "/var/lib/systemd/coredump");
         strcpy(config->minidump_path, "/opt/minidumps");
+    }
+    /* Override paths for non-systemd RDKC camera */
+    if (config->upload_mode == UPLOAD_MODE_NORMAL &&
+        config->device_type == DEVICE_TYPE_RDKC)
+    {
+        strcpy(config->core_path, "/opt/corefiles");
+        /* minidump_path remains /opt/minidumps - already correct for RDKC */
+    }
+    /* BOX_TYPE fallback for RDKC camera (no BOX_TYPE in device.properties) */
+    if (strcmp(config->box_type, "UNKNOWN") == 0 &&
+        config->device_type == DEVICE_TYPE_RDKC)
+    {
+        strcpy(config->box_type, "xcam");
+        CRASHUPLOAD_INFO("BOX_TYPE defaulted to xcam for RDKC\n");
     }
     if (argc >= 3)
     {
