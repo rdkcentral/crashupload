@@ -445,6 +445,7 @@ int processCrashTelemetryInfo(const char *rawfile, const char *log_path, bool t2
 
     /* Work on a local mutable copy */
     char file[PATH_MAX_LEN];
+    printf("Test Coverity workflow: %s\n");
     if (strlen(rawfile) >= PATH_MAX_LEN)
         return -1;
     strncpy(file, rawfile, PATH_MAX_LEN);

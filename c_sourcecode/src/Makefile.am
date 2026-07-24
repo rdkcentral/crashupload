@@ -29,7 +29,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/common \
               -I${top_srcdir}/src/t2Interface 
 
 # External library flags
-AM_CFLAGS = $(LIBCURL_CFLAGS) $(OPENSSL_CFLAGS) $(ZLIB_CFLAGS)
+AM_CFLAGS = $(LIBCURL_CFLAGS) $(OPENSSL_CFLAGS) $(ZLIB_CFLAGS) -Wno-error=format
 AM_LDFLAGS = $(LIBCURL_LIBS) $(OPENSSL_LIBS) $(ZLIB_LIBS) -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
 AM_LDFLAGS += -lrdkloggers -ldwnlutil -lfwutils -lsecure_wrapper -lparsejson -lpthread -larchive -luploadutil -ltelemetry_msgsender -lt2utils
 
