@@ -10,70 +10,70 @@ flowchart TD
     ParseArgs --> LoadConfig[Load Configuration Files]
     LoadConfig --> InitPlatform[Initialize Platform]
     InitPlatform --> AcquireLock{Acquire Lock}
-    
+
     AcquireLock -->|Lock Exists & Exit Mode| LogExit[Log: Another instance running]
     LogExit --> End1([Exit 0])
-    
+
     AcquireLock -->|Lock Exists & Wait Mode| WaitLock[Wait for Lock Release]
     WaitLock --> AcquireLock
-    
+
     AcquireLock -->|Lock Acquired| CreateLock[Create Lock Directory]
     CreateLock --> DeferBoot{Uptime < 480s AND Video Device?}
-    
+
     DeferBoot -->|Yes| SleepDefer[Sleep Until 480s Uptime]
     SleepDefer --> CheckNetwork
-    
+
     DeferBoot -->|No| CheckNetwork{Network Available?}
-    
+
     CheckNetwork -->|Wait for Network| NetworkLoop[Network Check Loop]
     NetworkLoop --> CheckNetwork
-    
+
     CheckNetwork -->|Available| CheckTime{System Time Synced?}
-    
+
     CheckTime -->|Wait for Time| TimeLoop[Time Sync Loop]
     TimeLoop --> CheckTime
-    
+
     CheckTime -->|Synced| CheckMediaClient{DEVICE_TYPE = MEDIACLIENT?}
-    
+
     CheckMediaClient -->|Yes| FetchPrivacy[get_privacy_control_mode via RBUS]
     FetchPrivacy --> CheckPrivacy{Privacy Mode = DO_NOT_SHARE?}
     CheckPrivacy -->|Yes| DoNotSharePath[Scan Dumps, Skip Archiving, Delete Dump Files]
     DoNotSharePath --> ReleaseLock1[Release Lock]
     ReleaseLock1 --> End2([Exit 0])
-    
+
     CheckMediaClient -->|No| Cleanup[Cleanup Old Files]
     CheckPrivacy -->|No| Cleanup
-    
+
     CheckPrivacy -->|No| Cleanup[Cleanup Old Files]
     Cleanup --> ScanDumps[Scan for Dump Files]
     ScanDumps --> CheckDumps{Dumps Found?}
-    
+
     CheckDumps -->|No| LogNoDumps[Log: No dumps found]
     LogNoDumps --> ReleaseLock2[Release Lock]
     ReleaseLock2 --> End3([Exit 0])
-    
+
     CheckDumps -->|Yes| ProcessLoop{More Dumps to Process?}
-    
+
     ProcessLoop -->|Yes| CheckRecovery{Recovery Time Reached?}
-    
+
     CheckRecovery -->|No| ShiftRecovery[Shift Recovery Time]
     ShiftRecovery --> RemoveDumps2[Remove Pending Dumps]
     RemoveDumps2 --> ReleaseLock3[Release Lock]
     ReleaseLock3 --> End4([Exit 0])
-    
+
     CheckRecovery -->|Yes| CheckRateLimit{Upload Limit Exceeded?}
-    
+
     CheckRateLimit -->|Yes| CreateCrashloop[Create Crashloop Marker]
     CreateCrashloop --> UploadCrashloop[Upload Crashloop Dump]
     UploadCrashloop --> SetRecovery[Set Recovery Time]
     SetRecovery --> RemoveDumps2
-    
+
     CheckRateLimit -->|No| ProcessDump[Process Single Dump]
     ProcessDump --> ProcessLoop
-    
+
     ProcessLoop -->|No| ReleaseLock4[Release Lock]
     ReleaseLock4 --> End5([Exit 0])
-    
+
     style Start fill:#90EE90
     style End1 fill:#FFB6C1
     style End2 fill:#FFB6C1
@@ -92,104 +92,104 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start([Start Process Dump]) --> ValidateFile{File Exists & Valid?}
-    
+
     ValidateFile -->|No| LogSkip[Log: Skip invalid file]
     LogSkip --> Return1([Return])
-    
+
     ValidateFile -->|Yes| CheckProcessed{Already Processed?}
-    
+
     CheckProcessed -->|Yes, is .tgz| LogAlready[Log: Already processed]
     LogAlready --> Return2([Return])
-    
+
     CheckProcessed -->|No| SanitizeFilename[Sanitize Filename]
     SanitizeFilename --> CheckContainer{Contains Container Delimiter?}
-    
+
     CheckContainer -->|Yes| ParseContainer[Parse Container Info]
     ParseContainer --> SendTelemetry[Send Container Telemetry]
     SendTelemetry --> GetMetadata
-    
+
     CheckContainer -->|No| GetMetadata[Get File Metadata]
-    
+
     GetMetadata --> GetMtime[Get Modification Time]
     GetMtime --> CheckZeroSize{File Size = 0?}
-    
+
     CheckZeroSize -->|Yes| LogZeroSize[Log & Send Zero-Size Telemetry]
     LogZeroSize --> GenerateArchiveName
-    
+
     CheckZeroSize -->|No| GenerateArchiveName[Generate Archive Name]
-    
+
     GenerateArchiveName --> AddMetadata[Add SHA1, MAC, Date, Box, Model]
     AddMetadata --> CheckLength{Filename Length >= 135?}
-    
+
     CheckLength -->|Yes| RemovePrefix[Remove SHA1 Prefix]
     RemovePrefix --> CheckLength2{Still >= 135?}
-    
+
     CheckLength2 -->|Yes| TruncateProcess[Truncate Process Name to 20 chars]
     TruncateProcess --> CollectFiles
-    
+
     CheckLength2 -->|No| CollectFiles[Collect Files for Archive]
     CheckLength -->|No| CollectFiles
-    
+
     CollectFiles --> AddDumpFile[Add Dump File]
     AddDumpFile --> AddVersion[Add version.txt]
     AddVersion --> AddCoreLog[Add core_log.txt]
     AddCoreLog --> CheckDumpType{Dump Type?}
-    
+
     CheckDumpType -->|Minidump| GetLogFiles[Get Process Log Files]
     GetLogFiles --> AddLogFiles[Add Log Files to Archive]
     AddLogFiles --> CheckTmpUsage
-    
+
     CheckDumpType -->|Coredump| CheckTmpUsage{/tmp Usage > 70%?}
-    
+
     CheckTmpUsage -->|Yes| CompressDirect[Compress Directly]
     CompressDirect --> CheckCompression1{Compression Success?}
-    
+
     CheckTmpUsage -->|No| CreateTempDir[Create Temp Directory in /tmp]
     CreateTempDir --> CopyToTemp[Copy Files to Temp]
     CopyToTemp --> CompressFromTemp[Compress from /tmp]
     CompressFromTemp --> CheckCompression2{Compression Success?}
-    
+
     CheckCompression1 -->|No| SendFailTelemetry[Send Compression Fail Telemetry]
     SendFailTelemetry --> TryTempFallback[Try /tmp Fallback]
     TryTempFallback --> CheckCompression2
-    
+
     CheckCompression2 -->|No| LogCompressionFail[Log: Compression Failed]
     LogCompressionFail --> CleanupTemp[Cleanup Temp Files]
     CleanupTemp --> Return3([Return Error])
-    
+
     CheckCompression1 -->|Yes| RemoveOriginal[Remove Original Dump]
     CheckCompression2 -->|Yes| RemoveOriginal
-    
+
     RemoveOriginal --> CheckBoxReboot{Box Rebooting?}
-    
+
     CheckBoxReboot -->|Yes| LogRebootSkip[Log: Skip upload, box rebooting]
     LogRebootSkip --> CleanupTemp
-    
+
     CheckBoxReboot -->|No| StartUpload[Start Upload Process]
     StartUpload --> UploadWithRetry[Upload with Retry 3x]
     UploadWithRetry --> CheckUpload{Upload Success?}
-    
+
     CheckUpload -->|Yes| RecordTimestamp[Record Upload Timestamp]
     RecordTimestamp --> RemoveArchive[Remove Archive File]
     RemoveArchive --> LogSuccess[Log: Upload Success]
     LogSuccess --> SendUploadTelemetry[Send Upload Success Telemetry]
     SendUploadTelemetry --> CleanupTemp2[Cleanup Temp Files]
     CleanupTemp2 --> Return4([Return Success])
-    
+
     CheckUpload -->|No & Minidump| SaveDump[Save Dump for Later]
     SaveDump --> CheckDumpCount{Dump Count > 5?}
-    
+
     CheckDumpCount -->|Yes| RemoveOldest[Remove Oldest Dumps]
     RemoveOldest --> CleanupTemp3[Cleanup Temp Files]
     CleanupTemp3 --> Return5([Return Error])
-    
+
     CheckDumpCount -->|No| CleanupTemp3
-    
+
     CheckUpload -->|No & Coredump| RemoveFailedArchive[Remove Failed Archive]
     RemoveFailedArchive --> LogUploadFail[Log: Upload Failed]
     LogUploadFail --> CleanupTemp4[Cleanup Temp Files]
     CleanupTemp4 --> Return6([Return Error])
-    
+
     style Start fill:#90EE90
     style Return1 fill:#FFB6C1
     style Return2 fill:#FFB6C1
@@ -210,39 +210,39 @@ flowchart TD
 flowchart TD
     Start([Start Upload]) --> InitAttempt[Attempt = 1]
     InitAttempt --> CheckNetwork{Network Available?}
-    
+
     CheckNetwork -->|No| LogNoNetwork[Log: No network]
     LogNoNetwork --> ReturnFail([Return Failure])
-    
+
     CheckNetwork -->|Yes| PrepareUpload[Prepare Upload Request]
     PrepareUpload --> SetURL[Set Portal URL]
     SetURL --> SetHeaders[Set HTTP Headers]
     SetHeaders --> SetTLS[Configure TLS 1.2]
     SetTLS --> SetTimeout[Set Timeout 45s]
     SetTimeout --> SetOCSP{OCSP Enabled?}
-    
+
     SetOCSP -->|Yes| EnableOCSP[Enable OCSP Validation]
     EnableOCSP --> InitCurl
-    
+
     SetOCSP -->|No| InitCurl[Initialize CURL]
-    
+
     InitCurl --> PerformUpload[Perform Upload]
     PerformUpload --> CheckHTTP{HTTP Code?}
-    
+
     CheckHTTP -->|200-299| LogSuccess[Log: Upload Success]
     LogSuccess --> ReturnSuccess([Return Success])
-    
+
     CheckHTTP -->|Other| LogFailure[Log: Upload Failed]
     LogFailure --> IncrementAttempt[Attempt++]
     IncrementAttempt --> CheckAttempts{Attempt <= 3?}
-    
+
     CheckAttempts -->|Yes| SleepRetry[Sleep 2 seconds]
     SleepRetry --> LogRetry[Log: Retry attempt]
     LogRetry --> PrepareUpload
-    
+
     CheckAttempts -->|No| LogMaxRetries[Log: Max retries reached]
     LogMaxRetries --> ReturnFail
-    
+
     style Start fill:#90EE90
     style ReturnSuccess fill:#90EE90
     style ReturnFail fill:#FF6B6B
@@ -256,26 +256,26 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start([Start Cleanup]) --> CheckWorkDir{Working Dir Valid?}
-    
+
     CheckWorkDir -->|No/Empty| LogError[Log: Working dir invalid]
     LogError --> Return1([Return])
-    
+
     CheckWorkDir -->|Yes| FindOldFiles[Find Files > 2 Days Old]
     FindOldFiles --> CheckOldFiles{Old Files Found?}
-    
+
     CheckOldFiles -->|Yes| DeleteOldFiles[Delete Old Files]
     DeleteOldFiles --> LogDeleted[Log: Deleted files]
     LogDeleted --> CheckStartup
-    
+
     CheckOldFiles -->|No| CheckStartup{On Startup?}
-    
+
     CheckStartup -->|No| DeleteVersion[Delete version.txt]
     DeleteVersion --> Return2([Return])
-    
+
     CheckStartup -->|Yes| CheckCleanupMarker{Cleanup Marker Exists?}
-    
+
     CheckCleanupMarker -->|Yes| Return3([Return - Already cleaned])
-    
+
     CheckCleanupMarker -->|No| FindUnfinished[Find Unfinished Files]
     FindUnfinished --> DeleteUnfinished[Delete *_mac*_dat* Files]
     DeleteUnfinished --> LogUnfinished[Log: Deleted unfinished]
@@ -284,16 +284,16 @@ flowchart TD
     DeleteNonDumps --> LogNonDumps[Log: Deleted non-dumps]
     LogNonDumps --> CountFiles[Count Dump Files]
     CountFiles --> CheckCount{Count > MAX_CORE_FILES?}
-    
+
     CheckCount -->|Yes| SortByTime[Sort Files by Time]
     SortByTime --> CalcDelete[Calculate Files to Delete]
     CalcDelete --> DeleteOldest[Delete Oldest Files]
     DeleteOldest --> LogOldest[Log: Deleted oldest]
     LogOldest --> CreateMarker
-    
+
     CheckCount -->|No| CreateMarker[Create Cleanup Marker]
     CreateMarker --> Return4([Return])
-    
+
     style Start fill:#90EE90
     style Return1 fill:#FFB6C1
     style Return2 fill:#FFB6C1
@@ -487,6 +487,105 @@ START Process Dump
                                                                                                                                                                                     +--[No & minidump]--> Save dump --> [Count > 5?] --> Remove oldest if yes --> RETURN(error)
                                                                                                                                                                                     |
                                                                                                                                                                                     +--[No & coredump]--> Remove archive --> Log error --> RETURN(error)
+```
+
+## RDK-C Platform Flows
+
+### RDK-C Platform Initialization
+
+```mermaid
+flowchart TD
+    Start([Platform Init]) --> ReadDeviceProps[Read /etc/device.properties]
+    ReadDeviceProps --> GetDeviceType[Get DEVICE_TYPE field]
+    GetDeviceType --> CheckXHC1{Starts with 'XHC1'?}
+
+    CheckXHC1 -->|Yes| SetRDKC[Set device_type = DEVICE_TYPE_RDKC]
+    SetRDKC --> SetLogFile["Set core_log_file = $LOG_PATH/core_log.txt"]
+    SetLogFile --> CheckUploadMode{upload_mode == NORMAL?}
+
+    CheckUploadMode -->|Yes| SetCorePath["Set core_path = /opt/corefiles"]
+    SetCorePath --> CheckBoxType
+    CheckUploadMode -->|No| CheckBoxType{box_type == UNKNOWN?}
+
+    CheckBoxType -->|Yes| DefaultBoxType["Set box_type = 'xcam'"]
+    DefaultBoxType --> Done([Platform Init Complete])
+    CheckBoxType -->|No| Done
+
+    CheckXHC1 -->|No| OtherPlatform[Continue with other platform detection]
+    OtherPlatform --> DoneOther([Other Platform Path])
+
+    style Start fill:#90EE90
+    style Done fill:#90EE90
+    style DoneOther fill:#87CEEB
+    style SetRDKC fill:#FFD700
+```
+
+### RDK-C Archive Creation Flow
+
+```mermaid
+flowchart TD
+    Start([RDKC Archive Start]) --> AddDump[Add dump file to archive list]
+    AddDump --> AddVersion["Add /version.txt"]
+    AddVersion --> AddCoreLog["Add core_log.txt"]
+    AddCoreLog --> CheckBuild{build_type == PROD?}
+
+    CheckBuild -->|Yes| CreateTar[Create tarball with 3 files]
+    CheckBuild -->|No| CheckReceiver{"$LOG_PATH/receiver.log exists?"}
+
+    CheckReceiver -->|Yes| AddReceiver[Add receiver.log to archive list]
+    AddReceiver --> CheckThread
+    CheckReceiver -->|No| CheckThread{"$LOG_PATH/thread.log exists?"}
+
+    CheckThread -->|Yes| AddThread[Add thread.log to archive list]
+    AddThread --> CreateTarAll[Create tarball with all collected files]
+    CheckThread -->|No| CreateTarAll
+
+    CreateTar --> Done([Archive Created])
+    CreateTarAll --> Done
+
+    style Start fill:#90EE90
+    style Done fill:#90EE90
+    style AddReceiver fill:#DDA0DD
+    style AddThread fill:#DDA0DD
+```
+
+### RDK-C Upload Flow
+
+```mermaid
+flowchart TD
+    Start([RDKC Upload Start]) --> SetEncrypt["Set encryptionEnable = false"]
+    SetEncrypt --> SetPortal["Set portal_url = crashportal.stb.r53.xcal.tv"]
+    SetPortal --> SetReqType["Set request_type = 17"]
+    SetReqType --> GetS3URL[Get S3 Signing URL]
+
+    GetS3URL --> TryRFC[Try RFC: CrashUpload.S3SigningUrl]
+    TryRFC --> CheckRFC{RFC read success?}
+
+    CheckRFC -->|Yes| GotURL[Use RFC S3 URL]
+    CheckRFC -->|No| TryDeviceProps[Try device.properties: S3_AMAZON_SIGNING_URL]
+    TryDeviceProps --> CheckProps{Read success?}
+
+    CheckProps -->|Yes| GotURL
+    CheckProps -->|No| ErrorExit[Log error: Unable to get S3 URL]
+    ErrorExit --> ReturnFail([Return Failure])
+
+    GotURL --> GetPartnerID["Read partner ID from /opt/usr_config/partnerid.txt"]
+    GetPartnerID --> SetupMTLS[Setup mTLS via rdkcertselector]
+    SetupMTLS --> PerformUpload[Perform S3 PUT upload]
+    PerformUpload --> CheckResult{Upload success?}
+
+    CheckResult -->|Yes| ReturnSuccess([Return Success])
+    CheckResult -->|No| Retry{Retries remaining?}
+
+    Retry -->|Yes| SleepRetry[Sleep retry delay]
+    SleepRetry --> PerformUpload
+    Retry -->|No| ReturnFail
+
+    style Start fill:#90EE90
+    style ReturnSuccess fill:#90EE90
+    style ReturnFail fill:#FF6B6B
+    style PerformUpload fill:#87CEEB
+    style SetupMTLS fill:#FFD700
 ```
 
 ## Summary of Flowchart Components

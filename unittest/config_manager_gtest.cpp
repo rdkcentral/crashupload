@@ -789,6 +789,112 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_NullConfig_Failure) {
     EXPECT_EQ(result, -1);
 }
 
+// ============================================================================
+// Tests for RDKC (XHC1) Device Type Support
+// ============================================================================
+
+TEST_F(ConfigManagerTest, ConfigInitLoad_RDKCDevice_Success) {
+    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
+    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "XHC1");
+    set_mock_filePresentCheck_behavior(1);
+
+    int result = config_init_load(&test_config, 5, test_argv);
+
+    EXPECT_EQ(result, CONFIG_SUCCESS);
+    EXPECT_EQ(test_config.device_type, DEVICE_TYPE_RDKC);
+}
+
+TEST_F(ConfigManagerTest, ConfigInitLoad_RDKCDevice_CorePathOverride) {
+    strcpy(test_argv3, "normal");
+    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
+    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "XHC1");
+    set_mock_filePresentCheck_behavior(1);
+
+    int result = config_init_load(&test_config, 4, test_argv);
+
+    EXPECT_EQ(result, CONFIG_SUCCESS);
+    EXPECT_EQ(test_config.device_type, DEVICE_TYPE_RDKC);
+    // RDKC uses /opt/corefiles instead of /var/lib/systemd/coredump
+    EXPECT_STREQ(test_config.core_path, "/opt/corefiles");
+    // minidump_path remains /opt/minidumps
+    EXPECT_STREQ(test_config.minidump_path, "/opt/minidumps");
+}
+
+TEST_F(ConfigManagerTest, ConfigInitLoad_RDKCDevice_BoxTypeNoFallbackWhenSet) {
+    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
+    // Mock returns "XHC1" for all getDevicePropertyData calls (BOX_TYPE, BUILD_TYPE, DEVICE_TYPE)
+    // BOX_TYPE="XHC1" is not "UNKNOWN", so fallback to "xcam" won't trigger
+    // The xcam fallback only fires when BOX_TYPE read fails and sets "UNKNOWN"
+    set_mock_getDevicePropertyData_behavior(UTILS_FAIL, "");
+    set_mock_filePresentCheck_behavior(1);
+
+    // Force BOX_TYPE=UNKNOWN by failing getDevicePropertyData, but we need DEVICE_TYPE...
+    // With the single-state mock, we can't differentiate BOX_TYPE vs DEVICE_TYPE calls.
+    // When all calls fail, config_init_load returns ERR_CONFIG_MISSING_REQUIRED at DEVICE_TYPE.
+    // So this test verifies the code path indirectly: when BOX_TYPE IS set (to XHC1),
+    // the fallback doesn't apply.
+    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "XHC1");
+
+    int result = config_init_load(&test_config, 5, test_argv);
+
+    EXPECT_EQ(result, CONFIG_SUCCESS);
+    // BOX_TYPE was set to "XHC1" by the mock (same value for all calls)
+    // xcam fallback only triggers when box_type == "UNKNOWN"
+    EXPECT_STREQ(test_config.box_type, "XHC1");
+}
+
+TEST_F(ConfigManagerTest, ConfigInitLoad_RDKCDevice_CoreLogFile) {
+    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
+    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "XHC1");
+    set_mock_filePresentCheck_behavior(1);
+
+    int result = config_init_load(&test_config, 5, test_argv);
+
+    EXPECT_EQ(result, CONFIG_SUCCESS);
+    EXPECT_STREQ(test_config.core_log_file, "/opt/logs/core_log.txt");
+}
+
+TEST_F(ConfigManagerTest, ConfigInitLoad_RDKCDevice_MinidumpWorkingDir) {
+    strcpy(test_argv2, "0"); // minidump
+    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
+    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "XHC1");
+    set_mock_filePresentCheck_behavior(1);
+
+    int result = config_init_load(&test_config, 3, test_argv);
+
+    EXPECT_EQ(result, CONFIG_SUCCESS);
+    EXPECT_EQ(test_config.dump_type, DUMP_TYPE_MINIDUMP);
+    EXPECT_STREQ(test_config.working_dir_path, "/opt/minidumps");
+}
+
+TEST_F(ConfigManagerTest, ConfigInitLoad_RDKCDevice_CoredumpWorkingDir) {
+    strcpy(test_argv2, "1"); // coredump
+    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
+    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "XHC1");
+    set_mock_filePresentCheck_behavior(1);
+
+    int result = config_init_load(&test_config, 3, test_argv);
+
+    EXPECT_EQ(result, CONFIG_SUCCESS);
+    EXPECT_EQ(test_config.dump_type, DUMP_TYPE_COREDUMP);
+    EXPECT_STREQ(test_config.working_dir_path, "/opt/corefiles");
+}
+
+TEST_F(ConfigManagerTest, ConfigInitLoad_RDKCDevice_SecureMode) {
+    strcpy(test_argv3, "secure");
+    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
+    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "XHC1");
+    set_mock_filePresentCheck_behavior(1);
+
+    int result = config_init_load(&test_config, 4, test_argv);
+
+    EXPECT_EQ(result, CONFIG_SUCCESS);
+    EXPECT_EQ(test_config.upload_mode, UPLOAD_MODE_SECURE);
+    // Secure mode overrides core_path even for RDKC
+    EXPECT_STREQ(test_config.core_path, "/opt/secure/corefiles");
+    EXPECT_STREQ(test_config.minidump_path, "/opt/secure/minidumps");
+}
+
 #if 0
 /*
 * ============================================================================
