@@ -52,9 +52,9 @@
 using namespace std;
 
 extern "C" {
-#include "../c_sourcecode/src/archive/archive_crash.h"
-#include "../c_sourcecode/common/types.h"
-#include "../c_sourcecode/common/errors.h"
+#include "archive_crash.h"
+#include "types.h"
+#include "errors.h"
 
 #if 0
 // Forward declarations for static functions (with UNIT_TEST flag)

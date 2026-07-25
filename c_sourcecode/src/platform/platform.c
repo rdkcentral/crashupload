@@ -20,8 +20,8 @@
  * SKELETON: Implementation needed
  */
 #include "platform.h"
-#include "../../common/errors.h"
-#include "../utils/logger.h"
+#include "errors.h"
+#include "logger.h"
 
 /* function NormalizeMac - gets the eSTB MAC address of the device.
 

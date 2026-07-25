@@ -61,10 +61,10 @@
 #include <dirent.h>
 
 extern "C" {
-#include "../c_sourcecode/src/utils/cleanup_batch.h"
-#include "../c_sourcecode/include/file_utils.h"
-#include "../c_sourcecode/common/types.h"
-#include "../c_sourcecode/common/errors.h"
+#include "cleanup_batch.h"
+#include "file_utils.h"
+#include "types.h"
+#include "errors.h"
 
 // Mock function declarations
 void set_mock_stripinvalidchar_behavior(size_t return_value);

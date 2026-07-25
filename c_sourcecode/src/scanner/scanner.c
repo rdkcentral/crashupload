@@ -24,11 +24,11 @@
 #include <errno.h>
 #include <time.h>
 #include <fnmatch.h>
-#include "../../common/types.h"
+#include "types.h"
 #include "file_utils.h"
 #include "scanner.h"
 #include "telemetryinterface.h"
-#include "../utils/logger.h"
+#include "logger.h"
 
 // For unit testing: allow static functions to be visible
 #ifdef UNIT_TEST

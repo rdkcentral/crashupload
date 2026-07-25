@@ -51,10 +51,10 @@
 #include <string.h>
 
 extern "C" {
-#include "../c_sourcecode/src/scanner/scanner.h"
-#include "../c_sourcecode/common/types.h"
-#include "../c_sourcecode/common/errors.h"
-#include "../c_sourcecode/common/constants.h"
+#include "scanner.h"
+#include "types.h"
+#include "errors.h"
+#include "constants.h"
 
 // External functions being tested
 int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count, const char *dump_extn_pattern);

@@ -21,12 +21,19 @@ bin_PROGRAMS = crashupload
 
 # Common include directories
 AM_CPPFLAGS = -I$(top_srcdir)/common \
+              -I$(top_srcdir)/src \
               -I$(top_srcdir)/src/init \
               -I$(top_srcdir)/src/config \
               -I$(top_srcdir)/src/platform \
+              -I$(top_srcdir)/src/scanner \
+              -I$(top_srcdir)/src/archive \
+              -I$(top_srcdir)/src/ratelimit \
+              -I$(top_srcdir)/src/rfcInterface \
+              -I$(top_srcdir)/src/rbusInterface \
+              -I$(top_srcdir)/src/upload \
               -I$(top_srcdir)/include \
               -I$(top_srcdir)/src/utils \
-              -I${top_srcdir}/src/t2Interface 
+              -I$(top_srcdir)/src/t2Interface
 
 # External library flags
 AM_CFLAGS = $(LIBCURL_CFLAGS) $(OPENSSL_CFLAGS) $(ZLIB_CFLAGS)

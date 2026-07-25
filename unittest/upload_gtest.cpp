@@ -47,10 +47,10 @@
 #include <string.h>
 
 extern "C" {
-#include "../c_sourcecode/include/upload.h"
-#include "../c_sourcecode/common/types.h"
-#include "../c_sourcecode/common/errors.h"
-#include "../c_sourcecode/common/constants.h"
+#include "upload.h"
+#include "types.h"
+#include "errors.h"
+#include "constants.h"
 
 // External functions being tested
 int get_crashupload_s3signed_url(char *url, size_t size_buf);

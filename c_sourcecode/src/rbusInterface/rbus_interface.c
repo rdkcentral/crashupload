@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "rbus_interface.h"
-#include "../utils/logger.h"
+#include "logger.h"
 
 #ifdef RBUS_API_ENABLED
 #include "rbus/rbus.h"

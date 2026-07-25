@@ -23,7 +23,7 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
-#include "../../common/types.h"
+#include "types.h"
 #include "rdk_fwdl_utils.h"
 #include "system_utils.h"
 #include "file_utils.h"

@@ -69,9 +69,9 @@
 #include <string.h>
 
 extern "C" {
-#include "../c_sourcecode/common/types.h"
-#include "../c_sourcecode/common/errors.h"
-#include "../c_sourcecode/common/constants.h"
+#include "types.h"
+#include "errors.h"
+#include "constants.h"
 }
 
 // Mock state control structure

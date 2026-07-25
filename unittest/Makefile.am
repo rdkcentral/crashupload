@@ -31,16 +31,19 @@ check_PROGRAMS = config_manager_gtest platform_gtest scanner_gtest archive_gtest
 # Common include directories
 AM_CPPFLAGS = \
 	-I$(top_srcdir)/../c_sourcecode/src \
+	-I$(top_srcdir)/../c_sourcecode/src/init \
 	-I$(top_srcdir)/../c_sourcecode/src/config \
-	-I$(top_srcdir)/../c_sourcecode/common \
-	-I$(top_srcdir)/../c_sourcecode/include \
-	-I$(top_srcdir)/../c_sourcecode/src/utils \
 	-I$(top_srcdir)/../c_sourcecode/src/platform \
 	-I$(top_srcdir)/../c_sourcecode/src/scanner \
 	-I$(top_srcdir)/../c_sourcecode/src/archive \
-	-I$(top_srcdir)/../c_sourcecode/src/utils \
+	-I$(top_srcdir)/../c_sourcecode/src/ratelimit \
+	-I$(top_srcdir)/../c_sourcecode/src/rfcInterface \
+	-I$(top_srcdir)/../c_sourcecode/src/rbusInterface \
 	-I$(top_srcdir)/../c_sourcecode/src/upload \
-        -I$(top_srcdir)/../c_sourcecode/src/t2Interface \
+	-I$(top_srcdir)/../c_sourcecode/src/utils \
+	-I$(top_srcdir)/../c_sourcecode/src/t2Interface \
+	-I$(top_srcdir)/../c_sourcecode/common \
+	-I$(top_srcdir)/../c_sourcecode/include \
 	-I/usr/include \
 	-I/usr/local/include
 

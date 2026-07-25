@@ -40,9 +40,9 @@
 #include <sys/stat.h>
 
 extern "C" {
-#include "../c_sourcecode/src/platform/platform.h"
-#include "../c_sourcecode/common/types.h"
-#include "../c_sourcecode/common/errors.h"
+#include "platform.h"
+#include "types.h"
+#include "errors.h"
 
 // External functions being tested
 void NormalizeMac(char *mac, size_t size);

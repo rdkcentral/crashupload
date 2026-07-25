@@ -27,7 +27,7 @@
 #include <fcntl.h>
 #include "file_utils.h"
 #include "telemetryinterface.h"
-#include "../utils/logger.h"
+#include "logger.h"
 
 // For unit testing: allow static functions to be visible
 #ifdef UNIT_TEST
