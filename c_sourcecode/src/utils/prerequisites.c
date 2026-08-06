@@ -127,7 +127,16 @@ static int has_required_dumps(const config_t *config)
         return (directory_has_pattern(config->core_path, ".dmp") == 1);
     }
 
-    /* Script parity: for non-broadband/extender, continue if either minidump or coredump exists. */
+    /* Check based on configured dump type to avoid false positives from the other type. */
+    if (config->dump_type == DUMP_TYPE_MINIDUMP)
+    {
+        return (directory_has_pattern(config->minidump_path, ".dmp") == 1);
+    }
+    if (config->dump_type == DUMP_TYPE_COREDUMP)
+    {
+        return (directory_has_pattern(config->core_path, "_core") == 1);
+    }
+    /* Unknown dump type: fall back to checking both. */
     if (directory_has_pattern(config->minidump_path, ".dmp") == 1)
     {
         return 1;

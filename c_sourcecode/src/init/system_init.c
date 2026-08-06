@@ -48,6 +48,7 @@ int system_initialize(int argc, char *argv[],
     if (config_init_load(config, argc, argv) != CONFIG_SUCCESS)
     {
         CRASHUPLOAD_ERROR("config_init_load failed\n");
+        t2Uninit();
         return ERR_SYSTEM_INIT_FAILED;
     }
     CRASHUPLOAD_INFO("core_log file=%s\n", config->core_log_file);
@@ -58,6 +59,7 @@ int system_initialize(int argc, char *argv[],
         if (fd < 0)
         {
             CRASHUPLOAD_ERROR("open failed\n");
+            t2Uninit();
             return ERR_SYSTEM_INIT_FAILED;
         }
 
@@ -71,6 +73,7 @@ int system_initialize(int argc, char *argv[],
     if (platform_initialize(config, platform) != PLATFORM_INIT_SUCCESS)
     {
         CRASHUPLOAD_ERROR("platform_initialize failed\n");
+        t2Uninit();
         return ERR_PLATFORM_INIT_FAILED;
     }
     CRASHUPLOAD_INFO("Working dir=%s\n", config->working_dir_path);

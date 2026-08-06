@@ -177,17 +177,13 @@ int main_test(int argc, char *argv[])
     int prereq_ret = prerequisites_wait(&config, PREREQUISITE_TIMEOUT_SEC);
     if (prereq_ret != PREREQUISITES_SUCCESS)
     {
-        if(prereq_ret == ERR_PREREQUISITE_FAILED)
-        {
-            CRASHUPLOAD_ERROR("Prerequisites check failed\n");
-        }
-        else if(prereq_ret == NO_DUMPS_FOUND)
+        if (prereq_ret == NO_DUMPS_FOUND)
         {
             CRASHUPLOAD_INFO("No dumps found, exiting\n");
         }
         else
         {
-            CRASHUPLOAD_INFO("Prerequisites check failed\n");
+            CRASHUPLOAD_ERROR("Prerequisites check failed: %d\n", prereq_ret);
         }
         goto cleanup;
     }

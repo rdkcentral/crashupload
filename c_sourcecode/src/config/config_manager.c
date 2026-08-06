@@ -59,17 +59,25 @@ static int ensure_directory_exists(const char *dir_path)
         if (path[i] == '/')
         {
             path[i] = '\0';
-            if (mkdir(path, 0777) != 0 && errno != EEXIST)
+            if (mkdir(path, 0777) != 0)
             {
-                return -1;
+                if (errno != EEXIST)
+                    return -1;
+                struct stat st;
+                if (stat(path, &st) != 0 || !S_ISDIR(st.st_mode))
+                    return -1;
             }
             path[i] = '/';
         }
     }
 
-    if (mkdir(path, 0777) != 0 && errno != EEXIST)
+    if (mkdir(path, 0777) != 0)
     {
-        return -1;
+        if (errno != EEXIST)
+            return -1;
+        struct stat st;
+        if (stat(path, &st) != 0 || !S_ISDIR(st.st_mode))
+            return -1;
     }
 
     return 0;
