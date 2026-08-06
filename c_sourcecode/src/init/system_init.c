@@ -39,13 +39,17 @@ int system_initialize(int argc, char *argv[],
 {
     if (argc < 0 || !argv || !config || !platform)
     {
-        return -1;
+        return ERR_SYSTEM_INIT_FAILED;
     }
 
     /* Initialize telemetry */
     t2Init("crashupload");
 
-    config_init_load(config, argc, argv);
+    if (config_init_load(config, argc, argv) != CONFIG_SUCCESS)
+    {
+        CRASHUPLOAD_ERROR("config_init_load failed\n");
+        return ERR_SYSTEM_INIT_FAILED;
+    }
     CRASHUPLOAD_INFO("core_log file=%s\n", config->core_log_file);
     if (0 != (filePresentCheck(config->core_log_file)))
     {
@@ -54,7 +58,7 @@ int system_initialize(int argc, char *argv[],
         if (fd < 0)
         {
             CRASHUPLOAD_ERROR("open failed\n");
-            return -1;
+            return ERR_SYSTEM_INIT_FAILED;
         }
 
         // Force mode regardless of umask
@@ -64,7 +68,11 @@ int system_initialize(int argc, char *argv[],
         }
         close(fd);
     }
-    platform_initialize(config, platform);
+    if (platform_initialize(config, platform) != PLATFORM_INIT_SUCCESS)
+    {
+        CRASHUPLOAD_ERROR("platform_initialize failed\n");
+        return ERR_SYSTEM_INIT_FAILED;
+    }
     CRASHUPLOAD_INFO("Working dir=%s\n", config->working_dir_path);
     return SYSTEM_INIT_SUCCESS;
 }

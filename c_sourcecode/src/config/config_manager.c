@@ -25,13 +25,55 @@
 #include "../rfcInterface/rfcinterface.h"
 #include "../rbusInterface/rbus_interface.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <sys/stat.h>
 
 #define RFC_PRIVACY_MODE "Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode"
+
+static int ensure_directory_exists(const char *dir_path)
+{
+    char path[128] = {0};
+    size_t len = 0;
+
+    if (!dir_path)
+    {
+        return -1;
+    }
+
+    len = strlen(dir_path);
+    if (len == 0 || len >= sizeof(path))
+    {
+        return -1;
+    }
+
+    strncpy(path, dir_path, sizeof(path) - 1);
+    path[sizeof(path) - 1] = '\0';
+
+    for (size_t i = 1; i < len; i++)
+    {
+        if (path[i] == '/')
+        {
+            path[i] = '\0';
+            if (mkdir(path, 0777) != 0 && errno != EEXIST)
+            {
+                return -1;
+            }
+            path[i] = '/';
+        }
+    }
+
+    if (mkdir(path, 0777) != 0 && errno != EEXIST)
+    {
+        return -1;
+    }
+
+    return 0;
+}
 
 int config_init_load(config_t *config, int argc, char *argv[])
 {
@@ -41,10 +83,11 @@ int config_init_load(config_t *config, int argc, char *argv[])
 
     if (!config)
     {
-        return -1;
+        return ERR_CONFIG_LOAD_FAILED;
     }
 
     memset(config, 0, sizeof(config_t));
+    config->comm_interface[0] = '\0';
 
     strcpy(config->log_file, "/tmp/minidump_log_files.txt");
     strcpy(config->log_mapper_file, "/etc/breakpad-logmapper.conf");
@@ -105,8 +148,30 @@ int config_init_load(config_t *config, int argc, char *argv[])
         }
         else if (0 == (strncmp(device_prop_data, "broadband", 9)))
         {
+            char multi_core[16] = {0};
+
             config->device_type = DEVICE_TYPE_BROADBAND;
+            CRASHUPLOAD_INFO("device type=%d\n", config->device_type);
             snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, "core_log.txt");
+            CRASHUPLOAD_INFO("core log=%s\n", config->core_log_file);
+            if (ensure_directory_exists(config->log_path) != 0)
+            {
+                CRASHUPLOAD_ERROR("Failed to create broadband log directory: %s\n", config->log_path);
+                return ERR_CONFIG_LOAD_FAILED;
+            }
+
+            ret = getDevicePropertyData("MULTI_CORE", multi_core, sizeof(multi_core));
+            if ((ret == UTILS_SUCCESS) && (0 == strncmp(multi_core, "yes", 3)))
+            {
+                CRASHUPLOAD_INFO("MULTI_CORE is enabled\n");
+                /* TODO B: COMM_INTERFACE=get_interface_value() */
+            }
+            else
+            {
+                CRASHUPLOAD_INFO("MULTI_CORE is not enabled, using default interface\n");
+                /* TODO B: COMM_INTERFACE=$INTERFACE */
+            }
+            
             /* TODO: During brodband we have to implement
              * CORE_PATH="/minidumps"
                LOG_PATH="/rdklogs/logs"
@@ -121,7 +186,9 @@ int config_init_load(config_t *config, int argc, char *argv[])
         else if (0 == (strncmp(device_prop_data, "extender", 8)))
         {
             config->device_type = DEVICE_TYPE_EXTENDER;
+            CRASHUPLOAD_INFO("device type=%d\n", config->device_type);
             strcpy(config->core_log_file, "/var/log/messages");
+            CRASHUPLOAD_INFO("core log=%s\n", config->core_log_file);
         }
         else if (0 == (strncmp(device_prop_data, "XHC1", 4)))
         {
@@ -153,6 +220,12 @@ int config_init_load(config_t *config, int argc, char *argv[])
         config->upload_mode = UPLOAD_MODE_NORMAL;
         strcpy(config->core_path, "/var/lib/systemd/coredump");
         strcpy(config->minidump_path, "/opt/minidumps");
+    }
+    if ((config->device_type == DEVICE_TYPE_BROADBAND) || (config->device_type == DEVICE_TYPE_EXTENDER))
+    {
+        /* Script parity: broadband/extender always use /minidumps for scan/upload source. */
+        strcpy(config->core_path, "/minidumps");
+        strcpy(config->minidump_path, "/minidumps");
     }
     /* Override paths for non-systemd RDKC camera */
     if (config->upload_mode == UPLOAD_MODE_NORMAL &&

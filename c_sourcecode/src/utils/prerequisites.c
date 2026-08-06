@@ -115,38 +115,43 @@ int directory_has_pattern(const char *dir, const char *pattern)
     return 0; // no match
 }
 
+static int has_required_dumps(const config_t *config)
+{
+    if (!config)
+    {
+        return 0;
+    }
+
+    if ((config->device_type == DEVICE_TYPE_BROADBAND) || (config->device_type == DEVICE_TYPE_EXTENDER))
+    {
+        return (directory_has_pattern(config->core_path, ".dmp") == 1);
+    }
+
+    /* Script parity: for non-broadband/extender, continue if either minidump or coredump exists. */
+    if (directory_has_pattern(config->minidump_path, ".dmp") == 1)
+    {
+        return 1;
+    }
+    if (directory_has_pattern(config->core_path, "_core") == 1)
+    {
+        return 1;
+    }
+
+    return 0;
+}
+
 int prerequisites_wait(config_t *config, int timeout_sec)
 {
     int dump_file_found = 0;
-    char dump_extn[16] = {0};
+    (void)timeout_sec;
     /* TODO: Check network + time sync together */
     if (NULL == config)
     {
         CRASHUPLOAD_ERROR("Invalid parameter or NULL parameter\n");
-        return -1;
+        return ERR_PREREQUISITE_FAILED;
     }
     CRASHUPLOAD_INFO("Inside prerequisites_wait: device type=%u\n", config->device_type);
-    if ((config->device_type == DEVICE_TYPE_BROADBAND) || (config->device_type == DEVICE_TYPE_EXTENDER))
-    {
-        dump_file_found = directory_has_pattern(config->core_path, ".dmp");
-    }
-    else
-    {
-        if (config->dump_type == DUMP_TYPE_MINIDUMP)
-        {
-            dump_file_found = directory_has_pattern(config->minidump_path, ".dmp");
-            strcpy(dump_extn, "*.dmp*");
-        }
-        else if (config->dump_type == DUMP_TYPE_COREDUMP)
-        {
-            dump_file_found = directory_has_pattern(config->core_path, "_core");
-            strcpy(dump_extn, "*core.prog*.gz*");
-        }
-        else
-        {
-            CRASHUPLOAD_ERROR("Invalid Dump Type\n");
-        }
-    }
+    dump_file_found = has_required_dumps(config);
     if (1 != dump_file_found)
     {
         CRASHUPLOAD_INFO("dump file or core file not found. Exiting\n");
@@ -154,7 +159,7 @@ int prerequisites_wait(config_t *config, int timeout_sec)
     }
     defer_upload_if_needed(config->device_type);
     // TODO: Below mutex_release file create by core dump generation script.So using same
-    if ((config->dump_type == DUMP_TYPE_COREDUMP) && (0 != (filePresentCheck(" /tmp/coredump_mutex_release"))))
+    if ((config->dump_type == DUMP_TYPE_COREDUMP) && (0 != (filePresentCheck("/tmp/coredump_mutex_release"))))
     {
         CRASHUPLOAD_INFO("Waiting for Coredump Completion\n");
         sleep(21); // TODO: How this number arive??

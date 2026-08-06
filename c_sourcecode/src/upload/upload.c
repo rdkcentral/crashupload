@@ -501,7 +501,10 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
     status = upload_file(archive->archive_name, crashportalEndpointUrl, dump_name, crash_fw_version, config->build_type_val, platform->model, md5sum, config->device_type, config->t2_enabled);
     if (0 == status)
     {
-        CRASHUPLOAD_INFO("%s uploadToS3 SUCESS: status: %d\n", config->dump_type == DUMP_TYPE_MINIDUMP ? "Minidump" : "Coredump", status);
+        CRASHUPLOAD_INFO("%s %s uploadToS3 SUCCESS: status=%d\n",
+                         device_type_to_str(config->device_type),
+                         config->dump_type == DUMP_TYPE_MINIDUMP ? "minidump" : "coredump",
+                         status);
         if (config->dump_type == DUMP_TYPE_MINIDUMP && config->t2_enabled)
         {
             t2CountNotify("SYST_INFO_minidumpUpld", 1);

@@ -172,12 +172,22 @@ int main_test(int argc, char *argv[])
     CRASHUPLOAD_INFO("Lock (%s) acquired successfully. Proceeding with dump processing.\n", lock_file_path);
     /* Step 2: Combined Prerequisites Check */
     /* TODO: Implement combined network + time check */
-    if (prerequisites_wait(&config, PREREQUISITE_TIMEOUT_SEC) != PREREQUISITES_SUCCESS)
+    int prereq_ret = prerequisites_wait(&config, PREREQUISITE_TIMEOUT_SEC);
+    if (prereq_ret != PREREQUISITES_SUCCESS)
     {
-        CRASHUPLOAD_INFO("Prerequisites check failed\n");
-        // lock_release(lock_fd, lock_file_path);
+        if(prereq_ret == ERR_PREREQUISITE_FAILED)
+        {
+            CRASHUPLOAD_ERROR("Prerequisites check failed\n");
+        }
+        else if(prereq_ret == NO_DUMPS_FOUND)
+        {
+            CRASHUPLOAD_INFO("No dumps found, exiting\n");
+        }
+        else
+        {
+            CRASHUPLOAD_INFO("Prerequisites check failed\n");
+        }
         goto cleanup;
-        // return EXIT_FAILURE;
     }
     CRASHUPLOAD_INFO("Prerequisites check successful\n");
 
@@ -380,6 +390,18 @@ cleanup:
     if (lock_fd >= 0)
     {
         lock_release(lock_fd, lock_file_path);
+    }
+    if (config.device_type == DEVICE_TYPE_BROADBAND)
+    {
+        FILE *fp = fopen("/tmp/crash_reboot", "w");
+        if (fp)
+        {
+            fclose(fp);
+        }
+        else
+        {
+            CRASHUPLOAD_WARN("Failed to create /tmp/crash_reboot\n");
+        }
     }
     /* Uninitialize telemetry */
     t2Uninit();

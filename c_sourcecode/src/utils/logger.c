@@ -57,6 +57,7 @@ int logger_init() {
         return 1; // Return non-zero on failure
     }
 #else
+#define DEBUG_INI_NAME "/etc/debug.ini"
     /* Standard initialization with debug.ini file */
     printf("RDK logger standard init with %s\n", DEBUG_INI_NAME);
     if (rdk_logger_init(DEBUG_INI_NAME) != RDK_SUCCESS) {

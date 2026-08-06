@@ -52,8 +52,6 @@ void crashupload_log(unsigned int level, const char *file, int line, const char 
 
 #endif /* RDK_LOGGER */
 
-#define DEBUG_INI_NAME "/etc/debug.ini"
-
 #if 0 /* TLS log macro definition */
 #define TLS_LOG_FILE "/opt/logs/tlsError.log"
 #define TLS_LOG_ERR  (1)
