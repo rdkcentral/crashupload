@@ -39,6 +39,7 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include "file_utils.h"
 #include "ratelimit.h"
 #include "systemutils.h"
