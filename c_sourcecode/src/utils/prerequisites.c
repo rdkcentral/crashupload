@@ -148,9 +148,9 @@ int prerequisites_wait(config_t *config, int timeout_sec)
     if (NULL == config)
     {
         CRASHUPLOAD_ERROR("Invalid parameter or NULL parameter\n");
-        return ERR_PREREQUISITE_FAILED;
+        return ERR_INVALID_ARGUMENT;
     }
-    CRASHUPLOAD_INFO("Inside prerequisites_wait: device type=%u\n", config->device_type);
+    CRASHUPLOAD_INFO("Inside prerequisites_wait: device type=%d\n", config->device_type);
     dump_file_found = has_required_dumps(config);
     if (1 != dump_file_found)
     {

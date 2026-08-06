@@ -57,10 +57,10 @@ int logger_init() {
         return 1; // Return non-zero on failure
     }
 #else
-#define DEBUG_INI_NAME "/etc/debug.ini"
+    const char *debug_ini = "/etc/debug.ini";
     /* Standard initialization with debug.ini file */
-    printf("RDK logger standard init with %s\n", DEBUG_INI_NAME);
-    if (rdk_logger_init(DEBUG_INI_NAME) != RDK_SUCCESS) {
+    printf("RDK logger standard init with %s\n", debug_ini);
+    if (rdk_logger_init(debug_ini) != RDK_SUCCESS) {
         printf("CRASHUPLOAD: ERROR - Logger init failed\n");
         return 1; // Return non-zero on failure
     }

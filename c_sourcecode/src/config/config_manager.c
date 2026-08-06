@@ -83,7 +83,7 @@ int config_init_load(config_t *config, int argc, char *argv[])
 
     if (!config)
     {
-        return ERR_CONFIG_LOAD_FAILED;
+        return ERR_INVALID_ARGUMENT;
     }
 
     memset(config, 0, sizeof(config_t));

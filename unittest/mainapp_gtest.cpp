@@ -163,8 +163,8 @@ TEST_F(MainAppTest, SystemInitialize_FileNotPresent_OpenFails) {
 
     int result = system_initialize(3, argv, &config, &platform);
 
-    // open() on a directory fails -> system_initialize returns -1
-    EXPECT_EQ(result, -1);
+    // open() on a directory fails -> system_initialize returns ERR_SYSTEM_INIT_FAILED
+    EXPECT_EQ(result, ERR_SYSTEM_INIT_FAILED);
 
     // Cleanup
     rmdir("/tmp/test_core.log");

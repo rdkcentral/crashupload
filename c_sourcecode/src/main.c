@@ -37,6 +37,8 @@
 #include "utils/cleanup_batch.h"
 #include "utils/logger.h"
 #include <signal.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include "file_utils.h"
 #include "ratelimit.h"
 #include "systemutils.h"
@@ -393,10 +395,10 @@ cleanup:
     }
     if (config.device_type == DEVICE_TYPE_BROADBAND)
     {
-        FILE *fp = fopen("/tmp/crash_reboot", "w");
-        if (fp)
+        int fp = open("/tmp/crash_reboot", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+        if (fp >= 0)
         {
-            fclose(fp);
+            close(fp);
         }
         else
         {

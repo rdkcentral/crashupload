@@ -37,9 +37,9 @@ int system_initialize(int argc, char *argv[],
                       config_t *config,
                       platform_config_t *platform)
 {
-    if (argc < 0 || !argv || !config || !platform)
+    if (argc < 1 || !argv || !config || !platform)
     {
-        return ERR_SYSTEM_INIT_FAILED;
+        return ERR_INVALID_ARGUMENT;
     }
 
     /* Initialize telemetry */
@@ -71,7 +71,7 @@ int system_initialize(int argc, char *argv[],
     if (platform_initialize(config, platform) != PLATFORM_INIT_SUCCESS)
     {
         CRASHUPLOAD_ERROR("platform_initialize failed\n");
-        return ERR_SYSTEM_INIT_FAILED;
+        return ERR_PLATFORM_INIT_FAILED;
     }
     CRASHUPLOAD_INFO("Working dir=%s\n", config->working_dir_path);
     return SYSTEM_INIT_SUCCESS;
