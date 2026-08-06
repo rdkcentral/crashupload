@@ -264,11 +264,9 @@ TEST_F(MainAppTest, MainTest_SystemInitializeFailure) {
     
     //testing::internal::CaptureStdout();
     
-    // Should exit with failure but system_initialize doesn't fail in current impl
-    // Test that it doesn't crash
-    EXPECT_EQ(main_test(3, argv), 0);
+    // config_init_load mock returns -1 -> system_initialize fails -> main returns 1
+    EXPECT_EQ(main_test(3, argv), 1);
     
-    //testing::internal::GetCapturedStdout();
     printf("crash value=%s\n",argv[1]);
 }
 

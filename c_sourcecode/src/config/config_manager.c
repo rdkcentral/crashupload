@@ -26,6 +26,7 @@
 #include "../rbusInterface/rbus_interface.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
@@ -59,25 +60,27 @@ static int ensure_directory_exists(const char *dir_path)
         if (path[i] == '/')
         {
             path[i] = '\0';
-            if (mkdir(path, 0777) != 0)
+            if (mkdir(path, 0755) != 0)
             {
                 if (errno != EEXIST)
                     return -1;
-                struct stat st;
-                if (stat(path, &st) != 0 || !S_ISDIR(st.st_mode))
+                int dfd = open(path, O_RDONLY | O_DIRECTORY);
+                if (dfd < 0)
                     return -1;
+                close(dfd);
             }
             path[i] = '/';
         }
     }
 
-    if (mkdir(path, 0777) != 0)
+    if (mkdir(path, 0755) != 0)
     {
         if (errno != EEXIST)
             return -1;
-        struct stat st;
-        if (stat(path, &st) != 0 || !S_ISDIR(st.st_mode))
+        int dfd = open(path, O_RDONLY | O_DIRECTORY);
+        if (dfd < 0)
             return -1;
+        close(dfd);
     }
 
     return 0;
