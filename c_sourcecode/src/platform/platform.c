@@ -22,6 +22,8 @@
 #include "platform.h"
 #include "../../common/errors.h"
 #include "../utils/logger.h"
+#include <fcntl.h>
+#include <unistd.h>
 #ifndef GTEST_ENABLE
 #include "secure_wrapper.h"
 #endif
@@ -216,8 +218,13 @@ const char *get_core_type(void)
         /* cache result so subsequent calls skip /proc/cpuinfo parsing */
         if (core[0] != '\0')
         {
-            fp = fopen(TMP_CPU_INFO_FILE, "w");
-            if (fp) { fputs(core, fp); fclose(fp); }
+            int fd = open(TMP_CPU_INFO_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+            if (fd >= 0)
+            {
+                fp = fdopen(fd, "w");
+                if (fp) { fputs(core, fp); fclose(fp); }
+                else close(fd);
+            }
         }
     }
     CRASHUPLOAD_INFO("get_core_type: %s\n", core[0] ? core : "unknown");
@@ -235,6 +242,29 @@ const char *get_interface_value(void)
     snprintf(if_name, sizeof(if_name), "%s", "erouter0");
     return if_name;
 #else
+    if (if_name[0] != '\0')
+        return if_name;
+
+    {
+        FILE *fp = fopen(IF_INFO_FILE, "r");
+        if (fp)
+        {
+            if (fgets(if_name, sizeof(if_name), fp))
+            {
+                size_t len = strlen(if_name);
+                if (len > 0 && if_name[len - 1] == '\n')
+                    if_name[len - 1] = '\0';
+                if (if_name[0] != '\0')
+                {
+                    fclose(fp);
+                    CRASHUPLOAD_INFO("get_interface_value: cache=%s\n", if_name);
+                    return if_name;
+                }
+            }
+            fclose(fp);
+        }
+    }
+
     /* Poll sysevent for current WAN interface; retry every 5s up to 900s (script parity) */
     int elapsed = 0;
     while (elapsed < SYSEVENT_TIMEOUT_SEC)
@@ -262,17 +292,26 @@ const char *get_interface_value(void)
     }
     /* Fallback: derive interface from core type via device.properties */
     const char *core = get_core_type();
+    int ret = -1;
     if (strcmp(core, "ATOM") == 0)
-        getDevicePropertyData("ATOM_INTERFACE", if_name, sizeof(if_name));
+        ret = getDevicePropertyData("ATOM_INTERFACE", if_name, sizeof(if_name));
     else if (strcmp(core, "ARM") == 0)
-        getDevicePropertyData("ARM_INTERFACE", if_name, sizeof(if_name));
+        ret = getDevicePropertyData("ARM_INTERFACE", if_name, sizeof(if_name));
     else
+        ret = -1;
+
+    if (ret != 0 || if_name[0] == '\0')
         snprintf(if_name, sizeof(if_name), "%s", "unknown");
 
     if (if_name[0] != '\0' && strcmp(if_name, "unknown") != 0)
     {
-        FILE *fp = fopen(IF_INFO_FILE, "w");
-        if (fp) { fputs(if_name, fp); fclose(fp); }
+        int fd = open(IF_INFO_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+        if (fd >= 0)
+        {
+            FILE *fp = fdopen(fd, "w");
+            if (fp) { fputs(if_name, fp); fclose(fp); }
+            else close(fd);
+        }
     }
     CRASHUPLOAD_INFO("get_interface_value: fallback core=%s if=%s\n", core, if_name);
     return if_name;

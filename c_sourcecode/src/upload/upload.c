@@ -26,7 +26,12 @@
 #ifndef GTEST_ENABLE
 #include "common_device_api.h"
 #include "system_utils.h"
+#endif
+#ifndef GTEST_ENABLE
 #include "secure_wrapper.h"
+#else
+FILE *v_secure_popen(const char *dir, const char *format, ...);
+int v_secure_pclose(FILE *fp);
 #endif
 #include "mtls_upload.h"
 #include "upload_status.h"
@@ -454,11 +459,11 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         if ((ret == READ_RFC_FAILURE) || (portal_url[0] == '\0'))
         {
             strcpy(portal_url, RDKE_PORTAL_DEFAULT_URL);
-            CRASHUPLOAD_WARN("Read rfc failed EncryptCloudUpload:%s\n", portal_url);
+            CRASHUPLOAD_WARN("Read rfc failed CrashPortal:%s\n", portal_url);
         }
         else
         {
-            CRASHUPLOAD_INFO("Read rfc Success EncryptCloudUpload:%s\n", portal_url);
+            CRASHUPLOAD_INFO("Read rfc Success CrashPortal:%s\n", portal_url);
         }
         request_type = 17;
         CRASHUPLOAD_INFO("request_type=%d\n", request_type);
@@ -558,7 +563,11 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
             if (config->device_type == DEVICE_TYPE_BROADBAND &&
                 strncmp(pPartnerId, "sky-uk", 6) == 0)
             {
-                getDevicePropertyData("S3_AMAZON_SIGNING_URL_EU", crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
+                ret = getDevicePropertyData("S3_AMAZON_SIGNING_URL_EU", crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
+                if (ret != UTILS_SUCCESS)
+                {
+                    CRASHUPLOAD_WARN("Broadband sky-uk: failed to read S3_AMAZON_SIGNING_URL_EU\n");
+                }
                 if (crashportalEndpointUrl[0] != '\0')
                     CRASHUPLOAD_INFO("Broadband sky-uk: EU S3 URL=%s\n", crashportalEndpointUrl);
             }

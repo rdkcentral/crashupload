@@ -181,13 +181,18 @@ int config_init_load(config_t *config, int argc, char *argv[])
                 /* Unit-test build does not link platform.c; keep deterministic test value. */
                 snprintf(config->comm_interface, sizeof(config->comm_interface), "%s", "erouter0");
 #else
-                strncpy(config->comm_interface, get_interface_value(), sizeof(config->comm_interface) - 1);
+                snprintf(config->comm_interface, sizeof(config->comm_interface), "%s", get_interface_value());
 #endif
                 CRASHUPLOAD_INFO("MULTI_CORE=yes COMM_INTERFACE=%s\n", config->comm_interface);
             }
             else
             {
-                getDevicePropertyData("INTERFACE", config->comm_interface, sizeof(config->comm_interface));
+                ret = getDevicePropertyData("INTERFACE", config->comm_interface, sizeof(config->comm_interface));
+                if (ret != UTILS_SUCCESS || config->comm_interface[0] == '\0')
+                {
+                    snprintf(config->comm_interface, sizeof(config->comm_interface), "%s", "erouter0");
+                    CRASHUPLOAD_WARN("INTERFACE property read failed. Using default=%s\n", config->comm_interface);
+                }
                 CRASHUPLOAD_INFO("COMM_INTERFACE=%s\n", config->comm_interface);
             }
             

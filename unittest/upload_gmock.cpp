@@ -137,48 +137,7 @@ struct UploadMockState {
     bool set_time_custom_behavior;
 };
 
-static UploadMockState g_upload_mock_state = {
-    1,          // read_rfc_property returns success by default
-    "",         // empty output
-    false,      // no custom behavior
-    0,          // get_device_property returns success by default
-    "",         // empty output
-    false,      // no custom behavior
-    nullptr,    // url_encode_output
-    false,      // no custom behavior
-    false,      // don't return null
-    0,          // metadata_post returns success
-    200,        // HTTP 200 OK
-    false,      // no custom behavior
-    200,        // HTTP 200 OK
-    0,          // curl success
-    0,          // extract_s3_url returns success
-    "",         // empty output
-    false,      // no custom behavior
-    0,          // s3_put_upload returns success
-    false,      // no custom behavior
-    true,       // tls_log returns true
-    0,          // tls_log call count
-    0,          // compute_md5 returns success
-    "",         // empty output
-    false,      // no custom behavior
-    0,          // firmware_version returns 0
-    "",         // empty output
-    false,      // no custom behavior
-    1,          // partner_id returns success
-    "",         // empty output
-    false,      // no custom behavior
-    0,          // file_present returns success
-    false,      // no custom behavior
-    0,          // set_time returns success
-    false,      // no custom behavior
-    /* rbus defaults */
-    true,       // rbus_init succeeds
-    false,      // rbus_get_string_param returns false (no value)
-    "",         // empty rbus string output
-    /* v_secure_popen default: empty output (no encryptionEnable) */
-    ""
-};
+static UploadMockState g_upload_mock_state = {};
 
 // ============================================================================
 // Mock Control Functions (Called from tests)
@@ -691,13 +650,19 @@ void set_mock_rbus_init_behavior(bool return_value) {
 }
 void set_mock_rbus_get_string_behavior(bool return_value, const char *output) {
     g_upload_mock_state.rbus_get_string_return_value = return_value;
-    if (output) strncpy(g_upload_mock_state.rbus_get_string_output, output,
-                        sizeof(g_upload_mock_state.rbus_get_string_output) - 1);
+    if (output) {
+        strncpy(g_upload_mock_state.rbus_get_string_output, output,
+                sizeof(g_upload_mock_state.rbus_get_string_output) - 1);
+        g_upload_mock_state.rbus_get_string_output[sizeof(g_upload_mock_state.rbus_get_string_output) - 1] = '\0';
+    }
     else g_upload_mock_state.rbus_get_string_output[0] = '\0';
 }
 void set_mock_v_secure_popen_behavior(const char *output) {
-    if (output) strncpy(g_upload_mock_state.v_secure_popen_output, output,
-                        sizeof(g_upload_mock_state.v_secure_popen_output) - 1);
+    if (output) {
+        strncpy(g_upload_mock_state.v_secure_popen_output, output,
+                sizeof(g_upload_mock_state.v_secure_popen_output) - 1);
+        g_upload_mock_state.v_secure_popen_output[sizeof(g_upload_mock_state.v_secure_popen_output) - 1] = '\0';
+    }
     else g_upload_mock_state.v_secure_popen_output[0] = '\0';
 }
 
