@@ -232,7 +232,7 @@ const char *get_interface_value(void)
 {
     static char if_name[32] = {0};
 #ifdef GTEST_ENABLE
-    strncpy(if_name, "erouter0", sizeof(if_name) - 1);
+    snprintf(if_name, sizeof(if_name), "%s", "erouter0");
     return if_name;
 #else
     /* Poll sysevent for current WAN interface; retry every 5s up to 900s (script parity) */
@@ -249,7 +249,7 @@ const char *get_interface_value(void)
                 if (len > 0 && buf[len - 1] == '\n') buf[len - 1] = '\0';
                 if (buf[0] != '\0')
                 {
-                    strncpy(if_name, buf, sizeof(if_name) - 1);
+                    snprintf(if_name, sizeof(if_name), "%s", buf);
                     v_secure_pclose(fp);
                     CRASHUPLOAD_INFO("get_interface_value: sysevent=%s\n", if_name);
                     return if_name;
@@ -267,7 +267,7 @@ const char *get_interface_value(void)
     else if (strcmp(core, "ARM") == 0)
         getDevicePropertyData("ARM_INTERFACE", if_name, sizeof(if_name));
     else
-        strncpy(if_name, "unknown", sizeof(if_name) - 1);
+        snprintf(if_name, sizeof(if_name), "%s", "unknown");
 
     if (if_name[0] != '\0' && strcmp(if_name, "unknown") != 0)
     {
