@@ -177,7 +177,12 @@ int config_init_load(config_t *config, int argc, char *argv[])
             if ((ret == UTILS_SUCCESS) && (0 == strncmp(multi_core, "yes", 3)))
             {
                 /* Multi-core: poll sysevent for WAN interface; fallback to core-type-based interface */
+#ifdef GTEST_ENABLE
+                /* Unit-test build does not link platform.c; keep deterministic test value. */
+                snprintf(config->comm_interface, sizeof(config->comm_interface), "%s", "erouter0");
+#else
                 strncpy(config->comm_interface, get_interface_value(), sizeof(config->comm_interface) - 1);
+#endif
                 CRASHUPLOAD_INFO("MULTI_CORE=yes COMM_INTERFACE=%s\n", config->comm_interface);
             }
             else
