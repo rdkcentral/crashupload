@@ -18,9 +18,13 @@
 #ifndef TELEMETRYINTERFACE_H
 #define TELEMETRYINTERFACE_H
 
+/** @brief Initialise telemetry for @p component (e.g. "crashupload"). */
 void t2Init(char *component);
+/** @brief Uninitialise telemetry and flush any pending events. */
 void t2Uninit(void);
+/** @brief Increment telemetry counter @p marker by @p val. */
 void t2CountNotify(char *marker, int val);
+/** @brief Send string telemetry event @p val for @p marker. */
 void t2ValNotify(char *marker, char *val);
 
 #endif

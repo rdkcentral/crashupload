@@ -32,7 +32,9 @@
  */
 int config_init_load(config_t *config, int argc, char *argv[]);
 
+/** @brief Query RFC/rbus for the current privacy-control mode. @return SHARE or DO_NOT_SHARE. */
 privacy_control_t get_privacy_control_mode(void);
 
+/** @brief Release any heap resources owned by @p config. */
 void config_cleanup(config_t *config);
 #endif

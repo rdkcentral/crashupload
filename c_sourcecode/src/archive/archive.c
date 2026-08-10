@@ -429,6 +429,17 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
             CRASHUPLOAD_INFO("RDKC tar file:%s files=%d\n", target_file_name, no_of_files);
             tar_status = create_tarball(true, target_file_name, arch_files_list, no_of_files);
         }
+        else if (config->device_type == DEVICE_TYPE_BROADBAND ||
+                 config->device_type == DEVICE_TYPE_EXTENDER)
+        {
+            /* Script: files="$tgzFile $dumpName $VERSION_FILE $CORE_LOG", no process log files */
+            snprintf(arch_files_list[0], 256, "%s", new_dump_name);
+            snprintf(arch_files_list[1], 256, "%s", "/version.txt");
+            snprintf(arch_files_list[2], 256, "%s", config->core_log_file);
+            CRASHUPLOAD_INFO("%s tar file:%s files=%d\n",
+                             device_type_to_str(config->device_type), target_file_name, no_of_files);
+            tar_status = create_tarball(true, target_file_name, arch_files_list, no_of_files);
+        }
     }
     if (!tar_status)
     {

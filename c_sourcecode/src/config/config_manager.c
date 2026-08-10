@@ -24,6 +24,7 @@
 #include "../utils/logger.h"
 #include "../rfcInterface/rfcinterface.h"
 #include "../rbusInterface/rbus_interface.h"
+#include "../platform/platform.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -175,13 +176,14 @@ int config_init_load(config_t *config, int argc, char *argv[])
             ret = getDevicePropertyData("MULTI_CORE", multi_core, sizeof(multi_core));
             if ((ret == UTILS_SUCCESS) && (0 == strncmp(multi_core, "yes", 3)))
             {
-                CRASHUPLOAD_INFO("MULTI_CORE is enabled\n");
-                /* TODO B: COMM_INTERFACE=get_interface_value() */
+                /* Multi-core: poll sysevent for WAN interface; fallback to core-type-based interface */
+                strncpy(config->comm_interface, get_interface_value(), sizeof(config->comm_interface) - 1);
+                CRASHUPLOAD_INFO("MULTI_CORE=yes COMM_INTERFACE=%s\n", config->comm_interface);
             }
             else
             {
-                CRASHUPLOAD_INFO("MULTI_CORE is not enabled, using default interface\n");
-                /* TODO B: COMM_INTERFACE=$INTERFACE */
+                getDevicePropertyData("INTERFACE", config->comm_interface, sizeof(config->comm_interface));
+                CRASHUPLOAD_INFO("COMM_INTERFACE=%s\n", config->comm_interface);
             }
             
             /* TODO: During brodband we have to implement
@@ -194,6 +196,8 @@ int config_init_load(config_t *config, int argc, char *argv[])
                        COMM_INTERFACE=$INTERFACE
                fi
              */
+            /* NOTE: /nvram/coredump.properties and /opt/coredump.properties do not exist on RDKB.
+             * Non-prod build override via /opt/coredump.properties applies only to non-broadband devices. */
         }
         else if (0 == (strncmp(device_prop_data, "extender", 8)))
         {

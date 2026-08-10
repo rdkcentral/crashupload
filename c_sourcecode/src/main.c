@@ -145,7 +145,6 @@ int main_test(int argc, char *argv[])
         CRASHUPLOAD_INFO("SIGTERM handler install success\n");
     }
     /* Step 1: Consolidated Initialization */
-    /* TODO: Implement consolidated initialization */
     if (system_initialize(argc, argv, &config, &platform) != SYSTEM_INIT_SUCCESS)
     {
         CRASHUPLOAD_ERROR("System initialization failed:%d\n", lock_fd);
@@ -216,7 +215,6 @@ int main_test(int argc, char *argv[])
     cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES, do_not_share_cleanup);
 
     /* Step 5: Process Dumps */
-    /* TODO: Implement dump processing loop */
     dump_file_t *dumps = NULL;
     int dump_count = 0;
     if (0 != (chdir(config.working_dir_path)))

@@ -41,6 +41,13 @@
 
 #define CRASHUPLOAD_LOG_INFO (1)
 
+/**
+ * @brief Fallback log function used when RDK_LOGGER is not defined.
+ * @param level   Log level (currently all treated identically).
+ * @param file    Source file (__FILE__).
+ * @param line    Source line (__LINE__).
+ * @param msg     printf-style format string.
+ */
 void crashupload_log(unsigned int level, const char *file, int line, const char *msg, ...);
 
 #define CRASHUPLOAD_TRACE(FORMAT...) crashupload_log(CRASHUPLOAD_LOG_INFO, __FILE__, __LINE__, FORMAT)
@@ -95,9 +102,7 @@ int logger_init(void);
  */
 void logger_exit(void);
 
-/* 
- * Legacy API
- */
+/* Legacy convenience wrappers — prefer the CRASHUPLOAD_* macros for new code. */
 void logger_error(const char *fmt, ...);
 void logger_warn(const char *fmt, ...);
 void logger_info(const char *fmt, ...);

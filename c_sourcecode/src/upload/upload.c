@@ -21,9 +21,12 @@
 #include <curl/curl.h>
 #include <time.h>
 #include "../rfcInterface/rfcinterface.h"
+#include "../rbusInterface/rbus_interface.h"
 #include "upload.h"
 #ifndef GTEST_ENABLE
 #include "common_device_api.h"
+#include "system_utils.h"
+#include "secure_wrapper.h"
 #endif
 #include "mtls_upload.h"
 #include "upload_status.h"
@@ -389,7 +392,41 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         ret = (pPartnerId[0] != '\0') ? 1 : 0;
     }
 #else
-    ret = GetPartnerId(pPartnerId, sizeof(pPartnerId));
+    if (config->device_type == DEVICE_TYPE_EXTENDER)
+    {
+        /* Extender: partnerId sourced from account JSON, not from partner_id file */
+        /* TODO: read PERSISTENT_PATH from device.properties if /opt/persistent is not universal */
+        FILE *fp = fopen("/opt/persistent/account", "r");
+        if (fp)
+        {
+            char line[512] = {0};
+            while (fgets(line, sizeof(line), fp))
+            {
+                char *p = strstr(line, "\"partnerId\":\"");
+                if (p)
+                {
+                    p += 13;
+                    char *end = strchr(p, '"');
+                    if (end)
+                    {
+                        size_t len = (size_t)(end - p);
+                        if (len < sizeof(pPartnerId))
+                        {
+                            strncpy(pPartnerId, p, len);
+                            pPartnerId[len] = '\0';
+                        }
+                    }
+                    break;
+                }
+            }
+            fclose(fp);
+        }
+        ret = (pPartnerId[0] != '\0') ? 1 : 0;
+    }
+    else
+    {
+        ret = GetPartnerId(pPartnerId, sizeof(pPartnerId));
+    }
 #endif
     if (ret == 0)
     {
@@ -416,7 +453,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         ret = read_RFCProperty("CrashPortal", RFC_CRASH_PORTAL_URL, portal_url, sizeof(portal_url));
         if ((ret == READ_RFC_FAILURE) || (portal_url[0] == '\0'))
         {
-            strcpy(portal_url, "crashportal.stb.r53.xcal.tv");
+            strcpy(portal_url, RDKE_PORTAL_DEFAULT_URL);
             CRASHUPLOAD_WARN("Read rfc failed EncryptCloudUpload:%s\n", portal_url);
         }
         else
@@ -450,9 +487,9 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
          * Portal URL: crashportal.stb.r53.xcal.tv
          */
         strcpy(encryptionEnable, "false");
-        strcpy(portal_url, "crashportal.stb.r53.xcal.tv");
+        strcpy(portal_url, RDKC_PORTAL_DEFAULT_URL);
         request_type = 17;
-        CRASHUPLOAD_INFO("RDKC: request_type=%d\n", request_type);
+        CRASHUPLOAD_INFO("RDKC: request_type=%d portal=%s\n", request_type, portal_url);
         ret = get_crashupload_s3signed_url(crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
         if (ret < 0)
         {
@@ -461,20 +498,90 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         }
         CRASHUPLOAD_INFO("RDKC: S3 signing URL=%s\n", crashportalEndpointUrl);
     }
-    else if (config->device_type == DEVICE_TYPE_BROADBAND)
+    else if (config->device_type == DEVICE_TYPE_BROADBAND ||
+             config->device_type == DEVICE_TYPE_EXTENDER)
     {
-        ret = -1;
-        CRASHUPLOAD_WARN("TODO: SUPPORT NOT AVAILABLE\n");
-        CRASHUPLOAD_WARN("Unknown device\n");
-        CRASHUPLOAD_WARN("Unknown DEVICE_TYPE:\n");
-        return ret;
+        /* Broadband: portal rdkbcrashportal.stb.r53.xcal.tv, request_type=18
+         * Extender: same upload path; S3 URL sourced from device.properties via get_crashupload_s3signed_url */
+        strcpy(portal_url, RDKB_PORTAL_DEFAULT_URL);
+        request_type = 18;
+
+        /* Init rbus once; used for M1 (encryptionEnable fallback) and M3 (S3 URL) */
+        bool rbus_ok = rbus_init();
+
+        if (config->device_type == DEVICE_TYPE_BROADBAND)
+        {
+            /* syscfg is primary; rbus is fallback when syscfg returns empty */
+            FILE *fp = v_secure_popen("r", "syscfg get encryptcloudupload");
+            if (fp)
+            {
+                if (fgets(encryptionEnable, sizeof(encryptionEnable), fp) != NULL)
+                {
+                    size_t elen = strlen(encryptionEnable);
+                    if (elen > 0 && encryptionEnable[elen - 1] == '\n')
+                        encryptionEnable[elen - 1] = '\0';
+                }
+                v_secure_pclose(fp);
+            }
+            /*rbus fallback if syscfg returned empty */
+            if (encryptionEnable[0] == '\0' && rbus_ok)
+                rbus_get_string_param(RFC_DMP_ENCRYPT_UPLOAD, encryptionEnable, sizeof(encryptionEnable));
+
+            if (encryptionEnable[0] == '\0')
+            {
+                strcpy(encryptionEnable, "false");
+                CRASHUPLOAD_WARN("Broadband: encryptcloudupload empty, defaulting to false\n");
+            }
+            else
+            {
+                CRASHUPLOAD_INFO("Broadband: encryptionEnable=%s\n", encryptionEnable);
+            }
+        }
+        else
+        {
+            /* Extender does not use syscfg for encryption flag */
+            strcpy(encryptionEnable, "false");
+        }
+
+        CRASHUPLOAD_INFO("%s: request_type=%d portal=%s\n",
+                         device_type_to_str(config->device_type), request_type, portal_url);
+
+        /* M3: broadband primary S3 URL from Syndication.CrashPortal via rbus */
+        if (config->device_type == DEVICE_TYPE_BROADBAND && rbus_ok)
+            rbus_get_string_param(RDKB_SYNDICATION_CRASH_PORTAL,
+                                  crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
+
+        /* Extender or broadband rbus miss: fall back to RFC/device.properties */
+        if (crashportalEndpointUrl[0] == '\0')
+        {
+            /* D3: sky-uk partner uses EU signing URL from device.properties */
+            if (config->device_type == DEVICE_TYPE_BROADBAND &&
+                strncmp(pPartnerId, "sky-uk", 6) == 0)
+            {
+                getDevicePropertyData("S3_AMAZON_SIGNING_URL_EU", crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
+                if (crashportalEndpointUrl[0] != '\0')
+                    CRASHUPLOAD_INFO("Broadband sky-uk: EU S3 URL=%s\n", crashportalEndpointUrl);
+            }
+        }
+        if (crashportalEndpointUrl[0] == '\0')
+        {
+            ret = get_crashupload_s3signed_url(crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
+            if (ret < 0)
+            {
+                CRASHUPLOAD_ERROR("%s: Unable to get S3 server url\n", device_type_to_str(config->device_type));
+                if (rbus_ok) rbus_cleanup();
+                return ret;
+            }
+        }
+        CRASHUPLOAD_INFO("%s: S3 signing URL=%s\n",
+                         device_type_to_str(config->device_type), crashportalEndpointUrl);
+        if (rbus_ok)
+            rbus_cleanup();
     }
     else
     {
-        ret = -1;
-        CRASHUPLOAD_WARN("Unknown device\n");
-        CRASHUPLOAD_WARN("Unknown DEVICE_TYPE:\n");
-        return ret;
+        CRASHUPLOAD_ERROR("Unknown DEVICE_TYPE: %d\n", config->device_type);
+        return -1;
     }
     if ((0 == (filePresentCheck(EnableOCSPStapling))) || (0 == (filePresentCheck(EnableOCSP))))
     {

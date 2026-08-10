@@ -75,6 +75,11 @@ void set_mock_file_present_behavior(int return_value);
 void set_mock_set_time_behavior(int return_value);
 int get_tls_log_call_count();
 void reset_upload_mocks();
+
+/* broadband/extender mock controls */
+void set_mock_rbus_init_behavior(bool return_value);
+void set_mock_rbus_get_string_behavior(bool return_value, const char *output);
+void set_mock_v_secure_popen_behavior(const char *output);
 }
 
 using ::testing::_;
@@ -800,12 +805,21 @@ TEST_F(UploadTest, UploadProcess_UploadFailureCoredumpRemoved) {
     EXPECT_FALSE(file_exists(test_archive));
 }
 
-TEST_F(UploadTest, UploadProcess_BroadbandNotSupported) {
+TEST_F(UploadTest, UploadProcess_BroadbandSupported) {
     test_config.device_type = DEVICE_TYPE_BROADBAND;
-    
+
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(true, test_url);
+    set_mock_v_secure_popen_behavior("false\n");
+    set_mock_firmware_version_behavior(10, "1.0.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+
     int result = upload_process(&test_archive_info, &test_config, &test_platform);
-    
-    EXPECT_EQ(result, -1);
+
+    EXPECT_EQ(result, 0);
 }
 
 TEST_F(UploadTest, UploadProcess_UnknownDeviceType) {
@@ -1081,7 +1095,7 @@ TEST_F(UploadTest, UploadProcess_RDKCDevice_SuccessMinidump) {
     set_mock_partner_id_behavior(1, "rdkc_partner");
     // RDKC gets S3 URL from device.properties (RFC fails, fallback works)
     set_mock_read_rfc_property_behavior(-1, "");
-    set_mock_get_device_property_behavior(0, "https://rdkc.s3.signing.url");
+    set_mock_get_device_property_behavior(0, test_url);
     set_mock_compute_md5_behavior(0, "");
     set_mock_firmware_version_behavior(10, "1.0.0");
     set_mock_metadata_post_behavior(0, 200);
@@ -1103,7 +1117,7 @@ TEST_F(UploadTest, UploadProcess_RDKCDevice_SuccessCoredump) {
     test_config.t2_enabled = false;
 
     set_mock_partner_id_behavior(1, "rdkc_partner");
-    set_mock_read_rfc_property_behavior(1, "https://rdkc.rfc.s3.url");
+    set_mock_read_rfc_property_behavior(1, test_url);
     set_mock_compute_md5_behavior(0, "");
     set_mock_firmware_version_behavior(10, "2.0.0");
     set_mock_metadata_post_behavior(0, 200);
@@ -1193,6 +1207,152 @@ TEST_F(UploadTest, UploadFile_RDKCDevice_TlsLogPath) {
     // RDKC is not BROADBAND, so it goes through "mediaclient" tls_log path
     EXPECT_NE(result, 0);
     EXPECT_GT(get_tls_log_call_count(), 0);
+}
+
+// ============================================================================
+// upload_process Tests — Broadband / Extender device type (L1)
+// ============================================================================
+
+TEST_F(UploadTest, UploadProcess_Broadband_RbusS3Url_Success) {
+    test_config.device_type = DEVICE_TYPE_BROADBAND;
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(true, test_url);
+    set_mock_v_secure_popen_behavior("false");  // syscfg encryptionEnable=false
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(UploadTest, UploadProcess_Broadband_RbusMiss_FallbackS3Url) {
+    test_config.device_type = DEVICE_TYPE_BROADBAND;
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, ""); // rbus returns empty
+    set_mock_v_secure_popen_behavior("false");
+    set_mock_read_rfc_property_behavior(1, test_url);
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(UploadTest, UploadProcess_Broadband_SyscfgEncryptionTrue) {
+    test_config.device_type = DEVICE_TYPE_BROADBAND;
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(true, test_url);
+    set_mock_v_secure_popen_behavior("true\n"); // syscfg returns true → MD5 computed
+    set_mock_compute_md5_behavior(0, "abc123md5base64==");
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(UploadTest, UploadProcess_Broadband_RbusInitFail_FallbackS3Url) {
+    test_config.device_type = DEVICE_TYPE_BROADBAND;
+    set_mock_rbus_init_behavior(false); // rbus unavailable
+    set_mock_read_rfc_property_behavior(1, test_url);
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(UploadTest, UploadProcess_Extender_Success) {
+    test_config.device_type = DEVICE_TYPE_EXTENDER;
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, ""); // extender skips syndication URL
+    set_mock_read_rfc_property_behavior(1, test_url);
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(UploadTest, UploadProcess_Extender_RbusInitFail_FallbackS3Url_Success) {
+    test_config.device_type = DEVICE_TYPE_EXTENDER;
+    set_mock_rbus_init_behavior(false); // rbus unavailable
+    set_mock_read_rfc_property_behavior(1, test_url);
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(UploadTest, UploadProcess_Extender_S3UrlResolutionFailure) {
+    test_config.device_type = DEVICE_TYPE_EXTENDER;
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, "");
+    set_mock_read_rfc_property_behavior(-1, "");
+    set_mock_get_device_property_behavior(-1, ""); // get_crashupload_s3signed_url fallback fails
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    EXPECT_EQ(result, -1);
+}
+
+TEST_F(UploadTest, UploadProcess_Extender_UploadFail_CoredumpRemoved) {
+    test_config.device_type = DEVICE_TYPE_EXTENDER;
+    test_config.dump_type = DUMP_TYPE_COREDUMP;
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, "");
+    set_mock_read_rfc_property_behavior(1, test_url);
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(500, 22);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(22);
+    set_mock_file_present_behavior(0);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    EXPECT_NE(result, 0);
+    EXPECT_FALSE(file_exists(test_archive));
+}
+
+TEST_F(UploadTest, UploadProcess_Broadband_UploadFail_CoredumpRemoved) {
+    test_config.device_type = DEVICE_TYPE_BROADBAND;
+    test_config.dump_type = DUMP_TYPE_COREDUMP;
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(true, test_url);
+    set_mock_v_secure_popen_behavior("false");
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(500, 22); // upload fails
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(22);
+    set_mock_file_present_behavior(0); // file exists
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    EXPECT_NE(result, 0);
 }
 
 // ============================================================================

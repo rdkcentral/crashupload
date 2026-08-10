@@ -119,6 +119,14 @@ struct UploadMockState {
     int partner_id_return_value;
     char partner_id_output[16];
     bool partner_id_custom_behavior;
+
+    /* rbus mocks */
+    bool rbus_init_return_value;
+    bool rbus_get_string_return_value;
+    char rbus_get_string_output[512];
+
+    /* v_secure_popen mock — content fgets() will read back */
+    char v_secure_popen_output[64];
     
     // File present check
     int file_present_return_value;
@@ -163,7 +171,13 @@ static UploadMockState g_upload_mock_state = {
     0,          // file_present returns success
     false,      // no custom behavior
     0,          // set_time returns success
-    false       // no custom behavior
+    false,      // no custom behavior
+    /* rbus defaults */
+    true,       // rbus_init succeeds
+    false,      // rbus_get_string_param returns false (no value)
+    "",         // empty rbus string output
+    /* v_secure_popen default: empty output (no encryptionEnable) */
+    ""
 };
 
 // ============================================================================
@@ -367,6 +381,11 @@ void reset_upload_mocks() {
     
     g_upload_mock_state.set_time_return_value = 0;
     g_upload_mock_state.set_time_custom_behavior = false;
+
+    g_upload_mock_state.rbus_init_return_value = true;
+    g_upload_mock_state.rbus_get_string_return_value = false;
+    memset(g_upload_mock_state.rbus_get_string_output, 0, sizeof(g_upload_mock_state.rbus_get_string_output));
+    memset(g_upload_mock_state.v_secure_popen_output, 0, sizeof(g_upload_mock_state.v_secure_popen_output));
 }
 
 // ============================================================================
@@ -642,11 +661,44 @@ int set_time(const char* deny_file, int type) {
  * @param msg Format string and variadic arguments
  */
 void crashupload_log(unsigned int level, const char *file, int line, const char *msg, ...) {
-    // Mock implementation - do nothing
-    (void)level;
-    (void)file;
-    (void)line;
-    (void)msg;
+    (void)level; (void)file; (void)line; (void)msg;
+}
+
+/* rbus mocks */
+bool rbus_init(void) { return g_upload_mock_state.rbus_init_return_value; }
+void rbus_cleanup(void) {}
+bool rbus_get_string_param(const char *param_name, char *value_buf, size_t buf_size) {
+    (void)param_name;
+    if (value_buf && buf_size > 0 && g_upload_mock_state.rbus_get_string_output[0]) {
+        strncpy(value_buf, g_upload_mock_state.rbus_get_string_output, buf_size - 1);
+        value_buf[buf_size - 1] = '\0';
+    }
+    return g_upload_mock_state.rbus_get_string_return_value;
+}
+
+/* v_secure_popen writes mock content into a tmpfile so fgets() works normally */
+FILE *v_secure_popen(const char *dir, const char *format, ...) {
+    (void)dir; (void)format;
+    if (!g_upload_mock_state.v_secure_popen_output[0]) return NULL;
+    FILE *fp = tmpfile();
+    if (fp) { fputs(g_upload_mock_state.v_secure_popen_output, fp); rewind(fp); }
+    return fp;
+}
+int v_secure_pclose(FILE *fp) { if (fp) fclose(fp); return 0; }
+
+void set_mock_rbus_init_behavior(bool return_value) {
+    g_upload_mock_state.rbus_init_return_value = return_value;
+}
+void set_mock_rbus_get_string_behavior(bool return_value, const char *output) {
+    g_upload_mock_state.rbus_get_string_return_value = return_value;
+    if (output) strncpy(g_upload_mock_state.rbus_get_string_output, output,
+                        sizeof(g_upload_mock_state.rbus_get_string_output) - 1);
+    else g_upload_mock_state.rbus_get_string_output[0] = '\0';
+}
+void set_mock_v_secure_popen_behavior(const char *output) {
+    if (output) strncpy(g_upload_mock_state.v_secure_popen_output, output,
+                        sizeof(g_upload_mock_state.v_secure_popen_output) - 1);
+    else g_upload_mock_state.v_secure_popen_output[0] = '\0';
 }
 
 } // extern "C"

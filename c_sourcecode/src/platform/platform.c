@@ -22,6 +22,9 @@
 #include "platform.h"
 #include "../../common/errors.h"
 #include "../utils/logger.h"
+#ifndef GTEST_ENABLE
+#include "secure_wrapper.h"
+#endif
 
 /* function NormalizeMac - gets the eSTB MAC address of the device.
 
@@ -179,4 +182,99 @@ int platform_initialize(const config_t *config, platform_config_t *platform)
         CRASHUPLOAD_INFO("file sha=%s\n", platform->platform_sha1);
     }
     return PLATFORM_INIT_SUCCESS;
+}
+
+const char *get_core_type(void)
+{
+    static char core[8] = {0};
+    if (core[0] != '\0')
+        return core;
+
+    FILE *fp = fopen(TMP_CPU_INFO_FILE, "r");
+    if (fp)
+    {
+        if (fgets(core, sizeof(core), fp))
+        {
+            size_t len = strlen(core);
+            if (len > 0 && core[len - 1] == '\n') core[len - 1] = '\0';
+        }
+        fclose(fp);
+    }
+    if (core[0] == '\0')
+    {
+        fp = fopen(CPU_INFO_FILE, "r");
+        if (fp)
+        {
+            char line[128];
+            while (fgets(line, sizeof(line), fp))
+            {
+                if (strstr(line, "aarch64") || strstr(line, "ARM")) { strcpy(core, "ARM");  break; }
+                if (strstr(line, "Atom"))                            { strcpy(core, "ATOM"); break; }
+            }
+            fclose(fp);
+        }
+        /* cache result so subsequent calls skip /proc/cpuinfo parsing */
+        if (core[0] != '\0')
+        {
+            fp = fopen(TMP_CPU_INFO_FILE, "w");
+            if (fp) { fputs(core, fp); fclose(fp); }
+        }
+    }
+    CRASHUPLOAD_INFO("get_core_type: %s\n", core[0] ? core : "unknown");
+    return core;
+}
+
+#define IF_INFO_FILE            "/tmp/if_info"
+#define SYSEVENT_TIMEOUT_SEC    900
+#define SYSEVENT_POLL_SEC       5
+
+const char *get_interface_value(void)
+{
+    static char if_name[32] = {0};
+#ifdef GTEST_ENABLE
+    strncpy(if_name, "erouter0", sizeof(if_name) - 1);
+    return if_name;
+#else
+    /* Poll sysevent for current WAN interface; retry every 5s up to 900s (script parity) */
+    int elapsed = 0;
+    while (elapsed < SYSEVENT_TIMEOUT_SEC)
+    {
+        FILE *fp = v_secure_popen("r", "sysevent get current_wan_ifname");
+        if (fp)
+        {
+            char buf[32] = {0};
+            if (fgets(buf, sizeof(buf), fp))
+            {
+                size_t len = strlen(buf);
+                if (len > 0 && buf[len - 1] == '\n') buf[len - 1] = '\0';
+                if (buf[0] != '\0')
+                {
+                    strncpy(if_name, buf, sizeof(if_name) - 1);
+                    v_secure_pclose(fp);
+                    CRASHUPLOAD_INFO("get_interface_value: sysevent=%s\n", if_name);
+                    return if_name;
+                }
+            }
+            v_secure_pclose(fp);
+        }
+        sleep(SYSEVENT_POLL_SEC);
+        elapsed += SYSEVENT_POLL_SEC;
+    }
+    /* Fallback: derive interface from core type via device.properties */
+    const char *core = get_core_type();
+    if (strcmp(core, "ATOM") == 0)
+        getDevicePropertyData("ATOM_INTERFACE", if_name, sizeof(if_name));
+    else if (strcmp(core, "ARM") == 0)
+        getDevicePropertyData("ARM_INTERFACE", if_name, sizeof(if_name));
+    else
+        strncpy(if_name, "unknown", sizeof(if_name) - 1);
+
+    if (if_name[0] != '\0' && strcmp(if_name, "unknown") != 0)
+    {
+        FILE *fp = fopen(IF_INFO_FILE, "w");
+        if (fp) { fputs(if_name, fp); fclose(fp); }
+    }
+    CRASHUPLOAD_INFO("get_interface_value: fallback core=%s if=%s\n", core, if_name);
+    return if_name;
+#endif
 }

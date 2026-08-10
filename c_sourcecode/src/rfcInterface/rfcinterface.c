@@ -65,7 +65,6 @@ int read_RFCProperty(const char *type, const char *key, char *out_value, size_t 
     }
     return ret;
 }
-
 int write_RFCProperty(const char *type, const char *key, const char *value, RFCVALDATATYPE datatype)
 {
     (void)type;

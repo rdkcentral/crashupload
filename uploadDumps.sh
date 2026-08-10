@@ -101,16 +101,20 @@ run_crashupload() {
     run_legacy "$@"
 }
 
+IS_LEGACY_CRASHUPLOAD=0
+if [ -f /tmp/.legacy_crashuploader ]; then
+    IS_LEGACY_CRASHUPLOAD=1
+fi
+
+
 case "$DEVICE_TYPE" in
-    mediaclient)
-        if [ -f /tmp/.legacy_crashuploader ]; then
+    mediaclient|broadband|extender)
+        Log "DEVICE_TYPE='${DEVICE_TYPE}'; using crashupload binary."
+        if [ "$IS_LEGACY_CRASHUPLOAD" -eq 1 ]; then
             run_legacy "$@"
         else
             run_crashupload "$@"
         fi
-        ;;
-    broadband|extender)
-        run_legacy "$@"
         ;;
     *)
         Log "Unknown DEVICE_TYPE='${DEVICE_TYPE}'; using legacy uploader."

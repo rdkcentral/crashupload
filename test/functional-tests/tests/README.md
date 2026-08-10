@@ -46,7 +46,8 @@ The `CRASHUPLOAD_BINARY` environment variable overrides the path.
 | `test_config_and_path.py` | TC-006, TC-007, TC-009 | Secure/normal path selection; minidump vs coredump mode |
 | `test_config_checks_and_baseline.py` | TC-019–021, TC-023–026, TC-028 | Dump detection and platform metadata (MAC, model, SHA1) |
 | `test_unsupported_devicetypes.py` | TC-004, TC-005, TC-017, TC-018 | Broadband/extender device type exit behaviour |
-| `test_broadband_env.py` | TC-067 | Broadband mode produces no .tgz |
+| `test_broadband_env.py` | TC-067 | Broadband mode creates .tgz in /minidumps |
+| `test_extender_env.py` | TC-068 | Extender mode creates .tgz in /minidumps |
 
 ### No Dumps / Prerequisites
 
