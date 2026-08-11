@@ -281,26 +281,33 @@ print_filewise_coverage() {
     echo "Filtering to c_sourcecode/src for actionable module coverage"
     echo ""
 
-    lcov --list coverage.info --rc lcov_branch_coverage=1 2>/dev/null \
-        | awk '
-            BEGIN {
-                print "File | Lines | Functions"
-                print "-----|-------|----------"
+    awk '
+        function pct(hit, total) {
+            if (total == 0) return 0.0
+            return (100.0 * hit) / total
+        }
+        BEGIN {
+            print "File | Lines | Functions"
+            print "-----|-------|----------"
+        }
+        /^SF:/ {
+            sf = substr($0, 4)
+            lf = lh = fnf = fnh = 0
+        }
+        /^LF:/  { lf = substr($0, 4) + 0 }
+        /^LH:/  { lh = substr($0, 4) + 0 }
+        /^FNF:/ { fnf = substr($0, 5) + 0 }
+        /^FNH:/ { fnh = substr($0, 5) + 0 }
+        /^end_of_record/ {
+            if (sf ~ /c_sourcecode\/src\// && sf ~ /\.c$/) {
+                lp = pct(lh, lf)
+                fp = pct(fnh, fnf)
+                printf("%s | %.1f%% (%d/%d) | %.1f%% (%d/%d)\n", sf, lp, lh, lf, fp, fnh, fnf)
             }
-            /c_sourcecode\/src\// && /\|/ {
-                gsub(/^ +| +$/, "", $0)
-                n = split($0, a, "|")
-                if (n >= 3) {
-                    file = a[1]
-                    lines = a[2]
-                    funcs = a[3]
-                    gsub(/^ +| +$/, "", file)
-                    gsub(/^ +| +$/, "", lines)
-                    gsub(/^ +| +$/, "", funcs)
-                    print file " | " lines " | " funcs
-                }
-            }
-        '
+            sf = ""
+            lf = lh = fnf = fnh = 0
+        }
+    ' coverage.info
 
     echo ""
     print_step "Overall summary:"
