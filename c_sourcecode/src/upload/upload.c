@@ -239,6 +239,11 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
 #endif
             CRASHUPLOAD_INFO("After performMetadataPostWithCertRotationEx ret=%d=>http code=%lu\n", ret, http_code);
             __uploadutil_get_status(&http_code, &curl_ret);
+
+            if (ret != 0 && curl_ret == 0 && (device_type == DEVICE_TYPE_BROADBAND || device_type == DEVICE_TYPE_EXTENDER))
+            {
+                curl_ret = ret;
+            }
             CRASHUPLOAD_INFO("Curl Connected to $FQDN:%s\n", url);
             CRASHUPLOAD_INFO("Curl return code :%d, HTTP SIGN URL Response:%lu\n", curl_ret, http_code);
             if (t2_enabled)

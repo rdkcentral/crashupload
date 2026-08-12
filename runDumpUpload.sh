@@ -83,8 +83,12 @@ if [ "$DEVICE_TYPE" = "broadband" ];then
         fi
 fi
 
+LOG_APPENDER=""
+if [ "$DEVICE_TYPE" = "broadband" ] || [ "$DEVICE_TYPE" = "extender" ];then
+    LOG_APPENDER=".0"
+fi
 # Log file setup
-CORE_LOG="$LOG_PATH/core_log.txt"
+CORE_LOG="$LOG_PATH/core_log.txt$LOG_APPENDER"
 
 if [ "$DEVICE_TYPE" = "extender" ];then
     CORE_LOG="/var/log/messages"

@@ -158,8 +158,26 @@ int platform_initialize(const config_t *config, platform_config_t *platform)
     }
     else
     {
-        CRASHUPLOAD_ERROR("Get mac is failed. Setting dafult value\n");
-        strcpy(platform->mac_address, "000000000000");
+        if (config && (config->device_type == DEVICE_TYPE_BROADBAND || config->device_type == DEVICE_TYPE_EXTENDER))
+        {
+            CRASHUPLOAD_ERROR("GetEstbMac is failed. Trying to get mac from wan interface\n");
+            char wan_if[32] = {0};
+            snprintf(wan_if, sizeof(wan_if), "%s", get_interface_value());
+            if (wan_if[0] != '\0' && strcmp(wan_if, "unknown") != 0)
+            {
+                ret = GetHwMacAddress(wan_if, platform->mac_address, sizeof(platform->mac_address));
+                if (ret)
+                {
+                    NormalizeMac(platform->mac_address, sizeof(platform->mac_address));
+                    CRASHUPLOAD_INFO("Broadband MAC fallback via %s: %s\n", wan_if, platform->mac_address);
+                }
+            }
+        }
+        if (!ret)
+        {
+            CRASHUPLOAD_ERROR("Get mac is failed. Setting dafult value\n");
+            strcpy(platform->mac_address, "000000000000");
+        }
     }
     // TODO: For brodband and extender we have change the code
     ret = GetModelNum(platform->model, sizeof(platform->model));
