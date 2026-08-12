@@ -260,6 +260,7 @@ class TestTelemetryOptOut:
 
         stashed = stash_dir_dumps(BROADBAND_MINIDUMP_PATH, ".dmp")
         dump_path = create_dummy_dump(BROADBAND_MINIDUMP_PATH, "tc040_broadband_optout.dmp")
+        Path(REBOOT_FLAG_FILE).touch()
 
         original_optout = Path(OPTOUT_FILE).read_text() if os.path.exists(OPTOUT_FILE) else None
         os.makedirs(os.path.dirname(OPTOUT_FILE), exist_ok=True)
@@ -284,4 +285,5 @@ class TestTelemetryOptOut:
             for extra in Path(BROADBAND_MINIDUMP_PATH).glob("tc040*"):
                 extra.unlink(missing_ok=True)
             restore_stashed_dumps(stashed)
+            Path(REBOOT_FLAG_FILE).unlink(missing_ok=True)
             Path(MINIDUMP_LOCK_FILE).unlink(missing_ok=True)
