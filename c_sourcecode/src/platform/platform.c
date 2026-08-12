@@ -256,7 +256,7 @@ const char *get_core_type(void)
 const char *get_interface_value(void)
 {
     static char if_name[32] = {0};
-#ifdef GTEST_ENABLE
+#if defined(GTEST_ENABLE) || defined(L2_TEST)
     snprintf(if_name, sizeof(if_name), "%s", "erouter0");
     return if_name;
 #else
