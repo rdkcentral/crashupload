@@ -25,6 +25,7 @@
 
 #include "telemetryinterface.h"
 #include <stdio.h>
+#include <stdbool.h>
 #include "../utils/logger.h"
 
 #ifdef T2_EVENT_ENABLED
