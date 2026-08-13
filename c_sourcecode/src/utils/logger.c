@@ -25,10 +25,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern char* RDK_LOGGER_SHARED_NAME_IDENTIFIER_INTERNAL;
+char* RDK_LOGGER_SHARED_NAME_IDENTIFIER_INTERNAL = "LOG.RDK.CRASHUPLOAD";
 /**
  * @brief Initialize RDK Logger subsystem
- * 
- * This function MUST be called at application startup (in main).
+    *
+    * This function MUST be called at application startup (in main).
  * 
  * When RDK_LOGGER is defined:
  *   - Option 1: Calls rdk_logger_init() with /etc/debug.ini (file-based config)
