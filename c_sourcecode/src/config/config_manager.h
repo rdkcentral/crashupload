@@ -24,6 +24,8 @@
 #define CONFIG_MANAGER_H
 
 #include "../../common/types.h"
+#define RDKB_LOG_FILE_NAME "core_log.txt.0"
+#define NON_RDKB_LOG_FILE_NAME "core_log.txt"
 
 /**
  * @brief Load configuration from multiple sources

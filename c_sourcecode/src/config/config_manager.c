@@ -156,7 +156,7 @@ int config_init_load(config_t *config, int argc, char *argv[])
         {
             config->device_type = DEVICE_TYPE_MEDIACLIENT;
             CRASHUPLOAD_INFO("device type=%d\n", config->device_type);
-            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, "core_log.txt");
+            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, NON_RDKB_LOG_FILE_NAME);
             CRASHUPLOAD_INFO("core log=%s\n", config->core_log_file);
         }
         else if (0 == (strncmp(device_prop_data, "broadband", 9)))
@@ -165,7 +165,11 @@ int config_init_load(config_t *config, int argc, char *argv[])
 
             config->device_type = DEVICE_TYPE_BROADBAND;
             CRASHUPLOAD_INFO("device type=%d\n", config->device_type);
-            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, "core_log.txt");
+#if !defined(GTEST_ENABLE) && !defined(L2_TEST)
+            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, RDKB_LOG_FILE_NAME);
+#else
+            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, NON_RDKB_LOG_FILE_NAME);
+#endif
             CRASHUPLOAD_INFO("core log=%s\n", config->core_log_file);
             if (ensure_directory_exists(config->log_path) != 0)
             {
@@ -196,7 +200,7 @@ int config_init_load(config_t *config, int argc, char *argv[])
                 CRASHUPLOAD_INFO("COMM_INTERFACE=%s\n", config->comm_interface);
             }
             
-            /* TODO: During brodband we have to implement
+            /* TODO: During broadband we have to implement
              * CORE_PATH="/minidumps"
                LOG_PATH="/rdklogs/logs"
                if [ ! -d $LOG_PATH ];then mkdir -p $LOG_PATH; fi
@@ -220,7 +224,7 @@ int config_init_load(config_t *config, int argc, char *argv[])
         {
             config->device_type = DEVICE_TYPE_RDKC;
             CRASHUPLOAD_INFO("device type RDKC=%d\n", config->device_type);
-            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, "core_log.txt");
+            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, NON_RDKB_LOG_FILE_NAME);
             CRASHUPLOAD_INFO("core log=%s\n", config->core_log_file);
         }
         else

@@ -111,7 +111,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
     CRASHUPLOAD_INFO("Before upload\n");
     CRASHUPLOAD_INFO("filepath=%s\n", filepath);
     CRASHUPLOAD_INFO("url=%s\n", url);
-    CRASHUPLOAD_INFO("dump name=%s=>carsh firmware=%s\n", dump_name, crash_fw_version);
+    CRASHUPLOAD_INFO("dump name=%s=>crash firmware=%s\n", dump_name, crash_fw_version);
     CRASHUPLOAD_INFO("build type=%s=>model=%s\n", build_type, model);
     CRASHUPLOAD_INFO("md5sum=%s\n", md5sum);
 
@@ -227,7 +227,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
     {
         if (totlen < szPostFieldOut)
         {
-            CRASHUPLOAD_INFO("postfiled data=%s\n", post_filed);
+            CRASHUPLOAD_INFO("postfield data=%s\n", post_filed);
 #if defined(L2_TEST)
             char s3_url_file_saved[sizeof(s3_url_file)];
             memcpy(s3_url_file_saved, s3_url_file, sizeof(s3_url_file));
@@ -244,7 +244,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
             {
                 curl_ret = ret;
             }
-            CRASHUPLOAD_INFO("Curl Connected to $FQDN:%s\n", url);
+            CRASHUPLOAD_INFO("Curl Connected to FQDN: %s\n", url);
             CRASHUPLOAD_INFO("Curl return code :%d, HTTP SIGN URL Response:%lu\n", curl_ret, http_code);
             if (t2_enabled)
             {
@@ -276,7 +276,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
             {
                 CRASHUPLOAD_INFO("Attempting TLS1.2 connection to Amazon S3\n");
                 ret = extractS3PresignedUrl(s3_url_file, out_url, sizeof(out_url));
-                CRASHUPLOAD_INFO("extractS3PresignedUrl ret=%d=>out_url=%s\n", ret, out_url);
+                CRASHUPLOAD_INFO("extractS3PresignedUrl ret=%d", ret); //out_url=%s\n", ret, out_url);
                 if (ret == 0 && out_url[0] != '\0')
                 {
                     ret = performS3PutUpload(out_url, filepath, &sec_out);
@@ -360,7 +360,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
         else
         {
             CRASHUPLOAD_ERROR("post field buffer corrupted. Total write bytes=%zu and total buf size=%zu\n", totlen, szPostFieldOut);
-            CRASHUPLOAD_ERROR("postfiled data=%s\n", post_filed); // TODO: Need to remove
+            CRASHUPLOAD_ERROR("postfield data=%s\n", post_filed); // TODO: Need to remove
             break;
         }
     }
@@ -453,7 +453,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         ret = read_RFCProperty("EncryptCloudUpload", RFC_DMP_ENCRYPT_UPLOAD, encryptionEnable, sizeof(encryptionEnable));
         if ((ret == READ_RFC_FAILURE) || (encryptionEnable[0] == '\0'))
         {
-            strcpy(encryptionEnable, "false"); // TODO: Need check whta should be default value
+            strcpy(encryptionEnable, "false"); // TODO: Need check what should be default value
             CRASHUPLOAD_WARN("Read rfc failed EncryptCloudUpload:%s\n", encryptionEnable);
         }
         else

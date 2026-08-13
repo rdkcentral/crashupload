@@ -926,7 +926,7 @@ processDumps()
 		# For long APP Name
 		if [ "${#dumpName}" -ge "135" ]; then
                     #Remove the processname from the file name and if possible limit the name to 20 chars
-                    logMessage "The file name is still greater than 135 charecters try trimming the processname to 20 chars from the filename"
+                    logMessage "The file name is still greater than 135 characters try trimming the processname to 20 chars from the filename"
                     logMessage "The Current File Name : ${dumpName}"
                     appends_pname="${pname:0:20}"
                     cpname="${pname}"

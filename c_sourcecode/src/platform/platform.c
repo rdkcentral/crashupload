@@ -175,11 +175,11 @@ int platform_initialize(const config_t *config, platform_config_t *platform)
         }
         if (!ret)
         {
-            CRASHUPLOAD_ERROR("Get mac is failed. Setting dafult value\n");
+            CRASHUPLOAD_ERROR("Get mac is failed. Setting default value\n");
             strcpy(platform->mac_address, "000000000000");
         }
     }
-    // TODO: For brodband and extender we have change the code
+    // TODO: For broadband and extender we have change the code
     ret = GetModelNum(platform->model, sizeof(platform->model));
     if (ret)
     {
@@ -187,7 +187,7 @@ int platform_initialize(const config_t *config, platform_config_t *platform)
     }
     else
     {
-        CRASHUPLOAD_ERROR("GetModel is failed. Setting dafult value\n");
+        CRASHUPLOAD_ERROR("GetModel is failed. Setting default value\n");
         strcpy(platform->model, "UNKNOWN");
     }
     ret = file_get_sha1("/version.txt", platform->platform_sha1, sizeof(platform->platform_sha1));

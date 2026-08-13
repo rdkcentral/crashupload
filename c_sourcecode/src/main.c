@@ -145,10 +145,10 @@ int main_test(int argc, char *argv[])
         CRASHUPLOAD_INFO("SIGTERM handler install success\n");
     }
     /* Step 1: Consolidated Initialization */
-    if (system_initialize(argc, argv, &config, &platform) != SYSTEM_INIT_SUCCESS)
+    int system_init_ret = system_initialize(argc, argv, &config, &platform);
+    if (system_init_ret != SYSTEM_INIT_SUCCESS)
     {
-        CRASHUPLOAD_ERROR("System initialization failed:%d\n", lock_fd);
-        t2Uninit();
+        CRASHUPLOAD_ERROR("System initialization failed:%d\n", system_init_ret);
         logger_exit();
 #ifndef GTEST_ENABLE
         exit(1);
@@ -326,7 +326,7 @@ int main_test(int argc, char *argv[])
         }
         if (strlen(new_dump_name) >= 135)
         {
-            CRASHUPLOAD_INFO("The file name is still greater than 135 charecters try trimming the processname to 20 chars from the filename\n");
+            CRASHUPLOAD_INFO("The file name is still greater than 135 characters try trimming the processname to 20 chars from the filename\n");
             CRASHUPLOAD_INFO("The Current File Name :%s\n", new_dump_name);
             char *pname = extract_pname(new_dump_name);
             if (!pname)

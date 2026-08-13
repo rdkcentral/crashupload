@@ -362,7 +362,7 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
                         CRASHUPLOAD_INFO("Reached Max number of process log file\n"); // TODO: This is logic not present in script. Need review
                         break;
                     }
-                    // TODO: More optimization required. Insted copy last 5000 line copy we can do byte copy.
+                    // TODO: More optimization required. Instead copy last 5000 line copy we can do byte copy.
                     if (!add_crashed_process_log_file(config, platform, buf, process_name_log, sizeof(process_name_log)))
                     {
                         snprintf(arch_files_list[no_of_files], 256, "%s", process_name_log);

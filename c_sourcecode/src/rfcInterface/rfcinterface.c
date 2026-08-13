@@ -101,7 +101,7 @@ int read_RFCProperty(char *type, const char *key, char *out_value, size_t datasi
         data_len = strlen(param.value);
         if (data_len >= 2 && (param.value[0] == '"') && (param.value[data_len - 1] == '"'))
         {
-            // remove quotes arround data
+            // remove quotes around data
             snprintf(out_value, datasize, "%s", &param.value[1]);
             *(out_value + data_len - 2) = 0;
         }
@@ -176,7 +176,7 @@ int read_RFCProperty(const char *type, const char *key, char *out_value, size_t 
     (void)key;
     (void)out_value;
     (void)datasize;
-    CRASHUPLOAD_INFO("%s: Not Applicabe For RDK-M. Need to implement\n", __FUNCTION__);
+    CRASHUPLOAD_INFO("%s: Not Applicable For RDK-M. Need to implement\n", __FUNCTION__);
     return READ_RFC_NOTAPPLICABLE;
 }
 /* Description: Below function should be Writing rfc data For RDk-M
@@ -194,7 +194,7 @@ int write_RFCProperty(const char *type, const char *key, const char *value, RFCV
     (void)key;
     (void)value;
     (void)datatype;
-    CRASHUPLOAD_INFO("%s: Not Applicabe For RDK-M. Need to implement\n", __FUNCTION__);
+    CRASHUPLOAD_INFO("%s: Not Applicable For RDK-M. Need to implement\n", __FUNCTION__);
     return WRITE_RFC_NOTAPPLICABLE;
 }
 #endif
