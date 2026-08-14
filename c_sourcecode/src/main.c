@@ -45,9 +45,11 @@
 #include "systemutils.h"
 #include "upload.h"
 #include "t2Interface/telemetryinterface.h"
+#ifndef GTEST_ENABLE
+#include "rdkv_cdl_log_wrapper.h"
+#endif
 
 int lock_dir_prefix = 0;
-extern char* RDK_LOGGER_SHARED_NAME_IDENTIFIER_INTERNAL;
 
 void handle_signal(int no, siginfo_t *info, void *uc)
 {
@@ -82,7 +84,7 @@ void handle_signal(int no, siginfo_t *info, void *uc)
 #ifndef GTEST_ENABLE
 int main(int argc, char *argv[])
 {
-    RDK_LOGGER_SHARED_NAME_IDENTIFIER_INTERNAL = "LOG.RDK.CRASHUPLOAD";
+    commonutilities_set_log_prefix("LOG.RDK.CRASHUPLOAD");
 #else
 int main_test(int argc, char *argv[])
 {
