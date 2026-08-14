@@ -25,8 +25,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern char* RDK_LOGGER_SHARED_NAME_IDENTIFIER_INTERNAL;
-char* RDK_LOGGER_SHARED_NAME_IDENTIFIER_INTERNAL = "LOG.RDK.CRASHUPLOAD";
 /**
  * @brief Initialize RDK Logger subsystem
     *

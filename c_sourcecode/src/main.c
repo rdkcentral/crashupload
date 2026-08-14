@@ -47,6 +47,7 @@
 #include "t2Interface/telemetryinterface.h"
 
 int lock_dir_prefix = 0;
+extern char* RDK_LOGGER_SHARED_NAME_IDENTIFIER_INTERNAL;
 
 void handle_signal(int no, siginfo_t *info, void *uc)
 {
@@ -81,6 +82,7 @@ void handle_signal(int no, siginfo_t *info, void *uc)
 #ifndef GTEST_ENABLE
 int main(int argc, char *argv[])
 {
+    RDK_LOGGER_SHARED_NAME_IDENTIFIER_INTERNAL = "LOG.RDK.CRASHUPLOAD";
 #else
 int main_test(int argc, char *argv[])
 {
