@@ -409,19 +409,15 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
 
             if (config->build_type != BUILD_TYPE_PROD)
             {
-                char receiver_log[PATH_MAX] = {0};
-                char thread_log[PATH_MAX] = {0};
-                snprintf(receiver_log, sizeof(receiver_log), "%s/receiver.log", config->log_path);
-                snprintf(thread_log, sizeof(thread_log), "%s/thread.log", config->log_path);
-                if (0 == (filePresentCheck(receiver_log)))
+                snprintf(arch_files_list[no_of_files], 256, "%s/receiver.log", config->log_path);
+                if (0 == (filePresentCheck(arch_files_list[no_of_files])))
                 {
-                    snprintf(arch_files_list[no_of_files], 256, "%s", receiver_log);
                     CRASHUPLOAD_INFO("RDKC adding receiver.log=%s\n", arch_files_list[no_of_files]);
                     no_of_files++;
                 }
-                if (0 == (filePresentCheck(thread_log)))
+                snprintf(arch_files_list[no_of_files], 256, "%s/thread.log", config->log_path);
+                if (0 == (filePresentCheck(arch_files_list[no_of_files])))
                 {
-                    snprintf(arch_files_list[no_of_files], 256, "%s", thread_log);
                     CRASHUPLOAD_INFO("RDKC adding thread.log=%s\n", arch_files_list[no_of_files]);
                     no_of_files++;
                 }

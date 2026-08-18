@@ -319,7 +319,13 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                 {
                     tls_log(curl_ret, "mediaclient", fqdn);
                     char certerr_val[1024];
-                    snprintf(certerr_val, sizeof(certerr_val), "DumpUL, %d, %s", curl_ret, fqdn);
+                    int prefix_len = snprintf(certerr_val, sizeof(certerr_val), "DumpUL, %d, ", curl_ret);
+                    if (prefix_len > 0 && (size_t)prefix_len < sizeof(certerr_val))
+                    {
+                        snprintf(certerr_val + prefix_len,
+                                 sizeof(certerr_val) - (size_t)prefix_len,
+                                 "%s", fqdn);
+                    }
                     t2ValNotify("certerr_split", certerr_val);
                 }
                 else
