@@ -318,7 +318,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                 if (device_type != DEVICE_TYPE_BROADBAND)
                 {
                     tls_log(curl_ret, "mediaclient", fqdn);
-                    char certerr_val[1024];
+                    char certerr_val[1024] = {0};
                     int prefix_len = snprintf(certerr_val, sizeof(certerr_val), "DumpUL, %d, ", curl_ret);
                     if (prefix_len > 0 && (size_t)prefix_len < sizeof(certerr_val))
                     {
