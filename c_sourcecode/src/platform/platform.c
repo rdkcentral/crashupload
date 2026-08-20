@@ -22,11 +22,9 @@
 #include "platform.h"
 #include "../../common/errors.h"
 #include "../utils/logger.h"
+#include "../rbusInterface/rbus_interface.h"
 #include <fcntl.h>
 #include <unistd.h>
-#ifndef GTEST_ENABLE
-#include "secure_wrapper.h"
-#endif
 
 /* function NormalizeMac - gets the eSTB MAC address of the device.
 
@@ -249,9 +247,6 @@ const char *get_core_type(void)
     return core;
 }
 
-#define IF_INFO_FILE            "/tmp/if_info"
-#define SYSEVENT_TIMEOUT_SEC    900
-#define SYSEVENT_POLL_SEC       5
 
 const char *get_interface_value(void)
 {
@@ -287,23 +282,17 @@ const char *get_interface_value(void)
     int elapsed = 0;
     while (elapsed < SYSEVENT_TIMEOUT_SEC)
     {
-        FILE *fp = v_secure_popen("r", "sysevent get current_wan_ifname");
-        if (fp)
+        char buf[32] = {0};
+        if (crashupload_sysevent_get("current_wan_ifname", buf, sizeof(buf)))
         {
-            char buf[32] = {0};
-            if (fgets(buf, sizeof(buf), fp))
+            size_t len = strlen(buf);
+            if (len > 0 && buf[len - 1] == '\n') buf[len - 1] = '\0';
+            if (buf[0] != '\0')
             {
-                size_t len = strlen(buf);
-                if (len > 0 && buf[len - 1] == '\n') buf[len - 1] = '\0';
-                if (buf[0] != '\0')
-                {
-                    snprintf(if_name, sizeof(if_name), "%s", buf);
-                    v_secure_pclose(fp);
-                    CRASHUPLOAD_INFO("get_interface_value: sysevent=%s\n", if_name);
-                    return if_name;
-                }
+                snprintf(if_name, sizeof(if_name), "%s", buf);
+                CRASHUPLOAD_INFO("get_interface_value: sysevent=%s\n", if_name);
+                return if_name;
             }
-            v_secure_pclose(fp);
         }
         sleep(SYSEVENT_POLL_SEC);
         elapsed += SYSEVENT_POLL_SEC;

@@ -34,6 +34,10 @@
 #define TMP_CPU_INFO_FILE "/tmp/cpu_info"
 #define CPU_INFO_FILE "/proc/cpuinfo"
 
+#define IF_INFO_FILE            "/tmp/if_info"
+#define SYSEVENT_TIMEOUT_SEC    900
+#define SYSEVENT_POLL_SEC       5
+
 /** @brief Initialize platform configuration
  * @param config Application configuration
  * @param platform Platform configuration (output)

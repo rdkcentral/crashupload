@@ -27,12 +27,6 @@
 #include "common_device_api.h"
 #include "system_utils.h"
 #endif
-#ifndef GTEST_ENABLE
-#include "secure_wrapper.h"
-#else
-FILE *v_secure_popen(const char *dir, const char *format, ...);
-int v_secure_pclose(FILE *fp);
-#endif
 #include "mtls_upload.h"
 #include "upload_status.h"
 #include "ratelimit.h"
@@ -528,16 +522,11 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         if (config->device_type == DEVICE_TYPE_BROADBAND)
         {
             /* syscfg is primary; rbus is fallback when syscfg returns empty */
-            FILE *fp = v_secure_popen("r", "syscfg get encryptcloudupload");
-            if (fp)
+            if (crashupload_syscfg_get("encryptcloudupload", encryptionEnable, sizeof(encryptionEnable)))
             {
-                if (fgets(encryptionEnable, sizeof(encryptionEnable), fp) != NULL)
-                {
-                    size_t elen = strlen(encryptionEnable);
-                    if (elen > 0 && encryptionEnable[elen - 1] == '\n')
-                        encryptionEnable[elen - 1] = '\0';
-                }
-                v_secure_pclose(fp);
+                size_t elen = strlen(encryptionEnable);
+                if (elen > 0 && encryptionEnable[elen - 1] == '\n')
+                    encryptionEnable[elen - 1] = '\0';
             }
             /*rbus fallback if syscfg returned empty */
             if (encryptionEnable[0] == '\0' && rbus_ok)

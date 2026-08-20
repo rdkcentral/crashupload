@@ -125,8 +125,13 @@ struct UploadMockState {
     bool rbus_get_string_return_value;
     char rbus_get_string_output[512];
 
-    /* v_secure_popen mock — content fgets() will read back */
-    char v_secure_popen_output[64];
+    /* syscfg/sysevent wrapper mocks */
+    bool syscfg_get_return_value;
+    bool syscfg_set_return_value;
+    bool sysevent_get_return_value;
+    bool sysevent_set_return_value;
+    char syscfg_get_output[64];
+    char sysevent_get_output[64];
     
     // File present check
     int file_present_return_value;
@@ -344,7 +349,12 @@ void reset_upload_mocks() {
     g_upload_mock_state.rbus_init_return_value = true;
     g_upload_mock_state.rbus_get_string_return_value = false;
     memset(g_upload_mock_state.rbus_get_string_output, 0, sizeof(g_upload_mock_state.rbus_get_string_output));
-    memset(g_upload_mock_state.v_secure_popen_output, 0, sizeof(g_upload_mock_state.v_secure_popen_output));
+    g_upload_mock_state.syscfg_get_return_value = false;
+    g_upload_mock_state.syscfg_set_return_value = true;
+    g_upload_mock_state.sysevent_get_return_value = false;
+    g_upload_mock_state.sysevent_set_return_value = true;
+    memset(g_upload_mock_state.syscfg_get_output, 0, sizeof(g_upload_mock_state.syscfg_get_output));
+    memset(g_upload_mock_state.sysevent_get_output, 0, sizeof(g_upload_mock_state.sysevent_get_output));
 }
 
 // ============================================================================
@@ -635,15 +645,45 @@ bool rbus_get_string_param(const char *param_name, char *value_buf, size_t buf_s
     return g_upload_mock_state.rbus_get_string_return_value;
 }
 
-/* v_secure_popen writes mock content into a tmpfile so fgets() works normally */
-FILE *v_secure_popen(const char *dir, const char *format, ...) {
-    (void)dir; (void)format;
-    if (!g_upload_mock_state.v_secure_popen_output[0]) return NULL;
-    FILE *fp = tmpfile();
-    if (fp) { fputs(g_upload_mock_state.v_secure_popen_output, fp); rewind(fp); }
-    return fp;
+bool crashupload_syscfg_get(const char *key, char *value_buf, size_t buf_size) {
+    (void)key;
+    if (!value_buf || buf_size == 0) {
+        return false;
+    }
+    if (g_upload_mock_state.syscfg_get_output[0] != '\0') {
+        strncpy(value_buf, g_upload_mock_state.syscfg_get_output, buf_size - 1);
+        value_buf[buf_size - 1] = '\0';
+    } else {
+        value_buf[0] = '\0';
+    }
+    return g_upload_mock_state.syscfg_get_return_value;
 }
-int v_secure_pclose(FILE *fp) { if (fp) fclose(fp); return 0; }
+
+bool crashupload_syscfg_set(const char *key, const char *value) {
+    (void)key;
+    (void)value;
+    return g_upload_mock_state.syscfg_set_return_value;
+}
+
+bool crashupload_sysevent_get(const char *key, char *value_buf, size_t buf_size) {
+    (void)key;
+    if (!value_buf || buf_size == 0) {
+        return false;
+    }
+    if (g_upload_mock_state.sysevent_get_output[0] != '\0') {
+        strncpy(value_buf, g_upload_mock_state.sysevent_get_output, buf_size - 1);
+        value_buf[buf_size - 1] = '\0';
+    } else {
+        value_buf[0] = '\0';
+    }
+    return g_upload_mock_state.sysevent_get_return_value;
+}
+
+bool crashupload_sysevent_set(const char *key, const char *value) {
+    (void)key;
+    (void)value;
+    return g_upload_mock_state.sysevent_set_return_value;
+}
 
 void set_mock_rbus_init_behavior(bool return_value) {
     g_upload_mock_state.rbus_init_return_value = return_value;
@@ -657,13 +697,14 @@ void set_mock_rbus_get_string_behavior(bool return_value, const char *output) {
     }
     else g_upload_mock_state.rbus_get_string_output[0] = '\0';
 }
-void set_mock_v_secure_popen_behavior(const char *output) {
+void set_mock_syscfg_get_behavior(bool return_value, const char *output) {
+    g_upload_mock_state.syscfg_get_return_value = return_value;
     if (output) {
-        strncpy(g_upload_mock_state.v_secure_popen_output, output,
-                sizeof(g_upload_mock_state.v_secure_popen_output) - 1);
-        g_upload_mock_state.v_secure_popen_output[sizeof(g_upload_mock_state.v_secure_popen_output) - 1] = '\0';
+        strncpy(g_upload_mock_state.syscfg_get_output, output,
+                sizeof(g_upload_mock_state.syscfg_get_output) - 1);
+        g_upload_mock_state.syscfg_get_output[sizeof(g_upload_mock_state.syscfg_get_output) - 1] = '\0';
     }
-    else g_upload_mock_state.v_secure_popen_output[0] = '\0';
+    else g_upload_mock_state.syscfg_get_output[0] = '\0';
 }
 
 } // extern "C"

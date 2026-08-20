@@ -79,7 +79,7 @@ void reset_upload_mocks();
 /* broadband/extender mock controls */
 void set_mock_rbus_init_behavior(bool return_value);
 void set_mock_rbus_get_string_behavior(bool return_value, const char *output);
-void set_mock_v_secure_popen_behavior(const char *output);
+void set_mock_syscfg_get_behavior(bool return_value, const char *output);
 }
 
 using ::testing::_;
@@ -810,7 +810,7 @@ TEST_F(UploadTest, UploadProcess_BroadbandSupported) {
 
     set_mock_rbus_init_behavior(true);
     set_mock_rbus_get_string_behavior(true, test_url);
-    set_mock_v_secure_popen_behavior("false\n");
+    set_mock_syscfg_get_behavior(true, "false\n");
     set_mock_firmware_version_behavior(10, "1.0.0");
     set_mock_metadata_post_behavior(0, 200);
     set_mock_upload_status(200, 0);
@@ -1217,7 +1217,7 @@ TEST_F(UploadTest, UploadProcess_Broadband_RbusS3Url_Success) {
     test_config.device_type = DEVICE_TYPE_BROADBAND;
     set_mock_rbus_init_behavior(true);
     set_mock_rbus_get_string_behavior(true, test_url);
-    set_mock_v_secure_popen_behavior("false");  // syscfg encryptionEnable=false
+    set_mock_syscfg_get_behavior(true, "false");  // syscfg encryptionEnable=false
     set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
     set_mock_metadata_post_behavior(0, 200);
     set_mock_upload_status(200, 0);
@@ -1233,7 +1233,7 @@ TEST_F(UploadTest, UploadProcess_Broadband_RbusMiss_FallbackS3Url) {
     test_config.device_type = DEVICE_TYPE_BROADBAND;
     set_mock_rbus_init_behavior(true);
     set_mock_rbus_get_string_behavior(false, ""); // rbus returns empty
-    set_mock_v_secure_popen_behavior("false");
+    set_mock_syscfg_get_behavior(true, "false");
     set_mock_read_rfc_property_behavior(1, test_url);
     set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
     set_mock_metadata_post_behavior(0, 200);
@@ -1250,7 +1250,7 @@ TEST_F(UploadTest, UploadProcess_Broadband_SyscfgEncryptionTrue) {
     test_config.device_type = DEVICE_TYPE_BROADBAND;
     set_mock_rbus_init_behavior(true);
     set_mock_rbus_get_string_behavior(true, test_url);
-    set_mock_v_secure_popen_behavior("true\n"); // syscfg returns true → MD5 computed
+    set_mock_syscfg_get_behavior(true, "true\n"); // syscfg returns true → MD5 computed
     set_mock_compute_md5_behavior(0, "abc123md5base64==");
     set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
     set_mock_metadata_post_behavior(0, 200);
@@ -1343,7 +1343,7 @@ TEST_F(UploadTest, UploadProcess_Broadband_UploadFail_CoredumpRemoved) {
     test_config.dump_type = DUMP_TYPE_COREDUMP;
     set_mock_rbus_init_behavior(true);
     set_mock_rbus_get_string_behavior(true, test_url);
-    set_mock_v_secure_popen_behavior("false");
+    set_mock_syscfg_get_behavior(true, "false");
     set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
     set_mock_metadata_post_behavior(0, 200);
     set_mock_upload_status(500, 22); // upload fails

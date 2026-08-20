@@ -57,4 +57,38 @@ void rbus_cleanup(void);
  */
 bool rbus_get_string_param(const char *param_name, char *value_buf, size_t buf_size);
 
+/**
+ * @brief Read a syscfg value by key.
+ * @param key syscfg key.
+ * @param value_buf Output buffer.
+ * @param buf_size Output buffer size.
+ * @return true on success.
+ */
+bool crashupload_syscfg_get(const char *key, char *value_buf, size_t buf_size);
+
+/**
+ * @brief Set a syscfg value by key.
+ * @param key syscfg key.
+ * @param value Value to set.
+ * @return true on success.
+ */
+bool crashupload_syscfg_set(const char *key, const char *value);
+
+/**
+ * @brief Read a sysevent value by key.
+ * @param key sysevent key.
+ * @param value_buf Output buffer.
+ * @param buf_size Output buffer size.
+ * @return true on success.
+ */
+bool crashupload_sysevent_get(const char *key, char *value_buf, size_t buf_size);
+
+/**
+ * @brief Set a sysevent value by key.
+ * @param key sysevent key.
+ * @param value Value to set.
+ * @return true on success.
+ */
+bool crashupload_sysevent_set(const char *key, const char *value);
+
 #endif /* RBUS_INTERFACE_H */
