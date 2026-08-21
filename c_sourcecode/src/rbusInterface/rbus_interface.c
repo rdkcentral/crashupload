@@ -24,7 +24,7 @@
 #include "../utils/logger.h"
 
 #ifdef SYSCFG_API_ENABLED
-#include "syscfg.h"
+#include <syscfg/syscfg.h>
 #endif
 
 #ifdef SYSEVENT_API_ENABLED
