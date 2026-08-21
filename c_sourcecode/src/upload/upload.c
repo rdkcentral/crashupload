@@ -316,9 +316,12 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                     int prefix_len = snprintf(certerr_val, sizeof(certerr_val), "DumpUL, %d, ", curl_ret);
                     if (prefix_len > 0 && (size_t)prefix_len < sizeof(certerr_val))
                     {
-                        snprintf(certerr_val + prefix_len,
-                                 sizeof(certerr_val) - (size_t)prefix_len,
-                                 "%s", fqdn);
+                        size_t remaining = sizeof(certerr_val) - (size_t)prefix_len;
+                        size_t fqdn_len = strlen(fqdn);
+                        if (fqdn_len >= remaining)
+                            fqdn_len = remaining - 1;
+                        memcpy(certerr_val + prefix_len, fqdn, fqdn_len);
+                        certerr_val[(size_t)prefix_len + fqdn_len] = '\0';
                     }
                     t2ValNotify("certerr_split", certerr_val);
                 }
