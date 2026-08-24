@@ -45,9 +45,6 @@
 #include "systemutils.h"
 #include "upload.h"
 #include "t2Interface/telemetryinterface.h"
-#ifndef GTEST_ENABLE
-extern void commonutilities_set_log_prefix(const char *prefix) __attribute__((weak));
-#endif
 
 int lock_dir_prefix = 0;
 
@@ -84,10 +81,6 @@ void handle_signal(int no, siginfo_t *info, void *uc)
 #ifndef GTEST_ENABLE
 int main(int argc, char *argv[])
 {
-    if (commonutilities_set_log_prefix != NULL)
-    {
-        commonutilities_set_log_prefix("LOG.RDK.CRASHUPLOAD");
-    }
 #else
 int main_test(int argc, char *argv[])
 {
