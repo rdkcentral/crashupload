@@ -519,9 +519,6 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         strcpy(portal_url, RDKB_PORTAL_DEFAULT_URL);
         request_type = 18;
 
-        /* Init rbus once; used for M1 (encryptionEnable fallback) and M3 (S3 URL) */
-        bool rbus_ok = rbus_init();
-
         if (config->device_type == DEVICE_TYPE_BROADBAND)
         {
             /* syscfg is primary; rbus is fallback when syscfg returns empty */
@@ -532,7 +529,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
                     encryptionEnable[elen - 1] = '\0';
             }
             /*rbus fallback if syscfg returned empty */
-            if (encryptionEnable[0] == '\0' && rbus_ok)
+            if (encryptionEnable[0] == '\0')
                 rbus_get_string_param(RFC_DMP_ENCRYPT_UPLOAD, encryptionEnable, sizeof(encryptionEnable));
 
             if (encryptionEnable[0] == '\0')
@@ -551,13 +548,11 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
             strcpy(encryptionEnable, "false");
         }
 
-        CRASHUPLOAD_INFO("%s: request_type=%d portal=%s\n",
-                         device_type_to_str(config->device_type), request_type, portal_url);
+        CRASHUPLOAD_INFO("%s: request_type=%d portal=%s\n", device_type_to_str(config->device_type), request_type, portal_url);
 
         /* M3: broadband primary S3 URL from Syndication.CrashPortal via rbus */
-        if (config->device_type == DEVICE_TYPE_BROADBAND && rbus_ok)
-            rbus_get_string_param(RDKB_SYNDICATION_CRASH_PORTAL,
-                                  crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
+        if (config->device_type == DEVICE_TYPE_BROADBAND)
+            rbus_get_string_param(RDKB_SYNDICATION_CRASH_PORTAL, crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
 
         /* Extender or broadband rbus miss: fall back to RFC/device.properties */
         if (crashportalEndpointUrl[0] == '\0')
@@ -581,14 +576,10 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
             if (ret < 0)
             {
                 CRASHUPLOAD_ERROR("%s: Unable to get S3 server url\n", device_type_to_str(config->device_type));
-                if (rbus_ok) rbus_cleanup();
                 return ret;
             }
         }
-        CRASHUPLOAD_INFO("%s: S3 signing URL=%s\n",
-                         device_type_to_str(config->device_type), crashportalEndpointUrl);
-        if (rbus_ok)
-            rbus_cleanup();
+        CRASHUPLOAD_INFO("%s: S3 signing URL=%s\n", device_type_to_str(config->device_type), crashportalEndpointUrl);
     }
     else
     {

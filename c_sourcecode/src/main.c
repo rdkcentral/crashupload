@@ -45,6 +45,7 @@
 #include "systemutils.h"
 #include "upload.h"
 #include "t2Interface/telemetryinterface.h"
+#include "rbusInterface/rbus_interface.h"
 
 int lock_dir_prefix = 0;
 
@@ -149,6 +150,7 @@ int main_test(int argc, char *argv[])
     if (system_init_ret != SYSTEM_INIT_SUCCESS)
     {
         CRASHUPLOAD_ERROR("System initialization failed:%d\n", system_init_ret);
+        rbusUninit();
         logger_exit();
 #ifndef GTEST_ENABLE
         exit(1);
@@ -163,6 +165,7 @@ int main_test(int argc, char *argv[])
     if (lock_fd < LOCK_ACQUIRE_SUCCESS)
     {
         CRASHUPLOAD_ERROR("Failed to acquire lock\n");
+        rbusUninit();
         t2Uninit();
         logger_exit();
 #ifndef GTEST_ENABLE
@@ -400,7 +403,8 @@ cleanup:
             CRASHUPLOAD_WARN("Failed to create /tmp/crash_reboot\n");
         }
     }
-    /* Uninitialize telemetry */
+    /* Uninitialize RBUS, telemetry and Logger */
+    rbusUninit();
     t2Uninit();
     logger_exit();
 

@@ -30,6 +30,7 @@
 #include "../utils/logger.h"
 #include "../platform/platform.h"
 #include "../t2Interface/telemetryinterface.h"
+#include "../rbusInterface/rbus_interface.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -51,6 +52,13 @@ int system_initialize(int argc, char *argv[],
         t2Uninit();
         return ERR_SYSTEM_INIT_FAILED;
     }
+    if (!rbusInit())
+    {
+        CRASHUPLOAD_ERROR("rbusInit failed\n");
+        rbusUninit();
+        t2Uninit();
+        return ERR_SYSTEM_INIT_FAILED;
+    }
     CRASHUPLOAD_INFO("core_log file=%s\n", config->core_log_file);
     if (0 != (filePresentCheck(config->core_log_file)))
     {
@@ -59,6 +67,7 @@ int system_initialize(int argc, char *argv[],
         if (fd < 0)
         {
             CRASHUPLOAD_ERROR("open failed\n");
+            rbusUninit();
             t2Uninit();
             return ERR_SYSTEM_INIT_FAILED;
         }
@@ -73,6 +82,7 @@ int system_initialize(int argc, char *argv[],
     if (platform_initialize(config, platform) != PLATFORM_INIT_SUCCESS)
     {
         CRASHUPLOAD_ERROR("platform_initialize failed\n");
+        rbusUninit();
         t2Uninit();
         return ERR_PLATFORM_INIT_FAILED;
     }

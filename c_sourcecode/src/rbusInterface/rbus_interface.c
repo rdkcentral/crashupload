@@ -131,6 +131,16 @@ bool rbus_get_string_param(const char *param_name, char *value_buf, size_t buf_s
 }
 #endif
 
+bool rbusInit(void)
+{
+    return rbus_init();
+}
+
+void rbusUninit(void)
+{
+    rbus_cleanup();
+}
+
 bool crashupload_syscfg_get(const char *key, char *value_buf, size_t buf_size)
 {
     if (!key || !value_buf || buf_size == 0)

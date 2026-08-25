@@ -332,15 +332,6 @@ void config_cleanup(config_t *config)
 privacy_control_t get_privacy_control_mode(void)
 {
     privacy_control_t ret_privacyMode = SHARE; // default to SHARE
-    bool rbusInit = false;
-    if(!rbus_init())
-    {
-        CRASHUPLOAD_ERROR("RBUS initialization failed\n");
-        return ret_privacyMode; // default to SHARE if RBUS fails
-    }
-    CRASHUPLOAD_INFO("RBUS initialized successfully\n");
-    rbusInit = true;
-
     char rbus_privacy_mode[32] = {0};
     // temp value rbus_privacy_mode
     if (rbus_get_string_param(RFC_PRIVACY_MODE, rbus_privacy_mode, sizeof(rbus_privacy_mode)))
@@ -364,12 +355,6 @@ privacy_control_t get_privacy_control_mode(void)
     else
     {
         CRASHUPLOAD_ERROR("Failed to get privacy mode from RBUS, defaulting to SHARE\n"); // default to SHARE if RBUS call fails
-    }
-    
-    if (rbusInit)
-    {
-        rbus_cleanup();
-        CRASHUPLOAD_INFO("RBUS connection closed\n");
     }
     return ret_privacyMode; // return the privacy mode (SHARE or DO_NOT_SHARE)
 }

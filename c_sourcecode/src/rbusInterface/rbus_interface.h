@@ -42,6 +42,17 @@ bool rbus_init(void);
 void rbus_cleanup(void);
 
 /**
+ * @brief Initialize the application-owned RBUS connection.
+ * @return true on success, false on failure.
+ */
+bool rbusInit(void);
+
+/**
+ * @brief Release the application-owned RBUS connection.
+ */
+void rbusUninit(void);
+
+/**
  * @brief Get TR-181 string parameter via RBUS
  * @param param_name TR-181 parameter name
  * @param value_buf Buffer to store the string value
