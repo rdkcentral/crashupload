@@ -26,6 +26,7 @@
 #include "../../common/types.h"
 #define RDKB_LOG_FILE_NAME "core_log.txt.0"
 #define NON_RDKB_LOG_FILE_NAME "core_log.txt"
+#define RFC_PRIVACY_MODE "Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode"
 
 /**
  * @brief Load configuration from multiple sources

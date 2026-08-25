@@ -36,8 +36,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define RFC_PRIVACY_MODE "Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode"
-
 static int ensure_directory_exists(const char *dir_path)
 {
     char path[128] = {0};

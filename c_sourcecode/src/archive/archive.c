@@ -440,10 +440,7 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
     if (!tar_status)
     {
         snprintf(archive->archive_name, sizeof(archive->archive_name), "%s", target_file_name);
-        CRASHUPLOAD_INFO("%s %s archive creation SUCCESS: %s\n",
-                         device_type_to_str(config->device_type),
-                         config->dump_type == DUMP_TYPE_MINIDUMP ? "minidump" : "coredump",
-                         archive->archive_name);
+        CRASHUPLOAD_INFO("Success Compressing the files (%s) %s for %s\n", config->dump_type == DUMP_TYPE_MINIDUMP ? "minidump" : "coredump", archive->archive_name, device_type_to_str(config->device_type));
         CRASHUPLOAD_INFO("dump file=%s\n", arch_files_list[0]);
         CRASHUPLOAD_INFO("version file=%s\n", arch_files_list[1]);
         CRASHUPLOAD_INFO("core log file=%s\n", arch_files_list[2]);

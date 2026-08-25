@@ -270,7 +270,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
             {
                 CRASHUPLOAD_INFO("Attempting TLS1.2 connection to Amazon S3\n");
                 ret = extractS3PresignedUrl(s3_url_file, out_url, sizeof(out_url));
-                CRASHUPLOAD_INFO("extractS3PresignedUrl ret=%d", ret); //out_url=%s\n", ret, out_url);
+                CRASHUPLOAD_INFO("extractS3PresignedUrl ret=%d", ret);
                 if (ret == 0 && out_url[0] != '\0')
                 {
                     ret = performS3PutUpload(out_url, filepath, &sec_out);

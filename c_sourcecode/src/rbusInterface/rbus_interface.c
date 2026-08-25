@@ -23,11 +23,8 @@
 #include "rbus_interface.h"
 #include "../utils/logger.h"
 
-#ifdef SYSCFG_API_ENABLED
+#ifdef BROADBAND
 #include <syscfg/syscfg.h>
-#endif
-
-#ifdef SYSEVENT_API_ENABLED
 #include "sysevent/sysevent.h"
 #endif
 
@@ -144,7 +141,7 @@ bool crashupload_syscfg_get(const char *key, char *value_buf, size_t buf_size)
 
     value_buf[0] = '\0';
 
-#ifdef SYSCFG_API_ENABLED
+#ifdef BROADBAND
     if (syscfg_get(NULL, key, value_buf, (int)buf_size) == 0)
     {
         return true;
@@ -153,7 +150,7 @@ bool crashupload_syscfg_get(const char *key, char *value_buf, size_t buf_size)
     CRASHUPLOAD_WARN("syscfg_get wrapper: failed for key=%s\n", key);
     return false;
 #else
-    CRASHUPLOAD_DEBUG("syscfg_get wrapper: SYSCFG_API_ENABLED not set, key=%s\n", key);
+    CRASHUPLOAD_DEBUG("syscfg_get wrapper: BROADBAND not set, key=%s\n", key);
     return false;
 #endif
 }
@@ -166,7 +163,7 @@ bool crashupload_syscfg_set(const char *key, const char *value)
         return false;
     }
 
-#ifdef SYSCFG_API_ENABLED
+#ifdef BROADBAND
     if (syscfg_set(NULL, key, value) == 0)
     {
         return true;
@@ -175,7 +172,7 @@ bool crashupload_syscfg_set(const char *key, const char *value)
     CRASHUPLOAD_WARN("syscfg_set wrapper: failed for key=%s\n", key);
     return false;
 #else
-    CRASHUPLOAD_DEBUG("syscfg_set wrapper: SYSCFG_API_ENABLED not set, key=%s\n", key);
+    CRASHUPLOAD_DEBUG("syscfg_set wrapper: BROADBAND not set, key=%s\n", key);
     return false;
 #endif
 }
@@ -190,7 +187,7 @@ bool crashupload_sysevent_get(const char *key, char *value_buf, size_t buf_size)
 
     value_buf[0] = '\0';
 
-#ifdef SYSEVENT_API_ENABLED
+#ifdef BROADBAND
     token_t token;
     int fd = sysevent_open("127.0.0.1", SE_SERVER_WELL_KNOWN_PORT, SE_VERSION, "crashupload", &token);
     if (fd < 0)
@@ -209,7 +206,7 @@ bool crashupload_sysevent_get(const char *key, char *value_buf, size_t buf_size)
     sysevent_close(fd, token);
     return true;
 #else
-    CRASHUPLOAD_DEBUG("sysevent_get wrapper: SYSEVENT_API_ENABLED not set, key=%s\n", key);
+    CRASHUPLOAD_DEBUG("sysevent_get wrapper: BROADBAND not set, key=%s\n", key);
     return false;
 #endif
 }
@@ -222,7 +219,7 @@ bool crashupload_sysevent_set(const char *key, const char *value)
         return false;
     }
 
-#ifdef SYSEVENT_API_ENABLED
+#ifdef BROADBAND
     token_t token;
     int fd = sysevent_open("127.0.0.1", SE_SERVER_WELL_KNOWN_PORT, SE_VERSION, "crashupload", &token);
     if (fd < 0)
@@ -241,7 +238,7 @@ bool crashupload_sysevent_set(const char *key, const char *value)
     sysevent_close(fd, token);
     return true;
 #else
-    CRASHUPLOAD_DEBUG("sysevent_set wrapper: SYSEVENT_API_ENABLED not set, key=%s\n", key);
+    CRASHUPLOAD_DEBUG("sysevent_set wrapper: BROADBAND not set, key=%s\n", key);
     return false;
 #endif
 }
