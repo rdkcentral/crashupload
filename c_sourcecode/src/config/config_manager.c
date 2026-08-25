@@ -26,65 +26,11 @@
 #include "../rbusInterface/rbus_interface.h"
 #include "../platform/platform.h"
 
-#include <errno.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
-static int ensure_directory_exists(const char *dir_path)
-{
-    char path[128] = {0};
-    size_t len = 0;
-
-    if (!dir_path)
-    {
-        return -1;
-    }
-
-    len = strlen(dir_path);
-    if (len == 0 || len >= sizeof(path))
-    {
-        return -1;
-    }
-
-    strncpy(path, dir_path, sizeof(path) - 1);
-    path[sizeof(path) - 1] = '\0';
-
-    for (size_t i = 1; i < len; i++)
-    {
-        if (path[i] == '/')
-        {
-            path[i] = '\0';
-            if (mkdir(path, 0755) != 0)
-            {
-                if (errno != EEXIST)
-                    return -1;
-                int dfd = open(path, O_RDONLY | O_DIRECTORY);
-                if (dfd < 0)
-                    return -1;
-                close(dfd);
-            }
-            path[i] = '/';
-        }
-    }
-
-    if (mkdir(path, 0755) != 0)
-    {
-        if (errno != EEXIST)
-            return -1;
-        int dfd = open(path, O_RDONLY | O_DIRECTORY);
-        if (dfd < 0)
-            return -1;
-        close(dfd);
-    }
-
-    return 0;
-}
 
 int config_init_load(config_t *config, int argc, char *argv[])
 {
