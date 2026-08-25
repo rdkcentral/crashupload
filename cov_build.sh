@@ -28,13 +28,23 @@ WORKDIR=$(pwd)
 export ROOT=/usr
 export INSTALL_DIR=${ROOT}/local
 
-git clone https://github.com/rdkcentral/common_utilities.git
+cd "${ROOT}"
+rm -rf common_utilities
+
+git clone --branch topic/RDKB-66347 \
+    https://github.com/rdkcentral/common_utilities.git \
+    common_utilities
+
 cd common_utilities
-git checkout topic/RDKB-66347
 autoreconf -i
-./configure  --enable-rdkcertselector --prefix=${INSTALL_DIR} CFLAGS=" -DRDK_LOGGER "
-make && make install
-cd ../
+
+./configure \
+    --enable-rdkcertselector \
+    --prefix="${INSTALL_DIR}" \
+    CFLAGS="-DRDK_LOGGER"
+
+make
+make install
 
 # Command-line flags
 CLEAN_ONLY=false
