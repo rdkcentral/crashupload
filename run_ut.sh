@@ -492,7 +492,9 @@ configure_build() {
     
     # Run configure
     print_step "Running configure script..."
-    ./configure --enable-coverage --enable-warnings
+    ./configure --enable-coverage --enable-warnings \
+        LDFLAGS="-L/usr/local/lib" \
+        LIBS="-lfwutils"
     print_success "Configuration complete"
     
     cd "$SCRIPT_DIR"
