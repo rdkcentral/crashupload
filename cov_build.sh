@@ -28,24 +28,6 @@ WORKDIR=$(pwd)
 export ROOT=/usr
 export INSTALL_DIR=${ROOT}/local
 
-cd "${ROOT}"
-rm -rf common_utilities
-
-git clone --branch topic/RDKB-66347 \
-    https://github.com/rdkcentral/common_utilities.git \
-    common_utilities
-
-cd common_utilities
-autoreconf -i
-
-./configure \
-    --enable-rdkcertselector \
-    --prefix="${INSTALL_DIR}" \
-    CFLAGS="-DRDK_LOGGER"
-
-make
-make install
-
 # Command-line flags
 CLEAN_ONLY=false
 L2_TEST_MODE=false
@@ -157,7 +139,7 @@ cd ${ROOT}
 rm -rf common_utilities 2>/dev/null || true
 git clone https://github.com/rdkcentral/common_utilities.git
 cd common_utilities
-git checkout tags/1.5.4
+git checkout topic/RDKB-66347
 sh cov_build.sh
 echo ""
 
