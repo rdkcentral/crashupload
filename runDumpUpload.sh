@@ -365,9 +365,10 @@ cleanup()
         if [ ! -f "$ON_STARTUP_DUMPS_CLEANED_UP" ] ; then
             path="${WORKING_DIR}"
 
+            # commenting this code as we need previous dumps to be uploaded.
             # delete unfinished files from previous run
-            deleted_files=$(find "$path" -type f -name "*mac*_dat*" -print -exec rm -f {} \;)
-            logMessage "Deleting unfinished files: ${deleted_files}"
+            # deleted_files=$(find "$path" -type f -name "*mac*_dat*" -print -exec rm -f {} \;)
+            # logMessage "Deleting unfinished files: ${deleted_files}"
 
             # delete non-dump files
             deleted_files=$(find "$path" -type f ! -name "${DUMPS_EXTN}" -print -exec rm -f {} \;)
