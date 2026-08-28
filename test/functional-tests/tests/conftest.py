@@ -160,8 +160,9 @@ _TC_MAP = {
     # Crash Telemetry
     "test_process_crash_telemetry_path_exercised":               "TC-072",
     "test_container_crash_telemetry_path_exercised":             "TC-073",
-    # Broadband Env
-    "test_broadband_minidump_archive_not_created":               "TC-067",
+    # Broadband/Extender Env
+    "test_broadband_minidump_archive_created":                   "TC-067",
+    "test_extender_minidump_archive_created":                    "TC-068",
 }
 
 

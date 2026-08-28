@@ -38,7 +38,18 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
                          const platform_config_t *platform,
                          archive_info_t *archive, char *new_dump_name);
 
+/** @brief Lower scheduling priority to reduce system impact during archiving. */
 void set_low_priority(void);
+
+/**
+ * @brief Append one crashed-process log file (tail-trimmed) to the tarball list.
+ * @param config  Application config (provides log path and build type).
+ * @param platform  Platform config (provides MAC, model for filename).
+ * @param filename  Source log file path from the log-mapper file.
+ * @param process_log_file  Output buffer receiving the renamed log path.
+ * @param size  Byte capacity of @p process_log_file.
+ * @return 0 on success, non-zero if the file could not be prepared.
+ */
 int add_crashed_process_log_file(const config_t *config, const platform_config_t *platform,
                                  char *filename, char *process_log_file, size_t size);
 

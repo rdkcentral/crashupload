@@ -1034,6 +1034,10 @@ void set_mock_invalid_working_dir_behavior(void) {
     g_mainapp_mock_state.use_invalid_working_dir = true;
 }
 
+/* RBUS lifecycle stubs – system_init.c owns initialization in production. */
+bool rbusInit(void) { return true; }
+void rbusUninit(void) {}
+
 /* -------------------------------------------------------------------------
  * Telemetry stubs – keep telemetryinterface.c out of mainapp_gtest_SOURCES
  * so GCC never crashes compiling that TU under -fprofile-arcs.

@@ -27,8 +27,8 @@
 
 /**
  * @brief Initialize RDK Logger subsystem
- * 
- * This function MUST be called at application startup (in main).
+    *
+    * This function MUST be called at application startup (in main).
  * 
  * When RDK_LOGGER is defined:
  *   - Option 1: Calls rdk_logger_init() with /etc/debug.ini (file-based config)
@@ -57,9 +57,10 @@ int logger_init() {
         return 1; // Return non-zero on failure
     }
 #else
+    const char *debug_ini = "/etc/debug.ini";
     /* Standard initialization with debug.ini file */
-    printf("RDK logger standard init with %s\n", DEBUG_INI_NAME);
-    if (rdk_logger_init(DEBUG_INI_NAME) != RDK_SUCCESS) {
+    printf("RDK logger standard init with %s\n", debug_ini);
+    if (rdk_logger_init(debug_ini) != RDK_SUCCESS) {
         printf("CRASHUPLOAD: ERROR - Logger init failed\n");
         return 1; // Return non-zero on failure
     }

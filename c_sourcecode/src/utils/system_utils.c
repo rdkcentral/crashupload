@@ -136,7 +136,6 @@ int system_check_process(const char *name, bool *is_running)
 bool is_box_rebooting(bool t2_enabled)
 {
     bool ret = false;
-    /* SKELETON - Using system() call for now */
     if (0 == filePresentCheck("/tmp/set_crash_reboot_flag"))
     {
         CRASHUPLOAD_INFO("Skipping upload, Since Box is Rebooting now\n");

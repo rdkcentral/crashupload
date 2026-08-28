@@ -362,7 +362,7 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
                         CRASHUPLOAD_INFO("Reached Max number of process log file\n"); // TODO: This is logic not present in script. Need review
                         break;
                     }
-                    // TODO: More optimization required. Insted copy last 5000 line copy we can do byte copy.
+                    // TODO: More optimization required. Instead copy last 5000 line copy we can do byte copy.
                     if (!add_crashed_process_log_file(config, platform, buf, process_name_log, sizeof(process_name_log)))
                     {
                         snprintf(arch_files_list[no_of_files], 256, "%s", process_name_log);
@@ -409,19 +409,15 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
 
             if (config->build_type != BUILD_TYPE_PROD)
             {
-                char receiver_log[PATH_MAX] = {0};
-                char thread_log[PATH_MAX] = {0};
-                snprintf(receiver_log, sizeof(receiver_log), "%s/receiver.log", config->log_path);
-                snprintf(thread_log, sizeof(thread_log), "%s/thread.log", config->log_path);
-                if (0 == (filePresentCheck(receiver_log)))
+                snprintf(arch_files_list[no_of_files], 256, "%s/receiver.log", config->log_path);
+                if (0 == (filePresentCheck(arch_files_list[no_of_files])))
                 {
-                    snprintf(arch_files_list[no_of_files], 256, "%s", receiver_log);
                     CRASHUPLOAD_INFO("RDKC adding receiver.log=%s\n", arch_files_list[no_of_files]);
                     no_of_files++;
                 }
-                if (0 == (filePresentCheck(thread_log)))
+                snprintf(arch_files_list[no_of_files], 256, "%s/thread.log", config->log_path);
+                if (0 == (filePresentCheck(arch_files_list[no_of_files])))
                 {
-                    snprintf(arch_files_list[no_of_files], 256, "%s", thread_log);
                     CRASHUPLOAD_INFO("RDKC adding thread.log=%s\n", arch_files_list[no_of_files]);
                     no_of_files++;
                 }
@@ -429,11 +425,22 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
             CRASHUPLOAD_INFO("RDKC tar file:%s files=%d\n", target_file_name, no_of_files);
             tar_status = create_tarball(true, target_file_name, arch_files_list, no_of_files);
         }
+        else if (config->device_type == DEVICE_TYPE_BROADBAND ||
+                 config->device_type == DEVICE_TYPE_EXTENDER)
+        {
+            /* Script: files="$tgzFile $dumpName $VERSION_FILE $CORE_LOG", no process log files */
+            snprintf(arch_files_list[0], 256, "%s", new_dump_name);
+            snprintf(arch_files_list[1], 256, "%s", "/version.txt");
+            snprintf(arch_files_list[2], 256, "%s", config->core_log_file);
+            CRASHUPLOAD_INFO("%s tar file:%s files=%d\n",
+                             device_type_to_str(config->device_type), target_file_name, no_of_files);
+            tar_status = create_tarball(true, target_file_name, arch_files_list, no_of_files);
+        }
     }
     if (!tar_status)
     {
         snprintf(archive->archive_name, sizeof(archive->archive_name), "%s", target_file_name);
-        CRASHUPLOAD_INFO("Success Compressing the files,%s\n", archive->archive_name);
+        CRASHUPLOAD_INFO("Success Compressing the files (%s) %s for %s\n", config->dump_type == DUMP_TYPE_MINIDUMP ? "minidump" : "coredump", archive->archive_name, device_type_to_str(config->device_type));
         CRASHUPLOAD_INFO("dump file=%s\n", arch_files_list[0]);
         CRASHUPLOAD_INFO("version file=%s\n", arch_files_list[1]);
         CRASHUPLOAD_INFO("core log file=%s\n", arch_files_list[2]);

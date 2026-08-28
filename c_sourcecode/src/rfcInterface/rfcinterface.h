@@ -73,17 +73,54 @@ typedef enum
 #define RFC_CRASH_PORTAL_URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl"
 #define RFC_CRASHUPLOAD_S3URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.S3SigningUrl"
 #define RFC_CRASH_PORTAL_ENDPOINT_URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CrashportalEndpoint.URL"
+#define RDKB_SYNDICATION_CRASH_PORTAL "Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.CrashPortal"
 
 #if defined(RFC_API_ENABLED)
 #if defined(RDKC)
+/**
+ * @brief Read an RFC parameter (RDKC 2-param variant).
+ * @param type   Caller-ID string (ignored on RDKC, accepted for API parity).
+ * @param key    TR-181 parameter name.
+ * @param data   Output buffer for the value.
+ * @param datasize  Byte capacity of @p data.
+ * @return READ_RFC_SUCCESS, READ_RFC_FAILURE, or READ_RFC_NOTAPPLICABLE.
+ */
 int read_RFCProperty(const char *type, const char *key, char *data, size_t datasize);
+/**
+ * @brief Write an RFC parameter — not supported on RDKC.
+ * @return WRITE_RFC_NOTAPPLICABLE always.
+ */
 int write_RFCProperty(const char *type, const char *key, const char *data, RFCVALDATATYPE datatype);
 #else
+/**
+ * @brief Read an RFC parameter (STB 3-param WDMP variant).
+ * @param type   Caller-ID string passed to getRFCParameter.
+ * @param key    TR-181 parameter name.
+ * @param data   Output buffer for the value.
+ * @param datasize  Byte capacity of @p data.
+ * @return READ_RFC_SUCCESS, READ_RFC_FAILURE, or READ_RFC_NOTAPPLICABLE.
+ */
 int read_RFCProperty(char *type, const char *key, char *data, size_t datasize);
+/**
+ * @brief Write an RFC parameter via setRFCParameter.
+ * @param type      Caller-ID string.
+ * @param key       TR-181 parameter name.
+ * @param data      New value as a null-terminated string.
+ * @param datatype  RFC_STRING, RFC_BOOL, or RFC_UINT.
+ * @return WRITE_RFC_SUCCESS or WRITE_RFC_FAILURE.
+ */
 int write_RFCProperty(char *type, const char *key, const char *data, RFCVALDATATYPE datatype);
 #endif
 #else
+/**
+ * @brief Read an RFC parameter — stub when RFC_API_ENABLED is not defined.
+ * @return READ_RFC_NOTAPPLICABLE always.
+ */
 int read_RFCProperty(const char *type, const char *key, char *data, size_t datasize);
+/**
+ * @brief Write an RFC parameter — stub when RFC_API_ENABLED is not defined.
+ * @return WRITE_RFC_NOTAPPLICABLE always.
+ */
 int write_RFCProperty(const char *type, const char *key, const char *data, RFCVALDATATYPE datatype);
 #endif
 

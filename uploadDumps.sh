@@ -34,19 +34,22 @@ if [ -z "$DEVICE_TYPE" ]; then
     DEVICE_TYPE="unknown"
 fi
 
+LOG_APPENDER=""
+
 case "$DEVICE_TYPE" in
     mediaclient)
         LOG_DIR="/opt/logs"
         ;;
     broadband|extender)
         LOG_DIR="/rdklogs/logs"
+        LOG_APPENDER=".0"
         ;;
     *)
         LOG_DIR="/var/log"
         ;;
 esac
 
-CORE_LOG="${LOG_DIR}/core_log.txt"
+CORE_LOG="${LOG_DIR}/core_log.txt${LOG_APPENDER}"
 
 Log() { 
     echo "`/bin/timestamp` [uploadDumps.sh] [PID:$$]: $*" >> $CORE_LOG 
@@ -89,11 +92,13 @@ run_crashupload() {
                 Log "Critical error in crashupload binary (exit=$exit_code)"
                 Log "Falling back to legacy uploader."
                 run_legacy "$@"
+                return $?
                 ;;
             *)
                 Log "crashupload failed with: $exit_code"
                 Log "Falling back to legacy uploader."
                 run_legacy "$@"
+                return $?
                 ;;
         esac
     fi
@@ -101,16 +106,20 @@ run_crashupload() {
     run_legacy "$@"
 }
 
+IS_LEGACY_CRASHUPLOAD=0
+if [ -f /tmp/.legacy_crashuploader ]; then
+    IS_LEGACY_CRASHUPLOAD=1
+fi
+
+
 case "$DEVICE_TYPE" in
-    mediaclient)
-        if [ -f /tmp/.legacy_crashuploader ]; then
+    mediaclient|broadband|extender)
+        Log "DEVICE_TYPE='${DEVICE_TYPE}'; using crashupload binary."
+        if [ "$IS_LEGACY_CRASHUPLOAD" -eq 1 ]; then
             run_legacy "$@"
         else
             run_crashupload "$@"
         fi
-        ;;
-    broadband|extender)
-        run_legacy "$@"
         ;;
     *)
         Log "Unknown DEVICE_TYPE='${DEVICE_TYPE}'; using legacy uploader."

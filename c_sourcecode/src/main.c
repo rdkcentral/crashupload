@@ -37,11 +37,15 @@
 #include "utils/cleanup_batch.h"
 #include "utils/logger.h"
 #include <signal.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "file_utils.h"
 #include "ratelimit.h"
 #include "systemutils.h"
 #include "upload.h"
 #include "t2Interface/telemetryinterface.h"
+#include "rbusInterface/rbus_interface.h"
 
 int lock_dir_prefix = 0;
 
@@ -142,11 +146,11 @@ int main_test(int argc, char *argv[])
         CRASHUPLOAD_INFO("SIGTERM handler install success\n");
     }
     /* Step 1: Consolidated Initialization */
-    /* TODO: Implement consolidated initialization */
-    if (system_initialize(argc, argv, &config, &platform) != SYSTEM_INIT_SUCCESS)
+    int system_init_ret = system_initialize(argc, argv, &config, &platform);
+    if (system_init_ret != SYSTEM_INIT_SUCCESS)
     {
-        CRASHUPLOAD_ERROR("System initialization failed:%d\n", lock_fd);
-        t2Uninit();
+        CRASHUPLOAD_ERROR("System initialization failed:%d\n", system_init_ret);
+        rbusUninit();
         logger_exit();
 #ifndef GTEST_ENABLE
         exit(1);
@@ -161,6 +165,7 @@ int main_test(int argc, char *argv[])
     if (lock_fd < LOCK_ACQUIRE_SUCCESS)
     {
         CRASHUPLOAD_ERROR("Failed to acquire lock\n");
+        rbusUninit();
         t2Uninit();
         logger_exit();
 #ifndef GTEST_ENABLE
@@ -172,12 +177,18 @@ int main_test(int argc, char *argv[])
     CRASHUPLOAD_INFO("Lock (%s) acquired successfully. Proceeding with dump processing.\n", lock_file_path);
     /* Step 2: Combined Prerequisites Check */
     /* TODO: Implement combined network + time check */
-    if (prerequisites_wait(&config, PREREQUISITE_TIMEOUT_SEC) != PREREQUISITES_SUCCESS)
+    int prereq_ret = prerequisites_wait(&config, PREREQUISITE_TIMEOUT_SEC);
+    if (prereq_ret != PREREQUISITES_SUCCESS)
     {
-        CRASHUPLOAD_INFO("Prerequisites check failed\n");
-        // lock_release(lock_fd, lock_file_path);
+        if (prereq_ret == NO_DUMPS_FOUND)
+        {
+            CRASHUPLOAD_INFO("No dumps found, exiting\n");
+        }
+        else
+        {
+            CRASHUPLOAD_ERROR("Prerequisites check failed: %d\n", prereq_ret);
+        }
         goto cleanup;
-        // return EXIT_FAILURE;
     }
     CRASHUPLOAD_INFO("Prerequisites check successful\n");
 
@@ -207,7 +218,6 @@ int main_test(int argc, char *argv[])
     cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES, do_not_share_cleanup);
 
     /* Step 5: Process Dumps */
-    /* TODO: Implement dump processing loop */
     dump_file_t *dumps = NULL;
     int dump_count = 0;
     if (0 != (chdir(config.working_dir_path)))
@@ -319,7 +329,7 @@ int main_test(int argc, char *argv[])
         }
         if (strlen(new_dump_name) >= 135)
         {
-            CRASHUPLOAD_INFO("The file name is still greater than 135 charecters try trimming the processname to 20 chars from the filename\n");
+            CRASHUPLOAD_INFO("The file name is still greater than 135 characters try trimming the processname to 20 chars from the filename\n");
             CRASHUPLOAD_INFO("The Current File Name :%s\n", new_dump_name);
             char *pname = extract_pname(new_dump_name);
             if (!pname)
@@ -381,7 +391,20 @@ cleanup:
     {
         lock_release(lock_fd, lock_file_path);
     }
-    /* Uninitialize telemetry */
+    if (config.device_type == DEVICE_TYPE_BROADBAND)
+    {
+        int fp = open("/tmp/crash_reboot", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+        if (fp >= 0)
+        {
+            close(fp);
+        }
+        else
+        {
+            CRASHUPLOAD_WARN("Failed to create /tmp/crash_reboot\n");
+        }
+    }
+    /* Uninitialize RBUS, telemetry and Logger */
+    rbusUninit();
     t2Uninit();
     logger_exit();
 

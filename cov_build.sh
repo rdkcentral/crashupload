@@ -139,7 +139,7 @@ cd ${ROOT}
 rm -rf common_utilities 2>/dev/null || true
 git clone https://github.com/rdkcentral/common_utilities.git
 cd common_utilities
-git checkout tags/1.5.4
+git checkout tags/1.5.6
 sh cov_build.sh
 echo ""
 

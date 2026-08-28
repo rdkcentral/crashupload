@@ -119,6 +119,19 @@ struct UploadMockState {
     int partner_id_return_value;
     char partner_id_output[16];
     bool partner_id_custom_behavior;
+
+    /* rbus mocks */
+    bool rbus_init_return_value;
+    bool rbus_get_string_return_value;
+    char rbus_get_string_output[512];
+
+    /* syscfg/sysevent wrapper mocks */
+    bool syscfg_get_return_value;
+    bool syscfg_set_return_value;
+    bool sysevent_get_return_value;
+    bool sysevent_set_return_value;
+    char syscfg_get_output[64];
+    char sysevent_get_output[64];
     
     // File present check
     int file_present_return_value;
@@ -129,42 +142,7 @@ struct UploadMockState {
     bool set_time_custom_behavior;
 };
 
-static UploadMockState g_upload_mock_state = {
-    1,          // read_rfc_property returns success by default
-    "",         // empty output
-    false,      // no custom behavior
-    0,          // get_device_property returns success by default
-    "",         // empty output
-    false,      // no custom behavior
-    nullptr,    // url_encode_output
-    false,      // no custom behavior
-    false,      // don't return null
-    0,          // metadata_post returns success
-    200,        // HTTP 200 OK
-    false,      // no custom behavior
-    200,        // HTTP 200 OK
-    0,          // curl success
-    0,          // extract_s3_url returns success
-    "",         // empty output
-    false,      // no custom behavior
-    0,          // s3_put_upload returns success
-    false,      // no custom behavior
-    true,       // tls_log returns true
-    0,          // tls_log call count
-    0,          // compute_md5 returns success
-    "",         // empty output
-    false,      // no custom behavior
-    0,          // firmware_version returns 0
-    "",         // empty output
-    false,      // no custom behavior
-    1,          // partner_id returns success
-    "",         // empty output
-    false,      // no custom behavior
-    0,          // file_present returns success
-    false,      // no custom behavior
-    0,          // set_time returns success
-    false       // no custom behavior
-};
+static UploadMockState g_upload_mock_state = {};
 
 // ============================================================================
 // Mock Control Functions (Called from tests)
@@ -367,6 +345,16 @@ void reset_upload_mocks() {
     
     g_upload_mock_state.set_time_return_value = 0;
     g_upload_mock_state.set_time_custom_behavior = false;
+
+    g_upload_mock_state.rbus_init_return_value = true;
+    g_upload_mock_state.rbus_get_string_return_value = false;
+    memset(g_upload_mock_state.rbus_get_string_output, 0, sizeof(g_upload_mock_state.rbus_get_string_output));
+    g_upload_mock_state.syscfg_get_return_value = false;
+    g_upload_mock_state.syscfg_set_return_value = true;
+    g_upload_mock_state.sysevent_get_return_value = false;
+    g_upload_mock_state.sysevent_set_return_value = true;
+    memset(g_upload_mock_state.syscfg_get_output, 0, sizeof(g_upload_mock_state.syscfg_get_output));
+    memset(g_upload_mock_state.sysevent_get_output, 0, sizeof(g_upload_mock_state.sysevent_get_output));
 }
 
 // ============================================================================
@@ -642,11 +630,81 @@ int set_time(const char* deny_file, int type) {
  * @param msg Format string and variadic arguments
  */
 void crashupload_log(unsigned int level, const char *file, int line, const char *msg, ...) {
-    // Mock implementation - do nothing
-    (void)level;
-    (void)file;
-    (void)line;
-    (void)msg;
+    (void)level; (void)file; (void)line; (void)msg;
+}
+
+/* rbus mocks */
+bool rbus_init(void) { return g_upload_mock_state.rbus_init_return_value; }
+void rbus_cleanup(void) {}
+bool rbus_get_string_param(const char *param_name, char *value_buf, size_t buf_size) {
+    (void)param_name;
+    if (value_buf && buf_size > 0 && g_upload_mock_state.rbus_get_string_output[0]) {
+        strncpy(value_buf, g_upload_mock_state.rbus_get_string_output, buf_size - 1);
+        value_buf[buf_size - 1] = '\0';
+    }
+    return g_upload_mock_state.rbus_get_string_return_value;
+}
+
+bool crashupload_syscfg_get(const char *key, char *value_buf, size_t buf_size) {
+    (void)key;
+    if (!value_buf || buf_size == 0) {
+        return false;
+    }
+    if (g_upload_mock_state.syscfg_get_output[0] != '\0') {
+        strncpy(value_buf, g_upload_mock_state.syscfg_get_output, buf_size - 1);
+        value_buf[buf_size - 1] = '\0';
+    } else {
+        value_buf[0] = '\0';
+    }
+    return g_upload_mock_state.syscfg_get_return_value;
+}
+
+bool crashupload_syscfg_set(const char *key, const char *value) {
+    (void)key;
+    (void)value;
+    return g_upload_mock_state.syscfg_set_return_value;
+}
+
+bool crashupload_sysevent_get(const char *key, char *value_buf, size_t buf_size) {
+    (void)key;
+    if (!value_buf || buf_size == 0) {
+        return false;
+    }
+    if (g_upload_mock_state.sysevent_get_output[0] != '\0') {
+        strncpy(value_buf, g_upload_mock_state.sysevent_get_output, buf_size - 1);
+        value_buf[buf_size - 1] = '\0';
+    } else {
+        value_buf[0] = '\0';
+    }
+    return g_upload_mock_state.sysevent_get_return_value;
+}
+
+bool crashupload_sysevent_set(const char *key, const char *value) {
+    (void)key;
+    (void)value;
+    return g_upload_mock_state.sysevent_set_return_value;
+}
+
+void set_mock_rbus_init_behavior(bool return_value) {
+    g_upload_mock_state.rbus_init_return_value = return_value;
+}
+void set_mock_rbus_get_string_behavior(bool return_value, const char *output) {
+    g_upload_mock_state.rbus_get_string_return_value = return_value;
+    if (output) {
+        strncpy(g_upload_mock_state.rbus_get_string_output, output,
+                sizeof(g_upload_mock_state.rbus_get_string_output) - 1);
+        g_upload_mock_state.rbus_get_string_output[sizeof(g_upload_mock_state.rbus_get_string_output) - 1] = '\0';
+    }
+    else g_upload_mock_state.rbus_get_string_output[0] = '\0';
+}
+void set_mock_syscfg_get_behavior(bool return_value, const char *output) {
+    g_upload_mock_state.syscfg_get_return_value = return_value;
+    if (output) {
+        strncpy(g_upload_mock_state.syscfg_get_output, output,
+                sizeof(g_upload_mock_state.syscfg_get_output) - 1);
+        g_upload_mock_state.syscfg_get_output[sizeof(g_upload_mock_state.syscfg_get_output) - 1] = '\0';
+    }
+    else g_upload_mock_state.syscfg_get_output[0] = '\0';
 }
 
 } // extern "C"

@@ -32,12 +32,25 @@
  * @brief Initialize RBUS connection
  * @return true on success, false on failure
  */
+/** @brief Initialise the rbus connection. @return true on success. */
 bool rbus_init(void);
 
 /**
  * @brief Close RBUS connection
  */
+/** @brief Close the rbus connection and release resources. */
 void rbus_cleanup(void);
+
+/**
+ * @brief Initialize the application-owned RBUS connection.
+ * @return true on success, false on failure.
+ */
+bool rbusInit(void);
+
+/**
+ * @brief Release the application-owned RBUS connection.
+ */
+void rbusUninit(void);
 
 /**
  * @brief Get TR-181 string parameter via RBUS
@@ -46,6 +59,47 @@ void rbus_cleanup(void);
  * @param buf_size Size of the value buffer
  * @return true on success, false on failure
  */
+/**
+ * @brief Read a string parameter from rbus.
+ * @param param_name  TR-181 data-model path.
+ * @param value_buf   Output buffer.
+ * @param buf_size    Byte capacity of @p value_buf.
+ * @return true on success.
+ */
 bool rbus_get_string_param(const char *param_name, char *value_buf, size_t buf_size);
+
+/**
+ * @brief Read a syscfg value by key.
+ * @param key syscfg key.
+ * @param value_buf Output buffer.
+ * @param buf_size Output buffer size.
+ * @return true on success.
+ */
+bool crashupload_syscfg_get(const char *key, char *value_buf, size_t buf_size);
+
+/**
+ * @brief Set a syscfg value by key.
+ * @param key syscfg key.
+ * @param value Value to set.
+ * @return true on success.
+ */
+bool crashupload_syscfg_set(const char *key, const char *value);
+
+/**
+ * @brief Read a sysevent value by key.
+ * @param key sysevent key.
+ * @param value_buf Output buffer.
+ * @param buf_size Output buffer size.
+ * @return true on success.
+ */
+bool crashupload_sysevent_get(const char *key, char *value_buf, size_t buf_size);
+
+/**
+ * @brief Set a sysevent value by key.
+ * @param key sysevent key.
+ * @param value Value to set.
+ * @return true on success.
+ */
+bool crashupload_sysevent_set(const char *key, const char *value);
 
 #endif /* RBUS_INTERFACE_H */

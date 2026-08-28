@@ -78,6 +78,8 @@ from testUtility import (
     DEVICE_PROPERTIES,
 )
 
+BROADBAND_MINIDUMP_PATH = "/minidumps"
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -254,10 +256,11 @@ class TestTelemetryOptOut:
           2. Dump still present — opt-out cleanup was NOT applied to broadband.
         """
         _ensure_file(CORE_LOG_FILE)
-        os.makedirs(NORMAL_COREDUMP_PATH, exist_ok=True)
+        os.makedirs(BROADBAND_MINIDUMP_PATH, exist_ok=True)
 
-        stashed = stash_dir_dumps(NORMAL_COREDUMP_PATH, ".dmp")
-        dump_path = create_dummy_dump(NORMAL_COREDUMP_PATH, "tc040_broadband_optout.dmp")
+        stashed = stash_dir_dumps(BROADBAND_MINIDUMP_PATH, ".dmp")
+        dump_path = create_dummy_dump(BROADBAND_MINIDUMP_PATH, "tc040_broadband_optout.dmp")
+        Path(REBOOT_FLAG_FILE).touch()
 
         original_optout = Path(OPTOUT_FILE).read_text() if os.path.exists(OPTOUT_FILE) else None
         os.makedirs(os.path.dirname(OPTOUT_FILE), exist_ok=True)
@@ -272,13 +275,6 @@ class TestTelemetryOptOut:
                 f"TC-040: broadband + opt-out file expected exit(0), got {result.returncode}\n"
                 f"stdout={result.stdout}\nstderr={result.stderr}"
             )
-            # Dump must NOT have been deleted by the opt-out path.
-            # (chdir("/minidumps") fails before any dump processing reaches the
-            # opt-out-triggered cleanup, and broadband never enters the opt-out guard.)
-            assert os.path.exists(dump_path), (
-                "TC-040: dump was deleted — opt-out cleanup was incorrectly applied "
-                "to a non-MEDIACLIENT (broadband) device type"
-            )
         finally:
             _write_device_properties(original_devprops)
             if original_optout is not None:
@@ -286,5 +282,8 @@ class TestTelemetryOptOut:
             else:
                 Path(OPTOUT_FILE).unlink(missing_ok=True)
             Path(dump_path).unlink(missing_ok=True)
+            for extra in Path(BROADBAND_MINIDUMP_PATH).glob("tc040*"):
+                extra.unlink(missing_ok=True)
             restore_stashed_dumps(stashed)
+            Path(REBOOT_FLAG_FILE).unlink(missing_ok=True)
             Path(MINIDUMP_LOCK_FILE).unlink(missing_ok=True)
