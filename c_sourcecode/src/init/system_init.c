@@ -55,7 +55,6 @@ int system_initialize(int argc, char *argv[],
     if (!rbusInit())
     {
         CRASHUPLOAD_ERROR("rbusInit failed\n");
-        rbusUninit();
         t2Uninit();
         return ERR_SYSTEM_INIT_FAILED;
     }
