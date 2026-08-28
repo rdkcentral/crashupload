@@ -34,7 +34,7 @@ jobs:
 
       - name: Build crashupload and run L1 unit tests
         run: |
-          docker exec -i native-platform /bin/bash -c "cd /mnt/L1_CONTAINER_SHARED_VOLUME/ && chmod +x cov_build.sh run_ut.sh && sh cov_build.sh && sh run_ut.sh"
+          docker exec -i native-platform /bin/bash -c "cd /mnt/L1_CONTAINER_SHARED_VOLUME/ && chmod +x cov_build.sh run_ut.sh && sh cov_build.sh && sh run_ut.sh && sh run_ut.sh --coverage-list"
 
       - name: Copy L1 test results to runner
         run: |

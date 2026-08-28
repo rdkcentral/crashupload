@@ -83,8 +83,12 @@ if [ "$DEVICE_TYPE" = "broadband" ];then
         fi
 fi
 
+LOG_APPENDER=""
+if [ "$DEVICE_TYPE" = "broadband" ] || [ "$DEVICE_TYPE" = "extender" ];then
+    LOG_APPENDER=".0"
+fi
 # Log file setup
-CORE_LOG="$LOG_PATH/core_log.txt"
+CORE_LOG="$LOG_PATH/core_log.txt$LOG_APPENDER"
 
 if [ "$DEVICE_TYPE" = "extender" ];then
     CORE_LOG="/var/log/messages"
@@ -922,7 +926,7 @@ processDumps()
 		# For long APP Name
 		if [ "${#dumpName}" -ge "135" ]; then
                     #Remove the processname from the file name and if possible limit the name to 20 chars
-                    logMessage "The file name is still greater than 135 charecters try trimming the processname to 20 chars from the filename"
+                    logMessage "The file name is still greater than 135 characters try trimming the processname to 20 chars from the filename"
                     logMessage "The Current File Name : ${dumpName}"
                     appends_pname="${pname:0:20}"
                     cpname="${pname}"

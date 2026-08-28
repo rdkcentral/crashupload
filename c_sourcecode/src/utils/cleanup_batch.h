@@ -55,6 +55,7 @@ int cleanup_batch(const char *working_dir,
                       size_t max_core_files,
                       bool do_not_share_cleanup);
 
+/** @brief Delete all pending (unprocessed) dump and tgz files from @p working_dir. */
 void remove_pending_dumps(const char *working_dir,
                           const char *dumps_extn_pattern);
 #endif

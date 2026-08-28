@@ -25,6 +25,10 @@
 
 #define S3_SIGNEDURL_FILE "/tmp/signed_url_"
 
+#define RDKE_PORTAL_DEFAULT_URL  "crashportal.stb.r53.xcal.tv"
+#define RDKC_PORTAL_DEFAULT_URL  "crashportal.stb.r53.xcal.tv"
+#define RDKB_PORTAL_DEFAULT_URL  "rdkbcrashportal.stb.r53.xcal.tv"
+
 typedef enum {
     UPLOAD_TYPE_COREDUMP,
     UPLOAD_TYPE_MINIDUMP,

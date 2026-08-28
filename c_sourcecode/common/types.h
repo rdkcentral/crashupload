@@ -55,6 +55,25 @@ typedef enum {
     DEVICE_TYPE_UNKNOWN
 } device_type_t;
 
+static inline const char *device_type_to_str(device_type_t device_type)
+{
+    switch (device_type)
+    {
+    case DEVICE_TYPE_MEDIACLIENT:
+        return "Mediaclient";
+    case DEVICE_TYPE_RDKC:
+        return "RDKC";
+    case DEVICE_TYPE_BROADBAND:
+        return "Broadband";
+    case DEVICE_TYPE_EXTENDER:
+        return "Extender";
+    case DEVICE_TYPE_VIDEO:
+        return "Video";
+    default:
+        return "Unknown";
+    }
+}
+
 /* Dump file types */
 typedef enum {
     DUMP_TYPE_MINIDUMP,
@@ -108,6 +127,7 @@ typedef struct {
     char log_mapper_file[64];
     char box_type[64];
     char log_path[16];
+    char comm_interface[16];
     char build_type_val[8];
     bool t2_enabled;
     privacy_control_t privacy_mode; // DO_NOT_SHARE (0) or SHARE (1)

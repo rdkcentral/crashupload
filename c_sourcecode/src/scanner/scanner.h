@@ -33,6 +33,20 @@
  * @return ERR_SUCCESS on success
  */
 int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count, const char *dump_extn_pattern);
+
+/**
+ * @brief Sanitise and rename a single dump file entry in-place.
+ * @param fullpath  Path to the dump file; may be updated on rename.
+ * @param dump_type  String dump-type label ("coredump" or "minidump").
+ * @param config  Application config.
+ * @return 0 on success.
+ */
 int process_file_entry(char *fullpath, char *dump_type, const config_t *config);
+
+/**
+ * @brief Extract the process name component from a dump file path.
+ * @param filepath  Full path to the dump file.
+ * @return Pointer into @p filepath at the process-name substring, or NULL.
+ */
 char *extract_pname(const char *filepath);
 #endif

@@ -848,7 +848,7 @@ int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count, const 
         }
 
         /* Build full path */
-        char fullpath[256];
+        char fullpath[512];
         snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name);
 
         /* Wait for file to be fully written (size stability check) */

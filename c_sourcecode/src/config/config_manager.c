@@ -24,14 +24,13 @@
 #include "../utils/logger.h"
 #include "../rfcInterface/rfcinterface.h"
 #include "../rbusInterface/rbus_interface.h"
+#include "../platform/platform.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
-#define RFC_PRIVACY_MODE "Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode"
 
 int config_init_load(config_t *config, int argc, char *argv[])
 {
@@ -41,10 +40,11 @@ int config_init_load(config_t *config, int argc, char *argv[])
 
     if (!config)
     {
-        return -1;
+        return ERR_INVALID_ARGUMENT;
     }
 
     memset(config, 0, sizeof(config_t));
+    config->comm_interface[0] = '\0';
 
     strcpy(config->log_file, "/tmp/minidump_log_files.txt");
     strcpy(config->log_mapper_file, "/etc/breakpad-logmapper.conf");
@@ -100,14 +100,51 @@ int config_init_load(config_t *config, int argc, char *argv[])
         {
             config->device_type = DEVICE_TYPE_MEDIACLIENT;
             CRASHUPLOAD_INFO("device type=%d\n", config->device_type);
-            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, "core_log.txt");
+            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, NON_RDKB_LOG_FILE_NAME);
             CRASHUPLOAD_INFO("core log=%s\n", config->core_log_file);
         }
         else if (0 == (strncmp(device_prop_data, "broadband", 9)))
         {
+            char multi_core[16] = {0};
+
             config->device_type = DEVICE_TYPE_BROADBAND;
-            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, "core_log.txt");
-            /* TODO: During brodband we have to implement
+            CRASHUPLOAD_INFO("device type=%d\n", config->device_type);
+#if !defined(GTEST_ENABLE) && !defined(L2_TEST)
+            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, RDKB_LOG_FILE_NAME);
+#else
+            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, NON_RDKB_LOG_FILE_NAME);
+#endif
+            CRASHUPLOAD_INFO("core log=%s\n", config->core_log_file);
+            if (ensure_directory_exists(config->log_path) != 0)
+            {
+                CRASHUPLOAD_ERROR("Failed to create broadband log directory: %s\n", config->log_path);
+                return ERR_CONFIG_LOAD_FAILED;
+            }
+
+            ret = getDevicePropertyData("MULTI_CORE", multi_core, sizeof(multi_core));
+            if ((ret == UTILS_SUCCESS) && (0 == strncmp(multi_core, "yes", 3)))
+            {
+                /* Multi-core: poll sysevent for WAN interface; fallback to core-type-based interface */
+#ifdef GTEST_ENABLE
+                /* Unit-test build does not link platform.c; keep deterministic test value. */
+                snprintf(config->comm_interface, sizeof(config->comm_interface), "%s", "erouter0");
+#else
+                snprintf(config->comm_interface, sizeof(config->comm_interface), "%s", get_interface_value());
+#endif
+                CRASHUPLOAD_INFO("MULTI_CORE=yes COMM_INTERFACE=%s\n", config->comm_interface);
+            }
+            else
+            {
+                ret = getDevicePropertyData("INTERFACE", config->comm_interface, sizeof(config->comm_interface));
+                if (ret != UTILS_SUCCESS || config->comm_interface[0] == '\0')
+                {
+                    snprintf(config->comm_interface, sizeof(config->comm_interface), "%s", "erouter0");
+                    CRASHUPLOAD_WARN("INTERFACE property read failed. Using default=%s\n", config->comm_interface);
+                }
+                CRASHUPLOAD_INFO("COMM_INTERFACE=%s\n", config->comm_interface);
+            }
+            
+            /* TODO: During broadband we have to implement
              * CORE_PATH="/minidumps"
                LOG_PATH="/rdklogs/logs"
                if [ ! -d $LOG_PATH ];then mkdir -p $LOG_PATH; fi
@@ -117,17 +154,21 @@ int config_init_load(config_t *config, int argc, char *argv[])
                        COMM_INTERFACE=$INTERFACE
                fi
              */
+            /* NOTE: /nvram/coredump.properties and /opt/coredump.properties do not exist on RDKB.
+             * Non-prod build override via /opt/coredump.properties applies only to non-broadband devices. */
         }
         else if (0 == (strncmp(device_prop_data, "extender", 8)))
         {
             config->device_type = DEVICE_TYPE_EXTENDER;
+            CRASHUPLOAD_INFO("device type=%d\n", config->device_type);
             strcpy(config->core_log_file, "/var/log/messages");
+            CRASHUPLOAD_INFO("core log=%s\n", config->core_log_file);
         }
         else if (0 == (strncmp(device_prop_data, "XHC1", 4)))
         {
             config->device_type = DEVICE_TYPE_RDKC;
             CRASHUPLOAD_INFO("device type RDKC=%d\n", config->device_type);
-            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, "core_log.txt");
+            snprintf(config->core_log_file, sizeof(config->core_log_file), "%s/%s", log_path, NON_RDKB_LOG_FILE_NAME);
             CRASHUPLOAD_INFO("core log=%s\n", config->core_log_file);
         }
         else
@@ -153,6 +194,12 @@ int config_init_load(config_t *config, int argc, char *argv[])
         config->upload_mode = UPLOAD_MODE_NORMAL;
         strcpy(config->core_path, "/var/lib/systemd/coredump");
         strcpy(config->minidump_path, "/opt/minidumps");
+    }
+    if ((config->device_type == DEVICE_TYPE_BROADBAND) || (config->device_type == DEVICE_TYPE_EXTENDER))
+    {
+        /* Script parity: broadband/extender always use /minidumps for scan/upload source. */
+        strcpy(config->core_path, "/minidumps");
+        strcpy(config->minidump_path, "/minidumps");
     }
     /* Override paths for non-systemd RDKC camera */
     if (config->upload_mode == UPLOAD_MODE_NORMAL &&
@@ -231,15 +278,6 @@ void config_cleanup(config_t *config)
 privacy_control_t get_privacy_control_mode(void)
 {
     privacy_control_t ret_privacyMode = SHARE; // default to SHARE
-    bool rbusInit = false;
-    if(!rbus_init())
-    {
-        CRASHUPLOAD_ERROR("RBUS initialization failed\n");
-        return ret_privacyMode; // default to SHARE if RBUS fails
-    }
-    CRASHUPLOAD_INFO("RBUS initialized successfully\n");
-    rbusInit = true;
-
     char rbus_privacy_mode[32] = {0};
     // temp value rbus_privacy_mode
     if (rbus_get_string_param(RFC_PRIVACY_MODE, rbus_privacy_mode, sizeof(rbus_privacy_mode)))
@@ -263,12 +301,6 @@ privacy_control_t get_privacy_control_mode(void)
     else
     {
         CRASHUPLOAD_ERROR("Failed to get privacy mode from RBUS, defaulting to SHARE\n"); // default to SHARE if RBUS call fails
-    }
-    
-    if (rbusInit)
-    {
-        rbus_cleanup();
-        CRASHUPLOAD_INFO("RBUS connection closed\n");
     }
     return ret_privacyMode; // return the privacy mode (SHARE or DO_NOT_SHARE)
 }

@@ -23,6 +23,11 @@
 #include "rbus_interface.h"
 #include "../utils/logger.h"
 
+#ifdef BROADBAND
+#include <syscfg/syscfg.h>
+#include "sysevent/sysevent.h"
+#endif
+
 #ifdef RBUS_API_ENABLED
 #include "rbus/rbus.h"
 static rbusHandle_t g_rbusHandle = NULL;
@@ -125,3 +130,125 @@ bool rbus_get_string_param(const char *param_name, char *value_buf, size_t buf_s
     return true;
 }
 #endif
+
+bool rbusInit(void)
+{
+    return rbus_init();
+}
+
+void rbusUninit(void)
+{
+    rbus_cleanup();
+}
+
+bool crashupload_syscfg_get(const char *key, char *value_buf, size_t buf_size)
+{
+    if (!key || !value_buf || buf_size == 0)
+    {
+        CRASHUPLOAD_ERROR("syscfg_get wrapper: invalid parameters\n");
+        return false;
+    }
+
+    value_buf[0] = '\0';
+
+#ifdef BROADBAND
+    if (syscfg_get(NULL, key, value_buf, (int)buf_size) == 0)
+    {
+        return true;
+    }
+
+    CRASHUPLOAD_WARN("syscfg_get wrapper: failed for key=%s\n", key);
+    return false;
+#else
+    CRASHUPLOAD_DEBUG("syscfg_get wrapper: BROADBAND not set, key=%s\n", key);
+    return false;
+#endif
+}
+
+bool crashupload_syscfg_set(const char *key, const char *value)
+{
+    if (!key || !value)
+    {
+        CRASHUPLOAD_ERROR("syscfg_set wrapper: invalid parameters\n");
+        return false;
+    }
+
+#ifdef BROADBAND
+    if (syscfg_set(NULL, key, value) == 0)
+    {
+        return true;
+    }
+
+    CRASHUPLOAD_WARN("syscfg_set wrapper: failed for key=%s\n", key);
+    return false;
+#else
+    CRASHUPLOAD_DEBUG("syscfg_set wrapper: BROADBAND not set, key=%s\n", key);
+    return false;
+#endif
+}
+
+bool crashupload_sysevent_get(const char *key, char *value_buf, size_t buf_size)
+{
+    if (!key || !value_buf || buf_size == 0)
+    {
+        CRASHUPLOAD_ERROR("sysevent_get wrapper: invalid parameters\n");
+        return false;
+    }
+
+    value_buf[0] = '\0';
+
+#ifdef BROADBAND
+    token_t token;
+    int fd = sysevent_open("127.0.0.1", SE_SERVER_WELL_KNOWN_PORT, SE_VERSION, "crashupload", &token);
+    if (fd < 0)
+    {
+        CRASHUPLOAD_WARN("sysevent_get wrapper: sysevent_open failed for key=%s\n", key);
+        return false;
+    }
+
+    if (sysevent_get(fd, token, key, value_buf, (int)buf_size) != 0)
+    {
+        CRASHUPLOAD_WARN("sysevent_get wrapper: failed for key=%s\n", key);
+        sysevent_close(fd, token);
+        return false;
+    }
+
+    sysevent_close(fd, token);
+    return true;
+#else
+    CRASHUPLOAD_DEBUG("sysevent_get wrapper: BROADBAND not set, key=%s\n", key);
+    return false;
+#endif
+}
+
+bool crashupload_sysevent_set(const char *key, const char *value)
+{
+    if (!key || !value)
+    {
+        CRASHUPLOAD_ERROR("sysevent_set wrapper: invalid parameters\n");
+        return false;
+    }
+
+#ifdef BROADBAND
+    token_t token;
+    int fd = sysevent_open("127.0.0.1", SE_SERVER_WELL_KNOWN_PORT, SE_VERSION, "crashupload", &token);
+    if (fd < 0)
+    {
+        CRASHUPLOAD_WARN("sysevent_set wrapper: sysevent_open failed for key=%s\n", key);
+        return false;
+    }
+
+    if (sysevent_set(fd, token, key, value, 0) != 0)
+    {
+        CRASHUPLOAD_WARN("sysevent_set wrapper: failed for key=%s\n", key);
+        sysevent_close(fd, token);
+        return false;
+    }
+
+    sysevent_close(fd, token);
+    return true;
+#else
+    CRASHUPLOAD_DEBUG("sysevent_set wrapper: BROADBAND not set, key=%s\n", key);
+    return false;
+#endif
+}

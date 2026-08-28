@@ -24,6 +24,9 @@
 #define CONFIG_MANAGER_H
 
 #include "../../common/types.h"
+#define RDKB_LOG_FILE_NAME "core_log.txt.0"
+#define NON_RDKB_LOG_FILE_NAME "core_log.txt"
+#define RFC_PRIVACY_MODE "Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode"
 
 /**
  * @brief Load configuration from multiple sources
@@ -32,7 +35,9 @@
  */
 int config_init_load(config_t *config, int argc, char *argv[]);
 
+/** @brief Query RFC/rbus for the current privacy-control mode. @return SHARE or DO_NOT_SHARE. */
 privacy_control_t get_privacy_control_mode(void);
 
+/** @brief Release any heap resources owned by @p config. */
 void config_cleanup(config_t *config);
 #endif

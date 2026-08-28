@@ -149,6 +149,33 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_BroadbandDevice_Success) {
     EXPECT_EQ(test_config.device_type, DEVICE_TYPE_BROADBAND);
 }
 
+// ensure_directory_exists coverage: broadband path where mkdir succeeds because dir exists
+TEST_F(ConfigManagerTest, ConfigInitLoad_BroadbandDevice_EnsureDirectoryAlreadyExists) {
+    // /tmp always exists; ensure_directory_exists returns success via EEXIST handling
+    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/tmp");
+    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "broadband");
+    set_mock_filePresentCheck_behavior(1);
+
+    int result = config_init_load(&test_config, 5, test_argv);
+
+    EXPECT_EQ(result, CONFIG_SUCCESS);
+    EXPECT_EQ(test_config.device_type, DEVICE_TYPE_BROADBAND);
+}
+
+// ensure_directory_exists coverage: broadband path where mkdir fails (read-only /proc pseudo-fs)
+TEST_F(ConfigManagerTest, ConfigInitLoad_BroadbandDevice_EnsureDirectoryFails) {
+    // /proc is a read-only virtual FS; mkdir under it fails even as root,
+    // causing ensure_directory_exists to return -1 and config_init_load to
+    // propagate ERR_CONFIG_LOAD_FAILED.
+    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/proc/cutest");
+    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "broadband");
+    set_mock_filePresentCheck_behavior(1);
+
+    int result = config_init_load(&test_config, 5, test_argv);
+
+    EXPECT_EQ(result, ERR_CONFIG_LOAD_FAILED);
+}
+
 TEST_F(ConfigManagerTest, ConfigInitLoad_ExtenderDevice_Success) {
     set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
     set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "extender");
@@ -783,10 +810,10 @@ TEST_F(ConfigManagerTest, ConfigCleanup_NullConfig_HandlesGracefully) {
 // ============================================================================
 
 TEST_F(ConfigManagerTest, ConfigInitLoad_NullConfig_Failure) {
-    // Passing nullptr as config must hit the early-exit guard and return -1.
+    // Passing nullptr as config must hit the early-exit guard and return ERR_INVALID_ARGUMENT.
     // No mock setup needed – the NULL check fires before any mock is called.
     int result = config_init_load(nullptr, 5, test_argv);
-    EXPECT_EQ(result, -1);
+    EXPECT_EQ(result, ERR_INVALID_ARGUMENT);
 }
 
 // ============================================================================

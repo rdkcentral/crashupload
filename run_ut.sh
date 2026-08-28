@@ -27,6 +27,8 @@
 #   ./run_ut.sh              - Full clean, build, test, and coverage
 #   ./run_ut.sh --test       - Preserve autotools files for faster rebuilds
 #   ./run_ut.sh --clean      - Deep clean only (no build/test)
+#   ./run_ut.sh --coverage-list - Print file-wise line/function coverage from coverage.info
+#   ./run_ut.sh --coverage-gate - Enforce minimum line/function coverage thresholds
 ###############################################################################
 
 set -e  # Exit on error
@@ -53,6 +55,10 @@ ALL_TESTS_PASSED=true
 # Command-line flags
 CLEAN_ONLY=false
 PRESERVE_AUTOTOOLS=false
+COVERAGE_LIST_ONLY=false
+COVERAGE_GATE=false
+COVERAGE_MIN_LINES=90.0
+COVERAGE_MIN_FUNCTIONS=100.0
 
 # Parse command-line arguments
 for arg in "$@"; do
@@ -63,6 +69,18 @@ for arg in "$@"; do
         --test)
             PRESERVE_AUTOTOOLS=true
             ;;
+        --coverage-list)
+            COVERAGE_LIST_ONLY=true
+            ;;
+        --coverage-gate)
+            COVERAGE_GATE=true
+            ;;
+        --min-lines=*)
+            COVERAGE_MIN_LINES="${arg#*=}"
+            ;;
+        --min-functions=*)
+            COVERAGE_MIN_FUNCTIONS="${arg#*=}"
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -70,12 +88,18 @@ for arg in "$@"; do
             echo "  (none)      Full clean, build, test, and coverage (default)"
             echo "  --test      Preserve autotools generated files for faster rebuilds"
             echo "  --clean     Deep clean only (removes all build artifacts, no build/test)"
+            echo "  --coverage-list  Print file-wise line/function coverage from unittest/coverage.info"
+            echo "  --coverage-gate  Enforce coverage thresholds (defaults: lines>=90, functions>=100)"
+            echo "  --min-lines=N    Override line threshold when using --coverage-gate"
+            echo "  --min-functions=N  Override function threshold when using --coverage-gate"
             echo "  --help, -h  Show this help message"
             echo ""
             echo "Examples:"
             echo "  $0              # Full fresh build and test"
             echo "  $0 --test       # Quick rebuild (preserves configure, Makefile.in)"
             echo "  $0 --clean      # Clean all artifacts and exit"
+            echo "  $0 --coverage-list  # Show per-file line/function coverage"
+            echo "  $0 --coverage-gate  # Fail run if coverage below default thresholds"
             exit 0
             ;;
         *)
@@ -128,6 +152,169 @@ print_error() {
 ###############################################################################
 print_warning() {
     printf "${YELLOW}⚠${NC} %s\n" "$1"
+}
+
+###############################################################################
+# Function: print_coverage_hotspots
+# Description: Show files under coverage thresholds and uncovered functions
+###############################################################################
+print_coverage_hotspots() {
+    cd "$UNITTEST_DIR"
+    if [ ! -f coverage.info ]; then
+        cd "$SCRIPT_DIR"
+        return
+    fi
+
+    print_step "Files below thresholds (line<$COVERAGE_MIN_LINES or func<$COVERAGE_MIN_FUNCTIONS):"
+    awk -v line_thr="$COVERAGE_MIN_LINES" -v fn_thr="$COVERAGE_MIN_FUNCTIONS" '
+        function pct(hit, total) {
+            if (total == 0) return 0.0
+            return (100.0 * hit) / total
+        }
+        /^SF:/ { sf = substr($0, 4) }
+        /^FNF:/ { fnf = substr($0, 5) + 0 }
+        /^FNH:/ { fnh = substr($0, 5) + 0 }
+        /^LF:/  { lf  = substr($0, 4) + 0 }
+        /^LH:/  { lh  = substr($0, 4) + 0 }
+        /^end_of_record/ {
+            if (sf ~ /\/c_sourcecode\/src\//) {
+                lp = pct(lh, lf)
+                fp = pct(fnh, fnf)
+                if ((lp + 0.0) < (line_thr + 0.0) || (fp + 0.0) < (fn_thr + 0.0)) {
+                    printf("  - %s | lines=%.1f%% (%d/%d) | funcs=%.1f%% (%d/%d)\n", sf, lp, lh, lf, fp, fnh, fnf)
+                }
+            }
+            sf = ""; fnf = fnh = lf = lh = 0
+        }
+    ' coverage.info
+
+    print_step "Uncovered functions (execution count = 0):"
+    awk '
+        /^SF:/ { sf = substr($0, 4) }
+        /^FNDA:/ {
+            raw = substr($0, 6)
+            split(raw, a, ",")
+            cnt = a[1] + 0
+            fn = a[2]
+            if (cnt == 0 && sf ~ /\/c_sourcecode\/src\//) {
+                printf("  - %s :: %s\n", sf, fn)
+            }
+        }
+    ' coverage.info
+
+    cd "$SCRIPT_DIR"
+}
+
+###############################################################################
+# Function: enforce_coverage_thresholds
+# Description: Validate summary coverage against configured thresholds
+###############################################################################
+enforce_coverage_thresholds() {
+    if ! command -v lcov >/dev/null 2>&1; then
+        print_error "lcov not found - cannot enforce coverage thresholds"
+        return 1
+    fi
+
+    cd "$UNITTEST_DIR"
+    if [ ! -f coverage.info ]; then
+        print_error "coverage.info not found - cannot enforce coverage thresholds"
+        cd "$SCRIPT_DIR"
+        return 1
+    fi
+
+    summary=$(lcov --summary coverage.info --rc lcov_branch_coverage=1 2>/dev/null)
+    line_pct=$(printf '%s\n' "$summary" | awk '/lines\.+:/{gsub(/[%()]/, "", $2); print $2; exit}')
+    func_pct=$(printf '%s\n' "$summary" | awk '/functions\.+:/{gsub(/[%()]/, "", $2); print $2; exit}')
+
+    if [ -z "$line_pct" ] || [ -z "$func_pct" ]; then
+        print_error "Unable to parse coverage summary percentages"
+        cd "$SCRIPT_DIR"
+        return 1
+    fi
+
+    print_header "Coverage Gate"
+    echo "Thresholds: lines >= $COVERAGE_MIN_LINES, functions >= $COVERAGE_MIN_FUNCTIONS"
+    echo "Actual:     lines = $line_pct, functions = $func_pct"
+
+    line_ok=0
+    func_ok=0
+    awk -v a="$line_pct" -v b="$COVERAGE_MIN_LINES" 'BEGIN {exit ((a + 0.0) >= (b + 0.0)) ? 0 : 1}' || line_ok=1
+    awk -v a="$func_pct" -v b="$COVERAGE_MIN_FUNCTIONS" 'BEGIN {exit ((a + 0.0) >= (b + 0.0)) ? 0 : 1}' || func_ok=1
+
+    if [ "$line_ok" -ne 0 ] || [ "$func_ok" -ne 0 ]; then
+        if [ "$line_ok" -ne 0 ]; then
+            print_error "Line coverage gate failed: $line_pct < $COVERAGE_MIN_LINES"
+        fi
+        if [ "$func_ok" -ne 0 ]; then
+            print_error "Function coverage gate failed: $func_pct < $COVERAGE_MIN_FUNCTIONS"
+        fi
+        print_coverage_hotspots
+        cd "$SCRIPT_DIR"
+        return 1
+    fi
+
+    print_success "Coverage gate passed"
+    cd "$SCRIPT_DIR"
+    return 0
+}
+
+###############################################################################
+# Function: print_filewise_coverage
+# Description: Print per-file line/function coverage from coverage.info
+###############################################################################
+print_filewise_coverage() {
+    if ! command -v lcov >/dev/null 2>&1; then
+        print_warning "lcov not found - cannot show file-wise coverage"
+        return 1
+    fi
+
+    cd "$UNITTEST_DIR"
+
+    if [ ! -f coverage.info ]; then
+        print_warning "coverage.info not found at $UNITTEST_DIR/coverage.info"
+        print_warning "Run '$0' first to generate coverage data"
+        cd "$SCRIPT_DIR"
+        return 1
+    fi
+
+    print_header "File-wise Coverage (Lines / Functions)"
+    echo "Filtering to c_sourcecode/src for actionable module coverage"
+    echo ""
+
+    awk '
+        function pct(hit, total) {
+            if (total == 0) return 0.0
+            return (100.0 * hit) / total
+        }
+        BEGIN {
+            print "File | Lines | Functions"
+            print "-----|-------|----------"
+        }
+        /^SF:/ {
+            sf = substr($0, 4)
+            lf = lh = fnf = fnh = 0
+        }
+        /^LF:/  { lf = substr($0, 4) + 0 }
+        /^LH:/  { lh = substr($0, 4) + 0 }
+        /^FNF:/ { fnf = substr($0, 5) + 0 }
+        /^FNH:/ { fnh = substr($0, 5) + 0 }
+        /^end_of_record/ {
+            if (sf ~ /c_sourcecode\/src\// && sf ~ /\.c$/) {
+                lp = pct(lh, lf)
+                fp = pct(fnh, fnf)
+                printf("%s | %.1f%% (%d/%d) | %.1f%% (%d/%d)\n", sf, lp, lh, lf, fp, fnh, fnf)
+            }
+            sf = ""
+            lf = lh = fnf = fnh = 0
+        }
+    ' coverage.info
+
+    echo ""
+    print_step "Overall summary:"
+    lcov --summary coverage.info --rc lcov_branch_coverage=1 2>/dev/null || true
+
+    cd "$SCRIPT_DIR"
+    return 0
 }
 
 ###############################################################################
@@ -305,7 +492,9 @@ configure_build() {
     
     # Run configure
     print_step "Running configure script..."
-    ./configure --enable-coverage --enable-warnings
+    ./configure --enable-coverage --enable-warnings \
+        LDFLAGS="-L/usr/local/lib" \
+        LIBS="-lfwutils"
     print_success "Configuration complete"
     
     cd "$SCRIPT_DIR"
@@ -598,6 +787,9 @@ generate_coverage() {
             echo "Coverage data available in HTML report"
             echo "========================================="
             echo
+
+            # Print file-wise lines/functions to help target low-coverage files
+            print_filewise_coverage || true
             
             # Try to open the coverage report
             if [ "$(uname)" = "Darwin" ]; then
@@ -630,14 +822,24 @@ main() {
     echo "Source directory: $SRC_DIR"
     
     # Show mode
-    if [ "$CLEAN_ONLY" = "true" ]; then
+    if [ "$COVERAGE_LIST_ONLY" = "true" ]; then
+        echo "Mode: Coverage list only"
+    elif [ "$CLEAN_ONLY" = "true" ]; then
         echo "Mode: Clean only"
     elif [ "$PRESERVE_AUTOTOOLS" = "true" ]; then
         echo "Mode: Quick rebuild (preserving autotools files)"
     else
         echo "Mode: Full fresh build"
     fi
+    if [ "$COVERAGE_GATE" = "true" ]; then
+        echo "Coverage gate: enabled (lines >= $COVERAGE_MIN_LINES, functions >= $COVERAGE_MIN_FUNCTIONS)"
+    fi
     echo
+
+    if [ "$COVERAGE_LIST_ONLY" = "true" ]; then
+        print_filewise_coverage
+        exit $?
+    fi
     
     # Execute build and test workflow
     check_prerequisites
@@ -650,6 +852,15 @@ main() {
     # Generate coverage if tests passed
     if [ "$ALL_TESTS_PASSED" = "true" ]; then
         generate_coverage
+
+        if [ "$COVERAGE_GATE" = "true" ]; then
+            if ! enforce_coverage_thresholds; then
+                print_header "FAILURE"
+                printf "${RED}✗ Coverage gate failed${NC}\n"
+                echo
+                exit 1
+            fi
+        fi
         
         print_header "SUCCESS"
         printf "${GREEN}✓ All unit tests passed successfully!${NC}\n"

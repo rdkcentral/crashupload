@@ -163,8 +163,8 @@ TEST_F(MainAppTest, SystemInitialize_FileNotPresent_OpenFails) {
 
     int result = system_initialize(3, argv, &config, &platform);
 
-    // open() on a directory fails -> system_initialize returns -1
-    EXPECT_EQ(result, -1);
+    // open() on a directory fails -> system_initialize returns ERR_SYSTEM_INIT_FAILED
+    EXPECT_EQ(result, ERR_SYSTEM_INIT_FAILED);
 
     // Cleanup
     rmdir("/tmp/test_core.log");
@@ -264,11 +264,9 @@ TEST_F(MainAppTest, MainTest_SystemInitializeFailure) {
     
     //testing::internal::CaptureStdout();
     
-    // Should exit with failure but system_initialize doesn't fail in current impl
-    // Test that it doesn't crash
-    EXPECT_EQ(main_test(3, argv), 0);
+    // config_init_load mock returns -1 -> system_initialize fails -> main returns 1
+    EXPECT_EQ(main_test(3, argv), 1);
     
-    //testing::internal::GetCapturedStdout();
     printf("crash value=%s\n",argv[1]);
 }
 

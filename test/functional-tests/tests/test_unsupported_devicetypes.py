@@ -61,6 +61,7 @@ from testUtility import (
 
 # core_log_file used by extender device type (config_manager.c)
 _EXTENDER_LOG_FILE = "/var/log/messages"
+_BROADBAND_EXTENDER_PATH = "/minidumps"
 
 
 # ---------------------------------------------------------------------------
@@ -114,12 +115,12 @@ class TestBroadbandDeviceType:
     def test_broadband_device_type_no_dumps_exits_0(
         self, binary_path, cleanup_pytest_cache
     ):
-        """TC-004: broadband with no .dmp files → NO_DUMPS_FOUND → exit(0)."""
+        """TC-004: broadband with no .dmp files in /minidumps → exit(0)."""
         _ensure_file(CORE_LOG_FILE)
-        os.makedirs(NORMAL_COREDUMP_PATH, exist_ok=True)
+        os.makedirs(_BROADBAND_EXTENDER_PATH, exist_ok=True)
 
         # Stash any pre-existing .dmp files so prerequisites_wait() finds nothing
-        stashed = stash_dir_dumps(NORMAL_COREDUMP_PATH, ".dmp")
+        stashed = stash_dir_dumps(_BROADBAND_EXTENDER_PATH, ".dmp")
         original = _override_device_type("broadband")
         try:
             result = subprocess.run(
@@ -138,14 +139,14 @@ class TestBroadbandDeviceType:
     def test_broadband_minidump_detection_in_core_path(
         self, binary_path, cleanup_pytest_cache
     ):
-        """TC-017: broadband finds .dmp; chdir(/minidumps) absent → exit(0)."""
+        """TC-017: broadband finds .dmp in /minidumps and exits cleanly."""
         _ensure_file(CORE_LOG_FILE)
-        os.makedirs(NORMAL_COREDUMP_PATH, exist_ok=True)
+        os.makedirs(_BROADBAND_EXTENDER_PATH, exist_ok=True)
 
         # Reboot flag: safety net in case /minidumps exists in this environment
         Path(REBOOT_FLAG_FILE).touch()
-        stashed = stash_dir_dumps(NORMAL_COREDUMP_PATH, ".dmp")
-        dump_path = create_dummy_dump(NORMAL_COREDUMP_PATH, "tc017_broadband.dmp")
+        stashed = stash_dir_dumps(_BROADBAND_EXTENDER_PATH, ".dmp")
+        dump_path = create_dummy_dump(_BROADBAND_EXTENDER_PATH, "tc017_broadband.dmp")
         original = _override_device_type("broadband")
         try:
             result = subprocess.run(
@@ -159,7 +160,7 @@ class TestBroadbandDeviceType:
         finally:
             _write_device_properties(original)
             # Remove any files the binary may have created for this dump
-            for extra in Path(NORMAL_COREDUMP_PATH).glob("tc017*"):
+            for extra in Path(_BROADBAND_EXTENDER_PATH).glob("tc017*"):
                 extra.unlink(missing_ok=True)
             Path(dump_path).unlink(missing_ok=True)
             restore_stashed_dumps(stashed)
@@ -177,12 +178,12 @@ class TestExtenderDeviceType:
     def test_extender_device_type_no_dumps_exits_0(
         self, binary_path, cleanup_pytest_cache
     ):
-        """TC-005: extender with no .dmp files → NO_DUMPS_FOUND → exit(0)."""
+        """TC-005: extender with no .dmp files in /minidumps → exit(0)."""
         _ensure_file(CORE_LOG_FILE)
         _ensure_file(_EXTENDER_LOG_FILE)   # extender uses /var/log/messages as core_log_file
-        os.makedirs(NORMAL_COREDUMP_PATH, exist_ok=True)
+        os.makedirs(_BROADBAND_EXTENDER_PATH, exist_ok=True)
 
-        stashed = stash_dir_dumps(NORMAL_COREDUMP_PATH, ".dmp")
+        stashed = stash_dir_dumps(_BROADBAND_EXTENDER_PATH, ".dmp")
         original = _override_device_type("extender")
         try:
             result = subprocess.run(
@@ -201,15 +202,15 @@ class TestExtenderDeviceType:
     def test_extender_minidump_detection_in_core_path(
         self, binary_path, cleanup_pytest_cache
     ):
-        """TC-018: extender finds .dmp; chdir(/minidumps) absent → exit(0)."""
+        """TC-018: extender finds .dmp in /minidumps and exits cleanly."""
         _ensure_file(CORE_LOG_FILE)
         _ensure_file(_EXTENDER_LOG_FILE)
-        os.makedirs(NORMAL_COREDUMP_PATH, exist_ok=True)
+        os.makedirs(_BROADBAND_EXTENDER_PATH, exist_ok=True)
 
         # Reboot flag: safety net in case /minidumps exists in this environment
         Path(REBOOT_FLAG_FILE).touch()
-        stashed = stash_dir_dumps(NORMAL_COREDUMP_PATH, ".dmp")
-        dump_path = create_dummy_dump(NORMAL_COREDUMP_PATH, "tc018_extender.dmp")
+        stashed = stash_dir_dumps(_BROADBAND_EXTENDER_PATH, ".dmp")
+        dump_path = create_dummy_dump(_BROADBAND_EXTENDER_PATH, "tc018_extender.dmp")
         original = _override_device_type("extender")
         try:
             result = subprocess.run(
@@ -222,7 +223,7 @@ class TestExtenderDeviceType:
             )
         finally:
             _write_device_properties(original)
-            for extra in Path(NORMAL_COREDUMP_PATH).glob("tc018*"):
+            for extra in Path(_BROADBAND_EXTENDER_PATH).glob("tc018*"):
                 extra.unlink(missing_ok=True)
             Path(dump_path).unlink(missing_ok=True)
             restore_stashed_dumps(stashed)

@@ -21,9 +21,11 @@
 #include <curl/curl.h>
 #include <time.h>
 #include "../rfcInterface/rfcinterface.h"
+#include "../rbusInterface/rbus_interface.h"
 #include "upload.h"
 #ifndef GTEST_ENABLE
 #include "common_device_api.h"
+#include "system_utils.h"
 #endif
 #include "mtls_upload.h"
 #include "upload_status.h"
@@ -103,7 +105,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
     CRASHUPLOAD_INFO("Before upload\n");
     CRASHUPLOAD_INFO("filepath=%s\n", filepath);
     CRASHUPLOAD_INFO("url=%s\n", url);
-    CRASHUPLOAD_INFO("dump name=%s=>carsh firmware=%s\n", dump_name, crash_fw_version);
+    CRASHUPLOAD_INFO("dump name=%s=>crash firmware=%s\n", dump_name, crash_fw_version);
     CRASHUPLOAD_INFO("build type=%s=>model=%s\n", build_type, model);
     CRASHUPLOAD_INFO("md5sum=%s\n", md5sum);
 
@@ -219,7 +221,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
     {
         if (totlen < szPostFieldOut)
         {
-            CRASHUPLOAD_INFO("postfiled data=%s\n", post_filed);
+            CRASHUPLOAD_INFO("postfield data=%s\n", post_filed);
 #if defined(L2_TEST)
             char s3_url_file_saved[sizeof(s3_url_file)];
             memcpy(s3_url_file_saved, s3_url_file, sizeof(s3_url_file));
@@ -231,7 +233,12 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
 #endif
             CRASHUPLOAD_INFO("After performMetadataPostWithCertRotationEx ret=%d=>http code=%lu\n", ret, http_code);
             __uploadutil_get_status(&http_code, &curl_ret);
-            CRASHUPLOAD_INFO("Curl Connected to $FQDN:%s\n", url);
+
+            if (ret != 0 && curl_ret == 0 && (device_type == DEVICE_TYPE_BROADBAND || device_type == DEVICE_TYPE_EXTENDER))
+            {
+                curl_ret = ret;
+            }
+            CRASHUPLOAD_INFO("Curl Connected to FQDN: %s\n", url);
             CRASHUPLOAD_INFO("Curl return code :%d, HTTP SIGN URL Response:%lu\n", curl_ret, http_code);
             if (t2_enabled)
             {
@@ -263,7 +270,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
             {
                 CRASHUPLOAD_INFO("Attempting TLS1.2 connection to Amazon S3\n");
                 ret = extractS3PresignedUrl(s3_url_file, out_url, sizeof(out_url));
-                CRASHUPLOAD_INFO("extractS3PresignedUrl ret=%d=>out_url=%s\n", ret, out_url);
+                CRASHUPLOAD_INFO("extractS3PresignedUrl ret=%d", ret);
                 if (ret == 0 && out_url[0] != '\0')
                 {
                     ret = performS3PutUpload(out_url, filepath, &sec_out);
@@ -305,8 +312,17 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
                 if (device_type != DEVICE_TYPE_BROADBAND)
                 {
                     tls_log(curl_ret, "mediaclient", fqdn);
-                    char certerr_val[1024];
-                    snprintf(certerr_val, sizeof(certerr_val), "DumpUL, %d, %s", curl_ret, fqdn);
+                    char certerr_val[1024] = {0};
+                    int prefix_len = snprintf(certerr_val, sizeof(certerr_val), "DumpUL, %d, ", curl_ret);
+                    if (prefix_len > 0 && (size_t)prefix_len < sizeof(certerr_val))
+                    {
+                        size_t remaining = sizeof(certerr_val) - (size_t)prefix_len;
+                        size_t fqdn_len = strlen(fqdn);
+                        if (fqdn_len >= remaining)
+                            fqdn_len = remaining - 1;
+                        memcpy(certerr_val + prefix_len, fqdn, fqdn_len);
+                        certerr_val[(size_t)prefix_len + fqdn_len] = '\0';
+                    }
                     t2ValNotify("certerr_split", certerr_val);
                 }
                 else
@@ -347,7 +363,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
         else
         {
             CRASHUPLOAD_ERROR("post field buffer corrupted. Total write bytes=%zu and total buf size=%zu\n", totlen, szPostFieldOut);
-            CRASHUPLOAD_ERROR("postfiled data=%s\n", post_filed); // TODO: Need to remove
+            CRASHUPLOAD_ERROR("postfield data=%s\n", post_filed); // TODO: Need to remove
             break;
         }
     }
@@ -389,7 +405,41 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         ret = (pPartnerId[0] != '\0') ? 1 : 0;
     }
 #else
-    ret = GetPartnerId(pPartnerId, sizeof(pPartnerId));
+    if (config->device_type == DEVICE_TYPE_EXTENDER)
+    {
+        /* Extender: partnerId sourced from account JSON, not from partner_id file */
+        /* TODO: read PERSISTENT_PATH from device.properties if /opt/persistent is not universal */
+        FILE *fp = fopen("/opt/persistent/account", "r");
+        if (fp)
+        {
+            char line[512] = {0};
+            while (fgets(line, sizeof(line), fp))
+            {
+                char *p = strstr(line, "\"partnerId\":\"");
+                if (p)
+                {
+                    p += 13;
+                    char *end = strchr(p, '"');
+                    if (end)
+                    {
+                        size_t len = (size_t)(end - p);
+                        if (len < sizeof(pPartnerId))
+                        {
+                            strncpy(pPartnerId, p, len);
+                            pPartnerId[len] = '\0';
+                        }
+                    }
+                    break;
+                }
+            }
+            fclose(fp);
+        }
+        ret = (pPartnerId[0] != '\0') ? 1 : 0;
+    }
+    else
+    {
+        ret = GetPartnerId(pPartnerId, sizeof(pPartnerId));
+    }
 #endif
     if (ret == 0)
     {
@@ -406,7 +456,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         ret = read_RFCProperty("EncryptCloudUpload", RFC_DMP_ENCRYPT_UPLOAD, encryptionEnable, sizeof(encryptionEnable));
         if ((ret == READ_RFC_FAILURE) || (encryptionEnable[0] == '\0'))
         {
-            strcpy(encryptionEnable, "false"); // TODO: Need check whta should be default value
+            strcpy(encryptionEnable, "false"); // TODO: Need check what should be default value
             CRASHUPLOAD_WARN("Read rfc failed EncryptCloudUpload:%s\n", encryptionEnable);
         }
         else
@@ -416,12 +466,12 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         ret = read_RFCProperty("CrashPortal", RFC_CRASH_PORTAL_URL, portal_url, sizeof(portal_url));
         if ((ret == READ_RFC_FAILURE) || (portal_url[0] == '\0'))
         {
-            strcpy(portal_url, "crashportal.stb.r53.xcal.tv");
-            CRASHUPLOAD_WARN("Read rfc failed EncryptCloudUpload:%s\n", portal_url);
+            strcpy(portal_url, RDKE_PORTAL_DEFAULT_URL);
+            CRASHUPLOAD_WARN("Read rfc failed CrashPortal:%s\n", portal_url);
         }
         else
         {
-            CRASHUPLOAD_INFO("Read rfc Success EncryptCloudUpload:%s\n", portal_url);
+            CRASHUPLOAD_INFO("Read rfc Success CrashPortal:%s\n", portal_url);
         }
         request_type = 17;
         CRASHUPLOAD_INFO("request_type=%d\n", request_type);
@@ -450,9 +500,9 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
          * Portal URL: crashportal.stb.r53.xcal.tv
          */
         strcpy(encryptionEnable, "false");
-        strcpy(portal_url, "crashportal.stb.r53.xcal.tv");
+        strcpy(portal_url, RDKC_PORTAL_DEFAULT_URL);
         request_type = 17;
-        CRASHUPLOAD_INFO("RDKC: request_type=%d\n", request_type);
+        CRASHUPLOAD_INFO("RDKC: request_type=%d portal=%s\n", request_type, portal_url);
         ret = get_crashupload_s3signed_url(crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
         if (ret < 0)
         {
@@ -461,20 +511,80 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         }
         CRASHUPLOAD_INFO("RDKC: S3 signing URL=%s\n", crashportalEndpointUrl);
     }
-    else if (config->device_type == DEVICE_TYPE_BROADBAND)
+    else if (config->device_type == DEVICE_TYPE_BROADBAND ||
+             config->device_type == DEVICE_TYPE_EXTENDER)
     {
-        ret = -1;
-        CRASHUPLOAD_WARN("TODO: SUPPORT NOT AVAILABLE\n");
-        CRASHUPLOAD_WARN("Unknown device\n");
-        CRASHUPLOAD_WARN("Unknown DEVICE_TYPE:\n");
-        return ret;
+        /* Broadband: portal rdkbcrashportal.stb.r53.xcal.tv, request_type=18
+         * Extender: same upload path; S3 URL sourced from device.properties via get_crashupload_s3signed_url */
+        strcpy(portal_url, RDKB_PORTAL_DEFAULT_URL);
+        request_type = 18;
+
+        if (config->device_type == DEVICE_TYPE_BROADBAND)
+        {
+            /* syscfg is primary; rbus is fallback when syscfg returns empty */
+            if (crashupload_syscfg_get("encryptcloudupload", encryptionEnable, sizeof(encryptionEnable)))
+            {
+                size_t elen = strlen(encryptionEnable);
+                if (elen > 0 && encryptionEnable[elen - 1] == '\n')
+                    encryptionEnable[elen - 1] = '\0';
+            }
+            /*rbus fallback if syscfg returned empty */
+            if (encryptionEnable[0] == '\0')
+                rbus_get_string_param(RFC_DMP_ENCRYPT_UPLOAD, encryptionEnable, sizeof(encryptionEnable));
+
+            if (encryptionEnable[0] == '\0')
+            {
+                strcpy(encryptionEnable, "false");
+                CRASHUPLOAD_WARN("Broadband: encryptcloudupload empty, defaulting to false\n");
+            }
+            else
+            {
+                CRASHUPLOAD_INFO("Broadband: encryptionEnable=%s\n", encryptionEnable);
+            }
+        }
+        else
+        {
+            /* Extender does not use syscfg for encryption flag */
+            strcpy(encryptionEnable, "false");
+        }
+
+        CRASHUPLOAD_INFO("%s: request_type=%d portal=%s\n", device_type_to_str(config->device_type), request_type, portal_url);
+
+        /* M3: broadband primary S3 URL from Syndication.CrashPortal via rbus */
+        if (config->device_type == DEVICE_TYPE_BROADBAND)
+            rbus_get_string_param(RDKB_SYNDICATION_CRASH_PORTAL, crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
+
+        /* Extender or broadband rbus miss: fall back to RFC/device.properties */
+        if (crashportalEndpointUrl[0] == '\0')
+        {
+            /* D3: sky-uk partner uses EU signing URL from device.properties */
+            if (config->device_type == DEVICE_TYPE_BROADBAND &&
+                strncmp(pPartnerId, "sky-uk", 6) == 0)
+            {
+                ret = getDevicePropertyData("S3_AMAZON_SIGNING_URL_EU", crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
+                if (ret != UTILS_SUCCESS)
+                {
+                    CRASHUPLOAD_WARN("Broadband sky-uk: failed to read S3_AMAZON_SIGNING_URL_EU\n");
+                }
+                if (crashportalEndpointUrl[0] != '\0')
+                    CRASHUPLOAD_INFO("Broadband sky-uk: EU S3 URL=%s\n", crashportalEndpointUrl);
+            }
+        }
+        if (crashportalEndpointUrl[0] == '\0')
+        {
+            ret = get_crashupload_s3signed_url(crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
+            if (ret < 0)
+            {
+                CRASHUPLOAD_ERROR("%s: Unable to get S3 server url\n", device_type_to_str(config->device_type));
+                return ret;
+            }
+        }
+        CRASHUPLOAD_INFO("%s: S3 signing URL=%s\n", device_type_to_str(config->device_type), crashportalEndpointUrl);
     }
     else
     {
-        ret = -1;
-        CRASHUPLOAD_WARN("Unknown device\n");
-        CRASHUPLOAD_WARN("Unknown DEVICE_TYPE:\n");
-        return ret;
+        CRASHUPLOAD_ERROR("Unknown DEVICE_TYPE: %d\n", config->device_type);
+        return -1;
     }
     if ((0 == (filePresentCheck(EnableOCSPStapling))) || (0 == (filePresentCheck(EnableOCSP))))
     {
@@ -501,7 +611,10 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
     status = upload_file(archive->archive_name, crashportalEndpointUrl, dump_name, crash_fw_version, config->build_type_val, platform->model, md5sum, config->device_type, config->t2_enabled);
     if (0 == status)
     {
-        CRASHUPLOAD_INFO("%s uploadToS3 SUCESS: status: %d\n", config->dump_type == DUMP_TYPE_MINIDUMP ? "Minidump" : "Coredump", status);
+        CRASHUPLOAD_INFO("%s %s uploadToS3 SUCCESS: status=%d\n",
+                         device_type_to_str(config->device_type),
+                         config->dump_type == DUMP_TYPE_MINIDUMP ? "minidump" : "coredump",
+                         status);
         if (config->dump_type == DUMP_TYPE_MINIDUMP && config->t2_enabled)
         {
             t2CountNotify("SYST_INFO_minidumpUpld", 1);

@@ -25,11 +25,14 @@
 
 #include "telemetryinterface.h"
 #include <stdio.h>
+#include <stdbool.h>
 #include "../utils/logger.h"
 
 #ifdef T2_EVENT_ENABLED
 #include <telemetry_busmessage_sender.h>
 #endif
+
+static bool t2_initialized = false;
 
 /**
  * @brief Initializes the T2 telemetry system
@@ -43,9 +46,14 @@
 void t2Init(char *component)
 {
 #ifdef T2_EVENT_ENABLED
-    t2_init(component);
+    if (!t2_initialized)
+    {
+        t2_init(component);
+        t2_initialized = true;
+    }
 #else
     CRASHUPLOAD_INFO("[NOT IMPLEMENTED] T2 Telemetry Initialized for component: %s\n", component);
+    t2_initialized = true;
 #endif
 }
 
@@ -58,11 +66,18 @@ void t2Init(char *component)
  */
 void t2Uninit(void)
 {
+    if (!t2_initialized)
+    {
+        CRASHUPLOAD_WARN("T2 Telemetry not initialized, skipping uninit\n");
+        return;
+    }
+
 #ifdef T2_EVENT_ENABLED
     t2_uninit();
 #else
     CRASHUPLOAD_INFO("[NOT IMPLEMENTED] T2 Telemetry Uninitialized\n");
 #endif
+    t2_initialized = false;
 }
 
 /**

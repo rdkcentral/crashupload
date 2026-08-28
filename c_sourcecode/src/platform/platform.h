@@ -31,13 +31,31 @@
 
 #define MAC_FILE "/tmp/.macAddress"
 #define MAC_ADDRESS_LEN 17
+#define TMP_CPU_INFO_FILE "/tmp/cpu_info"
+#define CPU_INFO_FILE "/proc/cpuinfo"
 
-/**
- * @brief Initialize platform configuration
+#define IF_INFO_FILE            "/tmp/if_info"
+#define SYSEVENT_TIMEOUT_SEC    900
+#define SYSEVENT_POLL_SEC       5
+
+/** @brief Initialize platform configuration
  * @param config Application configuration
  * @param platform Platform configuration (output)
  * @return ERR_SUCCESS on success
  */
 int platform_initialize(const config_t *config, platform_config_t *platform);
+
+/**
+ * @brief Detect CPU core type from /tmp/cpu_info or /proc/cpuinfo.
+ * @return "ARM", "ATOM", or "" (unknown). Result is cached in /tmp/cpu_info.
+ */
+const char *get_core_type(void);
+
+/**
+ * @brief Get the WAN interface name via sysevent polling (up to 900s).
+ * Falls back to ATOM_INTERFACE/ARM_INTERFACE from device.properties on timeout.
+ * @return interface name string (e.g. "erouter0"), or "unknown".
+ */
+const char *get_interface_value(void);
 
 #endif

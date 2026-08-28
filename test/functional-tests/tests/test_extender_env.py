@@ -18,9 +18,9 @@
 ##########################################################################
 
 """
-test_broadband_env.py — Broadband device-type archive behavior test.
+test_extender_env.py - Extender device-type archive behavior test.
 
-TC-067 validates current broadband minidump behavior:
+TC-068 validates current extender minidump behavior:
     1. binary exits cleanly
     2. a .tgz archive is created in /minidumps
 """
@@ -30,11 +30,9 @@ import re
 import subprocess
 from pathlib import Path
 
-import pytest
-
 from testUtility import (
-    cleanup_pytest_cache,
     binary_path,
+    cleanup_pytest_cache,
     stash_dir_dumps,
     restore_stashed_dumps,
     CORE_LOG_FILE,
@@ -43,16 +41,15 @@ from testUtility import (
     DEVICE_PROPERTIES,
 )
 
-# Broadband minidump/working directory (hardcoded in config_manager.c for broadband)
-BROADBAND_MINIDUMP_PATH = "/minidumps"
+# Extender minidump/working directory (hardcoded in config_manager.c for extender)
+EXTENDER_MINIDUMP_PATH = "/minidumps"
+
+# Extender core log file path used by config_manager.c
+EXTENDER_CORE_LOG_FILE = "/var/log/messages"
 
 # LOG_FILES_PATH written by get_crashed_log_file()
 LOG_FILES_PATH = "/tmp/minidump_log_files.txt"
 
-
-# ---------------------------------------------------------------------------
-# Module-level helpers
-# ---------------------------------------------------------------------------
 
 def _ensure_file(path: str) -> None:
     """Create *path* (and parent dirs) if absent."""
@@ -106,55 +103,45 @@ def _override_device_type(device_type: str) -> str:
     return original
 
 
-# ---------------------------------------------------------------------------
-# Test class
-# ---------------------------------------------------------------------------
+class TestExtenderEnv:
+    """TC-068: Verifies extender minidump flow creates a tarball in /minidumps."""
 
-class TestBroadbandEnv:
-    """
-    TC-067
-
-    Verifies broadband minidump flow creates a tarball in /minidumps.
-    """
-
-    def test_broadband_minidump_archive_created(
-        self, binary_path, cleanup_pytest_cache
-    ):
-        """TC-067: Broadband minidump flow creates a .tgz archive in /minidumps."""
+    def test_extender_minidump_archive_created(self, binary_path, cleanup_pytest_cache):
+        """TC-068: Extender minidump flow creates a .tgz archive in /minidumps."""
         _ensure_file(CORE_LOG_FILE)
-        os.makedirs(BROADBAND_MINIDUMP_PATH, exist_ok=True)
+        _ensure_file(EXTENDER_CORE_LOG_FILE)
+        os.makedirs(EXTENDER_MINIDUMP_PATH, exist_ok=True)
 
-        stashed = stash_dir_dumps(BROADBAND_MINIDUMP_PATH, ".dmp")
+        stashed = stash_dir_dumps(EXTENDER_MINIDUMP_PATH, ".dmp")
         dump_path = _create_file(
-            os.path.join(BROADBAND_MINIDUMP_PATH, "tc067proc_99999.dmp"),
+            os.path.join(EXTENDER_MINIDUMP_PATH, "tc068_extender_99999.dmp"),
             b"MINIDUMP_HEADER" + b"\x00" * 4096,
         )
         Path(LOG_FILES_PATH).unlink(missing_ok=True)
         Path(REBOOT_FLAG_FILE).touch()
-        original_props = _override_device_type("broadband")
+        original_props = _override_device_type("extender")
         try:
             result = subprocess.run(
                 [binary_path, "", "0"],
-                capture_output=True, text=True, timeout=60,
+                capture_output=True,
+                text=True,
+                timeout=60,
             )
             assert result.returncode == 0, (
-                f"TC-067: expected exit(0), got {result.returncode}\n"
+                f"TC-068: expected exit(0), got {result.returncode}\n"
                 f"stdout={result.stdout}\nstderr={result.stderr}"
             )
-            tgz_files = list(Path(BROADBAND_MINIDUMP_PATH).glob("*.tgz"))
-            processed = bool(tgz_files) or (not Path(dump_path).exists())
-            assert processed, (
-                "TC-067: dump was not processed in broadband flow (no .tgz and original .dmp still present).\n"
-                f"Directory: {BROADBAND_MINIDUMP_PATH}"
+            tgz_files = list(Path(EXTENDER_MINIDUMP_PATH).glob("*.tgz"))
+            assert tgz_files, (
+                "TC-068: expected .tgz archive in /minidumps for extender flow, found none.\n"
+                f"Directory: {EXTENDER_MINIDUMP_PATH}"
             )
         finally:
             _write_device_properties(original_props)
             Path(dump_path).unlink(missing_ok=True)
-            # Clean up the renamed dump (archive_create_smart renames it before
-            # discovering no tarball code path exists for broadband)
-            for leftover in Path(BROADBAND_MINIDUMP_PATH).glob("*tc067*"):
+            for leftover in Path(EXTENDER_MINIDUMP_PATH).glob("*tc068*"):
                 leftover.unlink(missing_ok=True)
-            _cleanup_tgz(BROADBAND_MINIDUMP_PATH)
+            _cleanup_tgz(EXTENDER_MINIDUMP_PATH)
             restore_stashed_dumps(stashed)
             Path(LOG_FILES_PATH).unlink(missing_ok=True)
             Path(REBOOT_FLAG_FILE).unlink(missing_ok=True)

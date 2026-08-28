@@ -22,6 +22,9 @@
 #include "platform.h"
 #include "../../common/errors.h"
 #include "../utils/logger.h"
+#include "../rbusInterface/rbus_interface.h"
+#include <fcntl.h>
+#include <unistd.h>
 
 /* function NormalizeMac - gets the eSTB MAC address of the device.
 
@@ -91,7 +94,7 @@ size_t GetEstbMac(char *pEstbMac, size_t szBufSize)
             }
             fclose(fp);
             i = stripinvalidchar(pEstbMac, szBufSize);
-            CRASHUPLOAD_INFO("GetEstbMac: After reading ESTB_MAC_FILE value=%s\n", pEstbMac);
+            CRASHUPLOAD_INFO("GetEstbMac: After reading %s value=%s\n", MAC_FILE, pEstbMac);
             /* Below condition if ESTB_MAC_FILE file having empty data and pEstbMac does not have 17 character
              * including total mac address with : separate */
             if (pEstbMac[0] == '\0' || pEstbMac[0] == '\n' || i != MAC_ADDRESS_LEN)
@@ -153,10 +156,28 @@ int platform_initialize(const config_t *config, platform_config_t *platform)
     }
     else
     {
-        CRASHUPLOAD_ERROR("Get mac is failed. Setting dafult value\n");
-        strcpy(platform->mac_address, "000000000000");
+        if (config && (config->device_type == DEVICE_TYPE_BROADBAND || config->device_type == DEVICE_TYPE_EXTENDER))
+        {
+            CRASHUPLOAD_ERROR("GetEstbMac is failed. Trying to get mac from wan interface\n");
+            char wan_if[32] = {0};
+            snprintf(wan_if, sizeof(wan_if), "%s", get_interface_value());
+            if (wan_if[0] != '\0' && strcmp(wan_if, "unknown") != 0)
+            {
+                ret = GetHwMacAddress(wan_if, platform->mac_address, sizeof(platform->mac_address));
+                if (ret)
+                {
+                    NormalizeMac(platform->mac_address, sizeof(platform->mac_address));
+                    CRASHUPLOAD_INFO("Broadband MAC fallback via %s: %s\n", wan_if, platform->mac_address);
+                }
+            }
+        }
+        if (!ret)
+        {
+            CRASHUPLOAD_ERROR("Get mac is failed. Setting default value\n");
+            strcpy(platform->mac_address, "000000000000");
+        }
     }
-    // TODO: For brodband and extender we have change the code
+    // TODO: For broadband and extender we have change the code
     ret = GetModelNum(platform->model, sizeof(platform->model));
     if (ret)
     {
@@ -164,7 +185,7 @@ int platform_initialize(const config_t *config, platform_config_t *platform)
     }
     else
     {
-        CRASHUPLOAD_ERROR("GetModel is failed. Setting dafult value\n");
+        CRASHUPLOAD_ERROR("GetModel is failed. Setting default value\n");
         strcpy(platform->model, "UNKNOWN");
     }
     ret = file_get_sha1("/version.txt", platform->platform_sha1, sizeof(platform->platform_sha1));
@@ -179,4 +200,127 @@ int platform_initialize(const config_t *config, platform_config_t *platform)
         CRASHUPLOAD_INFO("file sha=%s\n", platform->platform_sha1);
     }
     return PLATFORM_INIT_SUCCESS;
+}
+
+const char *get_core_type(void)
+{
+    static char core[8] = {0};
+    if (core[0] != '\0')
+        return core;
+
+    FILE *fp = fopen(TMP_CPU_INFO_FILE, "r");
+    if (fp)
+    {
+        if (fgets(core, sizeof(core), fp))
+        {
+            size_t len = strlen(core);
+            if (len > 0 && core[len - 1] == '\n') core[len - 1] = '\0';
+        }
+        fclose(fp);
+    }
+    if (core[0] == '\0')
+    {
+        fp = fopen(CPU_INFO_FILE, "r");
+        if (fp)
+        {
+            char line[128];
+            while (fgets(line, sizeof(line), fp))
+            {
+                if (strstr(line, "aarch64") || strstr(line, "ARM")) { strcpy(core, "ARM");  break; }
+                if (strstr(line, "Atom"))                            { strcpy(core, "ATOM"); break; }
+            }
+            fclose(fp);
+        }
+        /* cache result so subsequent calls skip /proc/cpuinfo parsing */
+        if (core[0] != '\0')
+        {
+            int fd = open(TMP_CPU_INFO_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+            if (fd >= 0)
+            {
+                fp = fdopen(fd, "w");
+                if (fp) { fputs(core, fp); fclose(fp); }
+                else close(fd);
+            }
+        }
+    }
+    CRASHUPLOAD_INFO("get_core_type: %s\n", core[0] ? core : "unknown");
+    return core;
+}
+
+
+const char *get_interface_value(void)
+{
+    static char if_name[32] = {0};
+#if defined(GTEST_ENABLE) || defined(L2_TEST)
+    snprintf(if_name, sizeof(if_name), "%s", "erouter0");
+    return if_name;
+#else
+    if (if_name[0] != '\0')
+        return if_name;
+
+    {
+        FILE *fp = fopen(IF_INFO_FILE, "r");
+        if (fp)
+        {
+            if (fgets(if_name, sizeof(if_name), fp))
+            {
+                size_t len = strlen(if_name);
+                if (len > 0 && if_name[len - 1] == '\n')
+                    if_name[len - 1] = '\0';
+                if (if_name[0] != '\0')
+                {
+                    fclose(fp);
+                    CRASHUPLOAD_INFO("get_interface_value: cache=%s\n", if_name);
+                    return if_name;
+                }
+            }
+            fclose(fp);
+        }
+    }
+
+    /* Poll sysevent for current WAN interface; retry every 5s up to 900s (script parity) */
+    int elapsed = 0;
+    while (elapsed < SYSEVENT_TIMEOUT_SEC)
+    {
+        char buf[32] = {0};
+        if (crashupload_sysevent_get("current_wan_ifname", buf, sizeof(buf)))
+        {
+            size_t len = strlen(buf);
+            if (len > 0 && buf[len - 1] == '\n') buf[len - 1] = '\0';
+            if (buf[0] != '\0')
+            {
+                snprintf(if_name, sizeof(if_name), "%s", buf);
+                CRASHUPLOAD_INFO("get_interface_value: sysevent=%s\n", if_name);
+                return if_name;
+            }
+        }
+        sleep(SYSEVENT_POLL_SEC);
+        elapsed += SYSEVENT_POLL_SEC;
+    }
+    /* Fallback: derive interface from core type via device.properties */
+    const char *core = get_core_type();
+    int ret = -1;
+    if (strcmp(core, "ATOM") == 0)
+        ret = getDevicePropertyData("ATOM_INTERFACE", if_name, sizeof(if_name));
+    else if (strcmp(core, "ARM") == 0)
+        ret = getDevicePropertyData("ARM_INTERFACE", if_name, sizeof(if_name));
+    else
+        ret = -1;
+
+    if (ret != 0 || if_name[0] == '\0')
+        snprintf(if_name, sizeof(if_name), "%s", "unknown");
+
+    if (if_name[0] != '\0' && strcmp(if_name, "unknown") != 0)
+    {
+        int fd = open(IF_INFO_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+        if (fd >= 0)
+        {
+            FILE *fp = fdopen(fd, "w");
+            if (fp) { fputs(if_name, fp); fclose(fp); }
+            else close(fd);
+        }
+    }
+    CRASHUPLOAD_INFO("get_interface_value: fallback core=%s if=%s\n", core, if_name);
+    return if_name;
+#endif
 }
