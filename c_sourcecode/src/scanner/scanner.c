@@ -463,9 +463,12 @@ int processCrashTelemetryInfo(const char *rawfile, const char *log_path, bool t2
     {
         isTgz = 1;
         CRASHUPLOAD_INFO("The File is already a tarball, this might be a retry or crash during shutdown:%d\n", isTgz);
-
-        /* original shell: file_temp=${file#*_mod*_}
-         * Remove everything up to and including the first occurrence of "_mod_" (if present).
+        /*
+         * original shell: file_temp=${file#*_mod_*}
+         *
+         * Remove everything up to and including the first occurrence
+         * of "_mod_" (if present).
+         *
          * Example: "abc_mod_foo.tgz" -> "foo.tgz"
          */
         char *pmod = strstr(file, "_mod");
@@ -489,15 +492,17 @@ int processCrashTelemetryInfo(const char *rawfile, const char *log_path, bool t2
             t2CountNotify("SYS_INFO_TGZDUMP", 1);
         }
     }
-    /* Container detection: check if containerDelimiter appears in file */
+    /*
+     * Container detection: check if containerDelimiter appears in file
+     */
     if (strstr(file, containerDelimiter) != NULL)
     {
         isContainer = 1;
         CRASHUPLOAD_INFO("From the file name crashed process is a container=%d\n", isContainer);
-
-        /* Split on last containerDelimiter for time part (file##*$containerDelimiter) */
-        // Satya:Commented====>char *lastDel = strrchr(file, containerDelimiter[0]); /* naive find - improved below
-        /* Better approach: find last occurrence of containerDelimiter substring */
+        /*
+         * Find last occurrence of containerDelimiter.
+         * This is used for extracting the time part.
+         */
         char *pos = NULL;
         char *scan = file;
         while ((scan = strstr(scan, containerDelimiter)) != NULL)
@@ -515,20 +520,25 @@ int processCrashTelemetryInfo(const char *rawfile, const char *log_path, bool t2
                 goto call_get_crashed;
             }
         }
-        /* firstBreak = substring before first delimiter occurrence (we used last pos above for time; find first) */
+        /*
+         * Find first occurrence of containerDelimiter.
+         * Everything before it is the container name.
+         */
         char firstBreak[256];
         char containerTime[64];
-        /* find first occurrence for containerTime extraction logic similar to shell */
         char *firstPos = strstr(file, containerDelimiter);
         if (!firstPos)
             goto call_get_crashed;
-        /* Extract firstBreak (everything before firstPos) */
+
         size_t fb_len = (size_t)(firstPos - file);
-        if (fb_len >= PATH_MAX_LEN)
-            fb_len = PATH_MAX_LEN - 1;
+        if (fb_len >= sizeof(firstBreak))
+            fb_len = sizeof(firstBreak) - 1;
+
         memcpy(firstBreak, file, fb_len);
         firstBreak[fb_len] = '\0';
-        /* containerTime is everything after last delimiter */
+        /*
+         * containerTime is everything after the last delimiter.
+         */
         char *lastPos = NULL;
         scan = file;
         while ((scan = strstr(scan, containerDelimiter)) != NULL)
@@ -543,49 +553,57 @@ int processCrashTelemetryInfo(const char *rawfile, const char *log_path, bool t2
 
         char containerName[256];
         char containerStatus[256];
-        /* check if firstBreak contains another delimiter -> then has status info */
-        if (strstr(firstBreak, containerDelimiter) != NULL)
+        /*
+         * containerName = everything before the first delimiter.
+         *
+         * containerStatus = everything between the first and last
+         * delimiter.
+         *
+         * This intentionally does not assume any particular status
+         * value such as foreground/background.
+         */
+        snprintf(containerName, sizeof(containerName), "%s", firstBreak);
+        if (lastPos != firstPos)
         {
-            /* containerName = firstBreak%delimiter*  (text before last delimiter inside firstBreak) */
-            char *lastInside = NULL;
-            char *sc2 = firstBreak;
-            while ((sc2 = strstr(sc2, containerDelimiter)) != NULL)
-            {
-                lastInside = sc2;
-                sc2 = sc2 + 1;
-            }
-            if (lastInside)
-            {
-                size_t cname_len = (size_t)(lastInside - firstBreak);
-                if (cname_len >= sizeof(containerName))
-                    cname_len = sizeof(containerName) - 1;
-                memcpy(containerName, firstBreak, cname_len);
-                containerName[cname_len] = '\0';
-                snprintf(containerStatus, sizeof(containerStatus), "%s", lastInside + strlen(containerDelimiter));
-            }
-            else
-            {
-                snprintf(containerName, sizeof(containerName), "%s", firstBreak);
-                snprintf(containerStatus, sizeof(containerStatus), "unknown");
-            }
+            size_t status_len = (size_t)(lastPos - (firstPos + strlen(containerDelimiter)));
+
+            if (status_len >= sizeof(containerStatus))
+                status_len = sizeof(containerStatus) - 1;
+
+            memcpy(containerStatus, firstPos + strlen(containerDelimiter), status_len);
+            containerStatus[status_len] = '\0';
+            // INFO log: containerStatus extracted successfully
+            CRASHUPLOAD_INFO("INFO: containerStatus extracted successfully: %s\n", containerStatus);
         }
         else
         {
-            snprintf(containerName, sizeof(containerName), "%s", firstBreak);
+            /*
+             * Only one delimiter is present, so there is no separate
+             * container status field.
+             */
             snprintf(containerStatus, sizeof(containerStatus), "unknown");
+            // Detailed INFO Log: containerStatus set to "unknown"
+            CRASHUPLOAD_INFO("INFO: containerStatus set to %s\n", containerStatus);
         }
 
-        /* Construct file = containerName-backwardDelimiter-containerTime */
+        /*
+         * Construct file = containerName-backwardDelimiter-containerTime
+         */
         char normalized[PATH_MAX_LEN];
         snprintf(normalized, sizeof(normalized), "%s-%s", containerName, containerTime);
-        /* Now extract Appname and ProcessName from containerName */
-        /* Appname = substring after first '_' */
+        CRASHUPLOAD_INFO("INFO: normalized file path constructed: %s with status %s\n", normalized, containerStatus);
+        /*
+         * Now extract Appname and ProcessName from containerName.
+         *
+         * Appname = substring after first '_'
+         */
         char *us = strchr(containerName, '_');
         char Appname[PATH_MAX_LEN];
         char ProcessName[PATH_MAX_LEN];
         if (us)
         {
-            snprintf(Appname, sizeof(Appname), "%s", us + 1);
+            snprintf(Appname, sizeof(Appname),  "%s", us + 1);
+
             size_t pnamelen = (size_t)(us - containerName);
             if (pnamelen >= sizeof(ProcessName))
                 pnamelen = sizeof(ProcessName) - 1;
@@ -615,18 +633,19 @@ int processCrashTelemetryInfo(const char *rawfile, const char *log_path, bool t2
         snprintf(tmpbuf, sizeof(tmpbuf), "%s,%s,%s", Appname, ProcessName, containerStatus);
         t2ValNotify("APP_ERROR_Crashed_split", tmpbuf);
         t2ValNotify("APP_ERROR_Crashed_accum", tmpbuf);
-
-        CRASHUPLOAD_INFO("ContainerName = %s\n", containerName);
+        CRASHUPLOAD_INFO("ContainerName = %s\n",containerName);
         t2ValNotify("APP_ERROR_CrashInfo", containerName);
-        CRASHUPLOAD_INFO("ContainerStatus = %s\n", containerStatus);
+        CRASHUPLOAD_INFO( "ContainerStatus = %s\n",containerStatus);
         t2ValNotify("APP_ERROR_CrashInfo_status", containerStatus);
-
-        /* switch normalized file into file variable */
         snprintf(file, sizeof(file), "%s", normalized);
     }
 
 call_get_crashed:
-    /* Finally call get_crashed_log_file() for the (possibly normalized) filename */
+
+    /*
+     * Finally call get_crashed_log_file() for the
+     * (possibly normalized) filename.
+     */
     get_crashed_log_file(file, log_path, t2_enabled);
     return 0;
 }

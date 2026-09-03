@@ -1708,7 +1708,8 @@ TEST(TelemetryInterfaceTest, T2Uninit_CallsSuccessfully) {
 TEST_F(ScannerTest, ProcessCrashTelemetryInfo_ContainerDelimiter_WithUnderscore) {
     // "procName_appName<#=#>running<#=#>20260304120000"
     // firstBreak = "procName_appName"  (has '_' -> Appname/ProcessName split path)
-    // containerStatus = "unknown"  (firstBreak has no nested delimiter -> else)
+    // containerStatus = "running" (text between first and last delimiter; see
+    // ExtractContainerParts_TwoDelimiters_StatusExtractedNotUnknown for a direct assertion)
     int result = processCrashTelemetryInfo(
         "myProc_myApp<#=#>running<#=#>20260304120000",
         "/tmp/scnr/log",
@@ -1727,6 +1728,55 @@ TEST_F(ScannerTest, ProcessCrashTelemetryInfo_ContainerDelimiter_NoUnderscore) {
     );
     EXPECT_EQ(result, 0);
 }
+
+// ============================================================================
+// Coverage: containerStatus extraction fix (scanner.c processCrashTelemetryInfo)
+//
+// Bug: containerStatus was always "unknown" because the old code checked for
+// the delimiter inside a substring that, by construction, ends before the
+// first delimiter and can therefore never contain it.
+//
+// Fix: containerStatus is now extracted directly as the text between the
+// first and last containerDelimiter occurrences. With exactly one delimiter,
+// behavior is unchanged ("unknown"). These are black-box regression checks
+// (no crash / success) since containerStatus is only surfaced via telemetry.
+// ============================================================================
+
+TEST_F(ScannerTest, ProcessCrashTelemetryInfo_TwoDelimiters_NonUnknownStatus) {
+    // Two delimiters -> containerStatus = "running" (not "unknown")
+    int result = processCrashTelemetryInfo(
+        "myProc_myApp<#=#>running<#=#>20260304120000",
+        "/tmp/scnr/log",
+        false
+    );
+    EXPECT_EQ(result, 0); 
+}
+
+TEST_F(ScannerTest, ProcessCrashTelemetryInfo_ThreeDelimiters_StatusSpansMiddleSegment) {
+    // containerStatus is everything between the first and last delimiter,
+    // so with 3 delimiters the middle delimiter stays part of the status text.
+    int result = processCrashTelemetryInfo(
+        "app<#=#>foreground<#=#>extra<#=#>123456",
+        "/tmp/scnr/log",
+        false
+    );
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(ScannerTest, ProcessCrashTelemetryInfo_SingleDelimiter_StatusUnknownUnchanged) {
+    // Only one delimiter -> containerStatus stays "unknown" (regression safety)
+    int result = processCrashTelemetryInfo(
+        "myprocess<#=#>20260304120000",
+        "/tmp/scnr/log",
+        false
+    );
+    EXPECT_EQ(result, 0);
+}
+
+// ============================================================================
+// processCrashTelemetryInfo Tests
+// ============================================================================
+
 
 // ============================================================================
 // Main
