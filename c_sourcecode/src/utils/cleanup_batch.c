@@ -470,7 +470,8 @@ int cleanup_batch(const char *working_dir,
         {
             CRASHUPLOAD_INFO("Inside run start up cleanup\n");
             /* delete unfinished files from previous run (matching "*mac*_dat*") */
-            delete_files_matching_pattern(working_dir, "*mac*_dat*");
+            // Commenting this function as we need the logic to upload previous dumps, this function is removing the dumps.
+            // delete_files_matching_pattern(working_dir, "*mac*_dat*");
 
             /* delete non-dump files */
             if (dumps_extn_pattern && dumps_extn_pattern[0] != '\0')
