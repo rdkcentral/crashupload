@@ -86,6 +86,7 @@ int main(int argc, char *argv[])
 int main_test(int argc, char *argv[])
 {
 #endif
+    printf("TEST PR");
     /* Initialize the logger - continue even if RDK Logger init fails (will use fallback) */
     if (logger_init() != 0)
     {
