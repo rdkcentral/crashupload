@@ -363,7 +363,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
         else
         {
             CRASHUPLOAD_ERROR("post field buffer corrupted. Total write bytes=%zu and total buf size=%zu\n", totlen, szPostFieldOut);
-            CRASHUPLOAD_ERROR("postfield data=%s\n", post_filed); // TODO: Need to remove
+            CRASHUPLOAD_ERROR("postfield data=%s\n", post_filed);
             break;
         }
     }
@@ -411,7 +411,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         char persistent_path[64] = {0};
         char account_file[80] = {0};
 
-        if (getIncludePropertyData("PERSISTENT_PATH", persistent_path, (int)sizeof(persistent_path)) != UTILS_SUCCESS ||
+        if (getIncludePropertyData("PERSISTENT_PATH", persistent_path, sizeof(persistent_path)) != UTILS_SUCCESS ||
             persistent_path[0] == '\0')
         {
             snprintf(persistent_path, sizeof(persistent_path), "%s", PERSISTENT_PATH);
@@ -472,7 +472,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         ret = read_RFCProperty("EncryptCloudUpload", RFC_DMP_ENCRYPT_UPLOAD, encryptionEnable, sizeof(encryptionEnable));
         if ((ret == READ_RFC_FAILURE) || (encryptionEnable[0] == '\0'))
         {
-            strcpy(encryptionEnable, "false"); // TODO: Need check what should be default value
+            strcpy(encryptionEnable, "false");
             CRASHUPLOAD_WARN("Read rfc failed EncryptCloudUpload:%s\n", encryptionEnable);
         }
         else

@@ -143,17 +143,6 @@ int config_init_load(config_t *config, int argc, char *argv[])
                 }
                 CRASHUPLOAD_INFO("COMM_INTERFACE=%s\n", config->comm_interface);
             }
-            
-            /* TODO: During broadband we have to implement
-             * CORE_PATH="/minidumps"
-               LOG_PATH="/rdklogs/logs"
-               if [ ! -d $LOG_PATH ];then mkdir -p $LOG_PATH; fi
-               if [ "$MULTI_CORE" = "yes" ] ;then
-                       COMM_INTERFACE=`get_interface_value`
-               else
-                       COMM_INTERFACE=$INTERFACE
-               fi
-             */
             /* NOTE: /nvram/coredump.properties and /opt/coredump.properties do not exist on RDKB.
              * Non-prod build override via /opt/coredump.properties applies only to non-broadband devices. */
         }
