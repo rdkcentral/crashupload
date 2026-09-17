@@ -171,7 +171,6 @@ int write_RFCProperty(char *type, const char *key, const char *value, RFCVALDATA
  * */
 int read_RFCProperty(const char *type, const char *key, char *out_value, size_t datasize)
 {
-    // TODO: Need to implement for RDK-M
     (void)type;
     (void)key;
     (void)out_value;
@@ -189,7 +188,6 @@ int read_RFCProperty(const char *type, const char *key, char *out_value, size_t 
  * */
 int write_RFCProperty(const char *type, const char *key, const char *value, RFCVALDATATYPE datatype)
 {
-    // TODO: Need to implement for RDK-M
     (void)type;
     (void)key;
     (void)value;

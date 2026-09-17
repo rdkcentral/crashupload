@@ -385,6 +385,19 @@ int read_RFCProperty(const char* type, const char* key, char *data, size_t datas
 }
 
 /**
+ * Mock: Include-property reader (PERSISTENT_PATH, LOG_PATH, ...)
+ * Default fail so extender partner-id uses PERSISTENT_PATH fallback.
+ * Signature must match rdk_fwdl_utils.h.
+ */
+int getIncludePropertyData(const char* param, char* value, unsigned int buff_size) {
+    if (!param || !value || buff_size == 0) {
+        return -1;
+    }
+    value[0] = '\0';
+    return -1;
+}
+
+/**
  * Mock: Get device property data
  */
 int getDevicePropertyData(const char* key, char *data, unsigned int  datasize) {
