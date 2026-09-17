@@ -186,6 +186,7 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_ExtenderDevice_Success) {
     EXPECT_EQ(result, CONFIG_SUCCESS);
     EXPECT_EQ(test_config.device_type, DEVICE_TYPE_EXTENDER);
     EXPECT_STREQ(test_config.core_log_file, "/var/log/messages");
+    EXPECT_STREQ(test_config.comm_interface, "br-home");
 }
 
 TEST_F(ConfigManagerTest, ConfigInitLoad_ProdBuildType_Success) {
@@ -289,6 +290,7 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_MinidumpExtender_WorkingDirOverride) {
     EXPECT_EQ(result, CONFIG_SUCCESS);
     EXPECT_EQ(test_config.dump_type, DUMP_TYPE_MINIDUMP);
     EXPECT_STREQ(test_config.working_dir_path, "/minidumps");
+    EXPECT_STREQ(test_config.comm_interface, "br-home");
 }
 
 TEST_F(ConfigManagerTest, ConfigInitLoad_T2Enabled_Success) {

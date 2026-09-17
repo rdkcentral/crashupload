@@ -162,7 +162,8 @@ int config_init_load(config_t *config, int argc, char *argv[])
             config->device_type = DEVICE_TYPE_EXTENDER;
             CRASHUPLOAD_INFO("device type=%d\n", config->device_type);
             strcpy(config->core_log_file, "/var/log/messages");
-            CRASHUPLOAD_INFO("core log=%s\n", config->core_log_file);
+            snprintf(config->comm_interface, sizeof(config->comm_interface), "%s", EXTENDER_WAN_INTERFACE);
+            CRASHUPLOAD_INFO("core log=%s comm_interface=%s\n", config->core_log_file, config->comm_interface);
         }
         else if (0 == (strncmp(device_prop_data, "XHC1", 4)))
         {

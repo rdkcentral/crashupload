@@ -160,14 +160,25 @@ int platform_initialize(const config_t *config, platform_config_t *platform)
         {
             CRASHUPLOAD_ERROR("GetEstbMac is failed. Trying to get mac from wan interface\n");
             char wan_if[32] = {0};
-            snprintf(wan_if, sizeof(wan_if), "%s", get_interface_value());
+            if (config->device_type == DEVICE_TYPE_EXTENDER)
+            {
+                if (config->comm_interface[0] != '\0')
+                    snprintf(wan_if, sizeof(wan_if), "%s", config->comm_interface);
+                else
+                    snprintf(wan_if, sizeof(wan_if), "%s", EXTENDER_WAN_INTERFACE);
+            }
+            else
+            {
+                snprintf(wan_if, sizeof(wan_if), "%s", get_interface_value());
+            }
             if (wan_if[0] != '\0' && strcmp(wan_if, "unknown") != 0)
             {
                 ret = GetHwMacAddress(wan_if, platform->mac_address, sizeof(platform->mac_address));
                 if (ret)
                 {
                     NormalizeMac(platform->mac_address, sizeof(platform->mac_address));
-                    CRASHUPLOAD_INFO("Broadband MAC fallback via %s: %s\n", wan_if, platform->mac_address);
+                    CRASHUPLOAD_INFO("%s MAC fallback via %s: %s\n",
+                                     device_type_to_str(config->device_type), wan_if, platform->mac_address);
                 }
             }
         }

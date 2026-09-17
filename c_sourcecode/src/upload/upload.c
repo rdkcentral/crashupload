@@ -408,8 +408,24 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
     if (config->device_type == DEVICE_TYPE_EXTENDER)
     {
         /* Extender: partnerId sourced from account JSON, not from partner_id file */
-        /* TODO: read PERSISTENT_PATH from device.properties if /opt/persistent is not universal */
-        FILE *fp = fopen("/opt/persistent/account", "r");
+        char persistent_path[64] = {0};
+        char account_file[80] = {0};
+
+        if (getIncludePropertyData("PERSISTENT_PATH", persistent_path, (int)sizeof(persistent_path)) != UTILS_SUCCESS ||
+            persistent_path[0] == '\0')
+        {
+            snprintf(persistent_path, sizeof(persistent_path), "%s", PERSISTENT_PATH);
+            CRASHUPLOAD_WARN("Extender: PERSISTENT_PATH property missing, default=%s\n", persistent_path);
+        }
+        else
+        {
+            size_t plen = strlen(persistent_path);
+            if (plen > 0 && persistent_path[plen - 1] == '\n')
+                persistent_path[plen - 1] = '\0';
+            CRASHUPLOAD_INFO("Extender: PERSISTENT_PATH=%s\n", persistent_path);
+        }
+        snprintf(account_file, sizeof(account_file), "%s/account", persistent_path);
+        FILE *fp = fopen(account_file, "r");
         if (fp)
         {
             char line[512] = {0};
