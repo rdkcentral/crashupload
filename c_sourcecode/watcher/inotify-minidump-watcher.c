@@ -49,7 +49,8 @@ int mock_sigaction(int signum, const struct sigaction *act, struct sigaction *ol
 #define system mock_system
 #define printf mock_printf
 #define fnmatch mock_fnmatch
-#define sigaction mock_sigaction
+/* Function-like so "struct sigaction" is not rewritten. */
+#define sigaction(signum, act, oldact) mock_sigaction((signum), (act), (oldact))
 #else
 #define STATIC_TESTABLE static
 #endif
