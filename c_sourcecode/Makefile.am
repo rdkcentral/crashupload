@@ -17,7 +17,7 @@
 # limitations under the License.
 ##########################################################################
 
-SUBDIRS = src
+SUBDIRS = src watcher
 
 EXTRA_DIST = README.md
 

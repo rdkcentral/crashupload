@@ -70,7 +70,7 @@ This section catalogs meaningful runtime components and analyzes startup path, i
 - Unknown: full effective runtime depends on sourced scripts not fully analyzed here.
 
 ## Component D: inotify-minidump-watcher
-- Binary: src/inotify-minidump-watcher.c built by src/Makefile
+- Binary: c_sourcecode/watcher/inotify-minidump-watcher.c built with crashupload by c_sourcecode autotools
 - Intended invoker: service or manual process configured to monitor a directory.
 - Operational model: persistent watcher using inotify IN_CREATE.
 - Startup path: directory_watcher(directory, command, args, patterns)

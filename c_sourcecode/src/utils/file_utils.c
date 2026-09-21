@@ -34,7 +34,7 @@
 #include "logger.h"
 
 // For unit testing: allow static functions to be visible
-#ifdef UNIT_TEST
+#ifdef GTEST_ENABLE
 #define STATIC_TESTABLE
 #else
 #define STATIC_TESTABLE static

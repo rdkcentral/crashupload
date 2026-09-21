@@ -76,3 +76,5 @@ crashupload_SOURCES += \
 
 # Clean up
 CLEANFILES = *~
+
+EXTRA_DIST = README.md

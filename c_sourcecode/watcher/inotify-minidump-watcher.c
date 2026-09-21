@@ -25,10 +25,33 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/inotify.h>
 #include <unistd.h>
 #ifdef YOCTO_BUILD
 #include "secure_wrapper.h"
+#endif
+
+#ifdef GTEST_ENABLE
+#define STATIC_TESTABLE
+int mock_inotify_init(void);
+int mock_inotify_add_watch(int fd, const char *pathname, uint32_t mask);
+ssize_t mock_read(int fd, void *buf, size_t count);
+int mock_close(int fd);
+int mock_system(const char *command);
+int mock_printf(const char *fmt, ...);
+int mock_fnmatch(const char *pattern, const char *string, int flags);
+int mock_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
+#define inotify_init mock_inotify_init
+#define inotify_add_watch mock_inotify_add_watch
+#define read mock_read
+#define close mock_close
+#define system mock_system
+#define printf mock_printf
+#define fnmatch mock_fnmatch
+#define sigaction mock_sigaction
+#else
+#define STATIC_TESTABLE static
 #endif
 
 /**
@@ -57,6 +80,13 @@
 
 static volatile int interrupted = 0;
 
+#ifdef GTEST_ENABLE
+void
+watcher_test_reset(void)
+{
+  interrupted = 0;
+}
+#endif
 
 /**
  * @addtogroup Crashupload_API
@@ -70,7 +100,7 @@ static volatile int interrupted = 0;
  *
  */
 
-static void
+STATIC_TESTABLE void
 process_interrupt_handler(const int s)
 {
   if (s == SIGINT)
@@ -88,7 +118,7 @@ process_interrupt_handler(const int s)
  * @param[in] pattern_count      Number of patterns to be verified.
  */
 
-static int
+STATIC_TESTABLE int
 directory_watcher(const char *const directory,
                   const char* command_to_run,
                   const char* command_args,
@@ -221,8 +251,13 @@ directory_watcher(const char *const directory,
  * Eg: /usr/bin/inotify-minidump-watcher /minidumps /lib/rdk/uploadDumps.sh "" 0 *.dmp
 */
 
+#ifndef GTEST_ENABLE
 int
 main(const int argc, const char *const *const argv)
+#else
+int
+watcher_main(const int argc, const char *const *const argv)
+#endif
 {
     if (argc < 5)
     {
@@ -245,4 +280,3 @@ main(const int argc, const char *const *const argv)
 /**
  * @} // End of Doxygen
  */
-
