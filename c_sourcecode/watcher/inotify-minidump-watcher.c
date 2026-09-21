@@ -175,6 +175,11 @@ directory_watcher(const char *const directory,
                     }
                   else
                     {
+                        if (command_to_run == NULL || command_args == NULL)
+                        {
+                           errmsg = "NULL";
+                           goto catch;
+                        }
                         /* Exit from wait if the command to run is NULL */
                         if(strncmp(command_to_run,"NULL",4) == 0){
                               printf("Flag file is created. Exiting from wait \n");
@@ -182,26 +187,23 @@ directory_watcher(const char *const directory,
                         }
                         printf("Calling the binary %s\n",command_to_run);
 #ifdef YOCTO_BUILD
-                        v_secure_system("sh -c '%s %s'",command_to_run,command_args);
-#else
-                        char command[50];
-
-                        if(command_to_run == NULL || command_args == NULL)
+                        if (v_secure_system("sh -c '%s %s'",command_to_run,command_args) != 0)
                         {
-                           errmsg = "NULL";
+                           errmsg = "v_secure_system";
                            goto catch;
                         }
+#else
+                        char command[PATH_MAX];
+                        int n;
 
-                        if (sizeof(command) <=  (strlen(command_to_run)+strlen(command_args)+strlen("ssh -c ' '")))
+                        n = snprintf(command, sizeof(command), "sh -c '%s %s'",
+                                     command_to_run, command_args);
+                        if (n < 0 || (size_t)n >= sizeof(command))
                         {
                            errmsg = "command buffer overflow";
                            goto catch;
                         }
-                        sprintf(command,"sh -c '%s %s'",command_to_run,command_args);
 
-                        /* Native/CI builds compile this path (no YOCTO_BUILD).
-                         * glibc marks system() warn_unused_result; ignore the
-                         * status the same way the original watcher did. */
                         if (system(command) < 0)
                         {
                            errmsg = "system";
