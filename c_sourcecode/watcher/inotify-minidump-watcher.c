@@ -198,7 +198,14 @@ directory_watcher(const char *const directory,
                         }
                         sprintf(command,"sh -c '%s %s'",command_to_run,command_args);
 
-                        system(command);
+                        /* Native/CI builds compile this path (no YOCTO_BUILD).
+                         * glibc marks system() warn_unused_result; ignore the
+                         * status the same way the original watcher did. */
+                        if (system(command) < 0)
+                        {
+                           errmsg = "system";
+                           goto catch;
+                        }
 #endif
                         printf("The script /lib/rdk/uploadDumps.sh execution completed..!");
                     }
