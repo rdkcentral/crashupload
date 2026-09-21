@@ -431,7 +431,11 @@ int compute_s3_md5_base64(const char *filepath,
     if (!fp)
         goto cleanup;
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    mdctx = EVP_MD_CTX_create();
+#else
     mdctx = EVP_MD_CTX_new();
+#endif
     if (!mdctx)
         goto cleanup;
 
@@ -480,7 +484,13 @@ cleanup:
     if (fp)
         fclose(fp);
     if (mdctx)
+    {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+        EVP_MD_CTX_destroy(mdctx);
+#else
         EVP_MD_CTX_free(mdctx);
+#endif
+    }
     if (b64)
         BIO_free_all(b64);
 

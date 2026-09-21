@@ -21,7 +21,9 @@
 #
 #Purpose : This script is to used to create and upload dump files
 #Scope : RDK Devices
-#Usage : Triggered by a path based systemd service
+#Usage : Triggered by a path based systemd service (broadband/video)
+#         or by inotify-minidump-watcher via SysV init (extender):
+#         /lib/rdk/uploadDumps.sh "" 0
 #This file is from crashupload repository
 #Uploads coredumps to an ftp server if there are any
 
