@@ -42,9 +42,12 @@ case "$DEVICE_TYPE" in
     mediaclient)
         LOG_DIR="/opt/logs"
         ;;
-    broadband|extender)
+    broadband)
         LOG_DIR="/rdklogs/logs"
         LOG_APPENDER=".0"
+        ;;
+    extender)
+        LOG_DIR="/var/log"
         ;;
     *)
         LOG_DIR="/var/log"
@@ -52,6 +55,9 @@ case "$DEVICE_TYPE" in
 esac
 
 CORE_LOG="${LOG_DIR}/core_log.txt${LOG_APPENDER}"
+if [ "$DEVICE_TYPE" = "extender" ]; then
+    CORE_LOG="/var/log/messages"
+fi
 
 Log() { 
     echo "`/bin/timestamp` [uploadDumps.sh] [PID:$$]: $*" >> $CORE_LOG 

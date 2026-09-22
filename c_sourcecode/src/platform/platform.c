@@ -162,14 +162,19 @@ int platform_initialize(const config_t *config, platform_config_t *platform)
             char wan_if[32] = {0};
             if (config->device_type == DEVICE_TYPE_EXTENDER)
             {
-                if (config->comm_interface[0] != '\0')
+                if (config->comm_interface[0] != '\0'){
                     snprintf(wan_if, sizeof(wan_if), "%s", config->comm_interface);
-                else
+                    CRASHUPLOAD_INFO("Got WAN interface from comm_interface %s", wan_if);
+                }
+                else{
                     snprintf(wan_if, sizeof(wan_if), "%s", EXTENDER_WAN_INTERFACE);
+                    CRASHUPLOAD_INFO("Got WAN interface from fallback default %s", wan_if);
+                }
             }
             else
             {
                 snprintf(wan_if, sizeof(wan_if), "%s", get_interface_value());
+                CRASHUPLOAD_INFO("Got WAN interface from get_interface_value() %s", wan_if);
             }
             if (wan_if[0] != '\0' && strcmp(wan_if, "unknown") != 0)
             {
