@@ -34,10 +34,97 @@
 #include "telemetryinterface.h"
 #include "../utils/logger.h"
 
+#ifdef GTEST_ENABLE
+#define STATIC_TESTABLE
+#else
+#define STATIC_TESTABLE static
+#endif
+
 #define MAX_RETRIES 3
 #define TIMEOUT_SECONDS 45
 #define RETRY_DELAY_SECONDS 5
 #define SIZE_POSTFIELD_BUF 2048
+#define PARTNER_ID_KEY "\"partnerId\""
+#define ACCOUNT_READ_MAX 4096
+
+/*
+ * Account files on extender are a binary blob wrapping JSON (NULs in the
+ * prefix). Scan raw bytes; do not use fgets/strstr C-strings.
+ * Returns 1 if a non-empty partnerId was copied.
+ */
+STATIC_TESTABLE int extract_partner_id_from_mem(const char *buf, size_t n, char *out, size_t out_size)
+{
+    const size_t klen = sizeof(PARTNER_ID_KEY) - 1;
+    size_t i;
+    size_t j;
+    size_t v;
+
+    if (!buf || !out || out_size == 0)
+    {
+        return 0;
+    }
+    out[0] = '\0';
+    if (n < klen)
+    {
+        return 0;
+    }
+
+    for (i = 0; i + klen <= n; i++)
+    {
+        if (memcmp(buf + i, PARTNER_ID_KEY, klen) != 0)
+        {
+            continue;
+        }
+        j = i + klen;
+        while (j < n && (buf[j] == ' ' || buf[j] == '\t' || buf[j] == '\r' || buf[j] == '\n'))
+        {
+            j++;
+        }
+        if (j >= n || buf[j] != ':')
+        {
+            continue;
+        }
+        j++;
+        while (j < n && (buf[j] == ' ' || buf[j] == '\t' || buf[j] == '\r' || buf[j] == '\n'))
+        {
+            j++;
+        }
+        if (j >= n || buf[j] != '"')
+        {
+            continue;
+        }
+        j++;
+        v = 0;
+        while (j < n && buf[j] != '"' && buf[j] != '\0' && v + 1 < out_size)
+        {
+            out[v++] = buf[j++];
+        }
+        out[v] = '\0';
+        return (v > 0) ? 1 : 0;
+    }
+    return 0;
+}
+
+STATIC_TESTABLE int extract_partner_id_from_account(const char *path, char *out, size_t out_size)
+{
+    FILE *fp;
+    char buf[ACCOUNT_READ_MAX];
+    size_t n;
+
+    if (!path || !out || out_size == 0)
+    {
+        return 0;
+    }
+    out[0] = '\0';
+    fp = fopen(path, "rb");
+    if (!fp)
+    {
+        return 0;
+    }
+    n = fread(buf, 1, sizeof(buf), fp);
+    fclose(fp);
+    return extract_partner_id_from_mem(buf, n, out, out_size);
+}
 
 #ifdef RDKC
 #define RDKC_PARTNER_ID_FILE "/opt/usr_config/partnerid.txt"
@@ -426,32 +513,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
             CRASHUPLOAD_INFO("Extender: PERSISTENT_PATH=%s\n", persistent_path);
         }
         snprintf(account_file, sizeof(account_file), "%s/account", persistent_path);
-        FILE *fp = fopen(account_file, "r");
-        if (fp)
-        {
-            char line[512] = {0};
-            while (fgets(line, sizeof(line), fp))
-            {
-                char *p = strstr(line, "\"partnerId\":\"");
-                if (p)
-                {
-                    p += 13;
-                    char *end = strchr(p, '"');
-                    if (end)
-                    {
-                        size_t len = (size_t)(end - p);
-                        if (len < sizeof(pPartnerId))
-                        {
-                            strncpy(pPartnerId, p, len);
-                            pPartnerId[len] = '\0';
-                        }
-                    }
-                    break;
-                }
-            }
-            fclose(fp);
-        }
-        ret = (pPartnerId[0] != '\0') ? 1 : 0;
+        ret = extract_partner_id_from_account(account_file, pPartnerId, sizeof(pPartnerId));
     }
     else
     {
