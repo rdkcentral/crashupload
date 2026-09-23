@@ -1400,8 +1400,15 @@ TEST_F(UploadTest, ExtractPartnerId_NullArgs) {
 
 TEST_F(UploadTest, ExtractPartnerId_FromAccountFile) {
     const char *path = "/tmp/cu_account_partner_ut";
-    FILE *fp = fopen(path, "wb");
-    ASSERT_NE(fp, nullptr);
+    int fd = open(path, O_CREAT | O_WRONLY | O_TRUNC, 0600);
+    ASSERT_GE(fd, 0);
+    FILE *fp = fdopen(fd, "wb");
+    if (!fp)
+    {
+        close(fd);
+        unlink(path);
+        FAIL() << "fdopen failed";
+    }
     const unsigned char blob[] = {
         'P', 'S', 'F', 'S', 0x00, 'z', 'a', 'c', 'c', 'o', 'u', 'n', 't',
         '{', '"', 'p', 'a', 'r', 't', 'n', 'e', 'r', 'I', 'd', '"', ':',

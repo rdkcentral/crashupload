@@ -26,6 +26,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdio.h>
 
 #ifdef GTEST_ENABLE
 #define STATIC_TESTABLE
@@ -66,15 +67,13 @@ STATIC_TESTABLE void apply_extender_model(char *model, size_t model_size, const 
 
     if (box_type && box_type[0] != '\0' && strcmp(box_type, "UNKNOWN") != 0)
     {
-        strncpy(model, box_type, model_size - 1);
-        model[model_size - 1] = '\0';
+        snprintf(model, model_size, "%s", box_type);
         return;
     }
 
     if (model[0] == '\0')
     {
-        strncpy(model, "UNKNOWN", model_size - 1);
-        model[model_size - 1] = '\0';
+        snprintf(model, model_size, "%s", "UNKNOWN");
     }
 }
 
