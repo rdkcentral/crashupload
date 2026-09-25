@@ -366,7 +366,7 @@ When updating documentation:
 ## References
 
 - Original shell scripts: `src/uploadDumps.sh`, `src/uploadDumpsUtils.sh`
-- Existing C implementation: `src/inotify-minidump-watcher.c`
+- Existing C implementation: `c_sourcecode/watcher/inotify-minidump-watcher.c`
 - RDK device specifications: See platform documentation
 - C11 standard: ISO/IEC 9899:2011
 

@@ -34,10 +34,97 @@
 #include "telemetryinterface.h"
 #include "../utils/logger.h"
 
+#ifdef GTEST_ENABLE
+#define STATIC_TESTABLE
+#else
+#define STATIC_TESTABLE static
+#endif
+
 #define MAX_RETRIES 3
 #define TIMEOUT_SECONDS 45
 #define RETRY_DELAY_SECONDS 5
 #define SIZE_POSTFIELD_BUF 2048
+#define PARTNER_ID_KEY "\"partnerId\""
+#define ACCOUNT_READ_MAX 4096
+
+/*
+ * Account files on extender are a binary blob wrapping JSON (NULs in the
+ * prefix). Scan raw bytes; do not use fgets/strstr C-strings.
+ * Returns 1 if a non-empty partnerId was copied.
+ */
+STATIC_TESTABLE int extract_partner_id_from_mem(const char *buf, size_t n, char *out, size_t out_size)
+{
+    const size_t klen = sizeof(PARTNER_ID_KEY) - 1;
+    size_t i;
+    size_t j;
+    size_t v;
+
+    if (!buf || !out || out_size == 0)
+    {
+        return 0;
+    }
+    out[0] = '\0';
+    if (n < klen)
+    {
+        return 0;
+    }
+
+    for (i = 0; i + klen <= n; i++)
+    {
+        if (memcmp(buf + i, PARTNER_ID_KEY, klen) != 0)
+        {
+            continue;
+        }
+        j = i + klen;
+        while (j < n && (buf[j] == ' ' || buf[j] == '\t' || buf[j] == '\r' || buf[j] == '\n'))
+        {
+            j++;
+        }
+        if (j >= n || buf[j] != ':')
+        {
+            continue;
+        }
+        j++;
+        while (j < n && (buf[j] == ' ' || buf[j] == '\t' || buf[j] == '\r' || buf[j] == '\n'))
+        {
+            j++;
+        }
+        if (j >= n || buf[j] != '"')
+        {
+            continue;
+        }
+        j++;
+        v = 0;
+        while (j < n && buf[j] != '"' && buf[j] != '\0' && v + 1 < out_size)
+        {
+            out[v++] = buf[j++];
+        }
+        out[v] = '\0';
+        return (v > 0) ? 1 : 0;
+    }
+    return 0;
+}
+
+STATIC_TESTABLE int extract_partner_id_from_account(const char *path, char *out, size_t out_size)
+{
+    FILE *fp;
+    char buf[ACCOUNT_READ_MAX];
+    size_t n;
+
+    if (!path || !out || out_size == 0)
+    {
+        return 0;
+    }
+    out[0] = '\0';
+    fp = fopen(path, "rb");
+    if (!fp)
+    {
+        return 0;
+    }
+    n = fread(buf, 1, sizeof(buf), fp);
+    fclose(fp);
+    return extract_partner_id_from_mem(buf, n, out, out_size);
+}
 
 #ifdef RDKC
 #define RDKC_PARTNER_ID_FILE "/opt/usr_config/partnerid.txt"
@@ -363,7 +450,7 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
         else
         {
             CRASHUPLOAD_ERROR("post field buffer corrupted. Total write bytes=%zu and total buf size=%zu\n", totlen, szPostFieldOut);
-            CRASHUPLOAD_ERROR("postfield data=%s\n", post_filed); // TODO: Need to remove
+            CRASHUPLOAD_ERROR("postfield data=%s\n", post_filed);
             break;
         }
     }
@@ -408,33 +495,25 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
     if (config->device_type == DEVICE_TYPE_EXTENDER)
     {
         /* Extender: partnerId sourced from account JSON, not from partner_id file */
-        /* TODO: read PERSISTENT_PATH from device.properties if /opt/persistent is not universal */
-        FILE *fp = fopen("/opt/persistent/account", "r");
-        if (fp)
+        char persistent_path[64];
+        persistent_path[0] = 0;
+        char account_file[80] = {0};
+
+        if (getIncludePropertyData("PERSISTENT_PATH", persistent_path, sizeof(persistent_path)) != UTILS_SUCCESS ||
+            persistent_path[0] == '\0')
         {
-            char line[512] = {0};
-            while (fgets(line, sizeof(line), fp))
-            {
-                char *p = strstr(line, "\"partnerId\":\"");
-                if (p)
-                {
-                    p += 13;
-                    char *end = strchr(p, '"');
-                    if (end)
-                    {
-                        size_t len = (size_t)(end - p);
-                        if (len < sizeof(pPartnerId))
-                        {
-                            strncpy(pPartnerId, p, len);
-                            pPartnerId[len] = '\0';
-                        }
-                    }
-                    break;
-                }
-            }
-            fclose(fp);
+            snprintf(persistent_path, sizeof(persistent_path), "%s", PERSISTENT_PATH);
+            CRASHUPLOAD_INFO("Extender: PERSISTENT_PATH property missing, default=%s\n", persistent_path);
         }
-        ret = (pPartnerId[0] != '\0') ? 1 : 0;
+        else
+        {
+            size_t plen = strlen(persistent_path);
+            if (plen > 0 && persistent_path[plen - 1] == '\n')
+                persistent_path[plen - 1] = '\0';
+            CRASHUPLOAD_INFO("Extender: PERSISTENT_PATH=%s\n", persistent_path);
+        }
+        snprintf(account_file, sizeof(account_file), "%s/account", persistent_path);
+        ret = extract_partner_id_from_account(account_file, pPartnerId, sizeof(pPartnerId));
     }
     else
     {
@@ -456,7 +535,7 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         ret = read_RFCProperty("EncryptCloudUpload", RFC_DMP_ENCRYPT_UPLOAD, encryptionEnable, sizeof(encryptionEnable));
         if ((ret == READ_RFC_FAILURE) || (encryptionEnable[0] == '\0'))
         {
-            strcpy(encryptionEnable, "false"); // TODO: Need check what should be default value
+            strcpy(encryptionEnable, "false");
             CRASHUPLOAD_WARN("Read rfc failed EncryptCloudUpload:%s\n", encryptionEnable);
         }
         else
@@ -572,11 +651,26 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         }
         if (crashportalEndpointUrl[0] == '\0')
         {
-            ret = get_crashupload_s3signed_url(crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
+            size_t signed_url_sz = sizeof(crashportalEndpointUrl);
+
+            /* Extender libfwutils may reject getDevicePropertyData when
+             * buff_size >= MAX_DEVICE_PROP_BUFF_SIZE (80 on Extender). */
+            if (config->device_type == DEVICE_TYPE_EXTENDER &&
+                signed_url_sz >= MAX_DEVICE_PROP_BUFF_SIZE)
+            {
+                signed_url_sz = MAX_DEVICE_PROP_BUFF_SIZE - 1U;
+            }
+            ret = get_crashupload_s3signed_url(crashportalEndpointUrl, signed_url_sz);
             if (ret < 0)
             {
                 CRASHUPLOAD_ERROR("%s: Unable to get S3 server url\n", device_type_to_str(config->device_type));
                 return ret;
+            }
+            if (config->device_type == DEVICE_TYPE_EXTENDER &&
+                crashportalEndpointUrl[0] == '\0')
+            {
+                CRASHUPLOAD_ERROR("Extender: S3 signing URL empty\n");
+                return -1;
             }
         }
         CRASHUPLOAD_INFO("%s: S3 signing URL=%s\n", device_type_to_str(config->device_type), crashportalEndpointUrl);

@@ -90,7 +90,7 @@ clean_build_artifacts() {
     rm -f stamp-h1 2>/dev/null || true
     rm -f libtool 2>/dev/null || true
     rm -f configure 2>/dev/null || true
-    rm -f Makefile.in Makefile src/Makefile.in 2>/dev/null || true
+    rm -f Makefile.in Makefile src/Makefile.in watcher/Makefile.in 2>/dev/null || true
     rm -f aclocal.m4 2>/dev/null || true
     rm -f compile depcomp install-sh missing 2>/dev/null || true
     rm -f config.sub config.guess 2>/dev/null || true
@@ -168,18 +168,19 @@ fi
 # Post-configure: Remove T2_EVENT_ENABLED from generated Makefiles
 # This avoids dependency on telemetry_busmessage_sender.h which isn't available
 echo "Removing T2_EVENT_ENABLED and telemetry libraries from generated Makefiles..."
-sed -i 's/-DT2_EVENT_ENABLED//g' Makefile src/Makefile
-sed -i 's/-ltelemetry_msgsender//g' Makefile src/Makefile
-sed -i 's/-lt2utils//g' Makefile src/Makefile
+sed -i 's/-DT2_EVENT_ENABLED//g' Makefile src/Makefile watcher/Makefile
+sed -i 's/-ltelemetry_msgsender//g' Makefile src/Makefile watcher/Makefile
+sed -i 's/-lt2utils//g' Makefile src/Makefile watcher/Makefile
 
 # Build and install the binary
-echo "[3/3] Building and installing crashupload binary..."
+echo "[3/3] Building and installing crashupload and inotify-minidump-watcher binaries..."
 if make && make install; then
     echo ""
     echo "========================================"
     echo "Build completed successfully!"
     echo "========================================"
     echo "Binary installed to: ${INSTALL_DIR}/bin/crashupload"
+    echo "Binary installed to: ${INSTALL_DIR}/bin/inotify-minidump-watcher"
     echo "========================================"
 else
     echo ""

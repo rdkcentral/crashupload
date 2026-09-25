@@ -73,7 +73,7 @@ int join_path(char *dest, size_t dest_size, const char *dir, const char *name);
 void t2ValNotify(const char *key, const char *val);
 void t2CountNotify(const char *key, const char *val_or_null);
 
-// Forward declarations for static functions in scanner.c (exposed via STATIC_TESTABLE with UNIT_TEST)
+// Forward declarations for static functions in scanner.c (exposed via STATIC_TESTABLE with GTEST_ENABLE)
 int append_logfile_entry(const char *entry);
 int is_allowed_char(char c);
 char *sanitize_segment(const char *s);
@@ -1165,7 +1165,7 @@ TEST_F(ScannerTest, ConcurrentAccess_MultipleCleanups) {
 }
 
 // ============================================================================
-// Static Function Tests (exposed via STATIC_TESTABLE with UNIT_TEST)
+// Static Function Tests (exposed via STATIC_TESTABLE with GTEST_ENABLE)
 // ============================================================================
 
 // ----------- append_logfile_entry Tests -----------

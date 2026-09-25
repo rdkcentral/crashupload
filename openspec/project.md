@@ -113,6 +113,7 @@ Supporting documentation:
 - minidump-on-bootup-upload.timer
 - uploadDumps.sh
 - runDumpUpload.sh
-- src/inotify-minidump-watcher.c
+- c_sourcecode/watcher/inotify-minidump-watcher.c
 - c_sourcecode/src/Makefile.am
+- c_sourcecode/watcher/Makefile.am
 - c_sourcecode/configure.ac

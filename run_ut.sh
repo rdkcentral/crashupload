@@ -44,9 +44,11 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 UNITTEST_DIR="$SCRIPT_DIR/unittest"
 SRC_DIR="$SCRIPT_DIR/c_sourcecode/src"
+WATCHER_DIR="$SCRIPT_DIR/c_sourcecode/watcher"
+SOURCECODE_DIR="$SCRIPT_DIR/c_sourcecode"
 
 # Test binaries to run (space-separated list)
-TEST_BINARIES="config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest mainapp_gtest ratelimit_gtest lock_manager_gtest prerequisites_gtest logger_gtest"
+TEST_BINARIES="config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest mainapp_gtest ratelimit_gtest lock_manager_gtest prerequisites_gtest logger_gtest watcher_gtest"
 
 # Test results tracking (using temp file instead of associative array)
 TEST_RESULTS_FILE="/tmp/crashupload_test_results_$$.tmp"
@@ -177,7 +179,7 @@ print_coverage_hotspots() {
         /^LF:/  { lf  = substr($0, 4) + 0 }
         /^LH:/  { lh  = substr($0, 4) + 0 }
         /^end_of_record/ {
-            if (sf ~ /\/c_sourcecode\/src\//) {
+            if (sf ~ /\/c_sourcecode\/(src|watcher)\//) {
                 lp = pct(lh, lf)
                 fp = pct(fnh, fnf)
                 if ((lp + 0.0) < (line_thr + 0.0) || (fp + 0.0) < (fn_thr + 0.0)) {
@@ -196,7 +198,7 @@ print_coverage_hotspots() {
             split(raw, a, ",")
             cnt = a[1] + 0
             fn = a[2]
-            if (cnt == 0 && sf ~ /\/c_sourcecode\/src\//) {
+            if (cnt == 0 && sf ~ /\/c_sourcecode\/(src|watcher)\//) {
                 printf("  - %s :: %s\n", sf, fn)
             }
         }
@@ -278,7 +280,7 @@ print_filewise_coverage() {
     fi
 
     print_header "File-wise Coverage (Lines / Functions)"
-    echo "Filtering to c_sourcecode/src for actionable module coverage"
+    echo "Filtering to c_sourcecode/src and c_sourcecode/watcher for actionable module coverage"
     echo ""
 
     awk '
@@ -299,7 +301,7 @@ print_filewise_coverage() {
         /^FNF:/ { fnf = substr($0, 5) + 0 }
         /^FNH:/ { fnh = substr($0, 5) + 0 }
         /^end_of_record/ {
-            if (sf ~ /c_sourcecode\/src\// && sf ~ /\.c$/) {
+            if (sf ~ /c_sourcecode\/(src|watcher)\// && sf ~ /\.c$/) {
                 lp = pct(lh, lf)
                 fp = pct(fnh, fnf)
                 printf("%s | %.1f%% (%d/%d) | %.1f%% (%d/%d)\n", sf, lp, lh, lf, fp, fnh, fnf)
@@ -443,6 +445,9 @@ clean_build() {
     find "$SRC_DIR" -type f -name "*.gcda" -delete 2>/dev/null || true
     find "$SRC_DIR" -type f -name "*.gcno" -delete 2>/dev/null || true
     find "$SRC_DIR" -type f -name "*.gcov" -delete 2>/dev/null || true
+    find "$WATCHER_DIR" -type f -name "*.gcda" -delete 2>/dev/null || true
+    find "$WATCHER_DIR" -type f -name "*.gcno" -delete 2>/dev/null || true
+    find "$WATCHER_DIR" -type f -name "*.gcov" -delete 2>/dev/null || true
     
     # Remove object files from c_sourcecode
     print_step "Removing object files from c_sourcecode..."
@@ -450,6 +455,10 @@ clean_build() {
     find "$SRC_DIR" -type f -name "*.lo" -delete 2>/dev/null || true
     find "$SRC_DIR" -type d -name ".libs" -exec rm -rf {} + 2>/dev/null || true
     find "$SRC_DIR" -type d -name ".deps" -exec rm -rf {} + 2>/dev/null || true
+    find "$WATCHER_DIR" -type f -name "*.o" -delete 2>/dev/null || true
+    find "$WATCHER_DIR" -type f -name "*.lo" -delete 2>/dev/null || true
+    find "$WATCHER_DIR" -type d -name ".libs" -exec rm -rf {} + 2>/dev/null || true
+    find "$WATCHER_DIR" -type d -name ".deps" -exec rm -rf {} + 2>/dev/null || true
     
     # Remove dirstamp files
     find "$SCRIPT_DIR" -type f -name ".dirstamp" -delete 2>/dev/null || true
@@ -732,8 +741,8 @@ generate_coverage() {
     cd "$UNITTEST_DIR"
     
     print_step "Checking for coverage data files..."
-    gcda_count=$(find ../c_sourcecode/src -name "*.gcda" 2>/dev/null | wc -l)
-    gcno_count=$(find ../c_sourcecode/src -name "*.gcno" 2>/dev/null | wc -l)
+    gcda_count=$(find "$SOURCECODE_DIR" -name "*.gcda" 2>/dev/null | wc -l)
+    gcno_count=$(find "$SOURCECODE_DIR" -name "*.gcno" 2>/dev/null | wc -l)
     
     echo "Found $gcda_count .gcda files and $gcno_count .gcno files"
     
@@ -745,18 +754,18 @@ generate_coverage() {
     
     print_step "Capturing coverage data..."
     lcov --capture \
-         --directory "$SRC_DIR" \
+         --directory "$SOURCECODE_DIR" \
          --output-file coverage.info \
          --rc lcov_branch_coverage=1 2>/dev/null || \
     lcov --capture \
-         --directory "$SRC_DIR" \
+         --directory "$SOURCECODE_DIR" \
          --output-file coverage.info \
          --rc lcov_branch_coverage=1 \
          --ignore-errors gcov,source || true
     
     if [ -f coverage.info ]; then
         print_step "Filtering coverage data..."
-        lcov --extract coverage.info '*/c_sourcecode/src/*.c' \
+        lcov --extract coverage.info '*/c_sourcecode/src/*.c' '*/c_sourcecode/watcher/*.c' '*/inotify-minidump-watcher.c' \
              --output-file coverage.filtered.info \
              --rc lcov_branch_coverage=1 --quiet 2>/dev/null || true
         
@@ -820,6 +829,7 @@ main() {
     echo "Script directory: $SCRIPT_DIR"
     echo "Unit test directory: $UNITTEST_DIR"
     echo "Source directory: $SRC_DIR"
+    echo "Watcher directory: $WATCHER_DIR"
     
     # Show mode
     if [ "$COVERAGE_LIST_ONLY" = "true" ]; then

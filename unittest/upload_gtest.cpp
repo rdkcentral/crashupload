@@ -59,10 +59,13 @@ int upload_file(const char *filepath, const char *url, const char *dump_name,
                 const char *model, const char *md5sum, device_type_t device_type, bool t2_enabled);
 int upload_process(archive_info_t *archive, const config_t *config, 
                    const platform_config_t *platform);
+int extract_partner_id_from_mem(const char *buf, size_t n, char *out, size_t out_size);
+int extract_partner_id_from_account(const char *path, char *out, size_t out_size);
 
 // Mock control functions
 void set_mock_read_rfc_property_behavior(int return_value, const char* output);
 void set_mock_get_device_property_behavior(int return_value, const char* output);
+unsigned int get_mock_last_device_property_datasize(void);
 void set_mock_url_encode_behavior(const char* output, bool return_null);
 void set_mock_metadata_post_behavior(int return_value, long http_code);
 void set_mock_upload_status(long http_code, int curl_ret);
@@ -1320,6 +1323,40 @@ TEST_F(UploadTest, UploadProcess_Extender_S3UrlResolutionFailure) {
     EXPECT_EQ(result, -1);
 }
 
+TEST_F(UploadTest, UploadProcess_Extender_EmptyS3Url_ReturnsFail) {
+    test_config.device_type = DEVICE_TYPE_EXTENDER;
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, "");
+    set_mock_read_rfc_property_behavior(-1, "");
+    set_mock_get_device_property_behavior(0, "");
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    EXPECT_EQ(result, -1);
+}
+
+TEST_F(UploadTest, UploadProcess_Extender_S3UrlBufferCappedForDeviceProp) {
+    test_config.device_type = DEVICE_TYPE_EXTENDER;
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, "");
+    set_mock_read_rfc_property_behavior(-1, "");
+    set_mock_get_device_property_behavior(0, "https://s3.example.com/sign");
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    EXPECT_EQ(result, 0);
+
+    unsigned int expected = 512;
+    if (expected >= MAX_DEVICE_PROP_BUFF_SIZE)
+        expected = MAX_DEVICE_PROP_BUFF_SIZE - 1U;
+    EXPECT_EQ(get_mock_last_device_property_datasize(), expected);
+    EXPECT_LT(get_mock_last_device_property_datasize(), MAX_DEVICE_PROP_BUFF_SIZE);
+}
+
 TEST_F(UploadTest, UploadProcess_Extender_UploadFail_CoredumpRemoved) {
     test_config.device_type = DEVICE_TYPE_EXTENDER;
     test_config.dump_type = DUMP_TYPE_COREDUMP;
@@ -1353,6 +1390,72 @@ TEST_F(UploadTest, UploadProcess_Broadband_UploadFail_CoredumpRemoved) {
 
     int result = upload_process(&test_archive_info, &test_config, &test_platform);
     EXPECT_NE(result, 0);
+}
+
+TEST_F(UploadTest, ExtractPartnerId_CleanJson) {
+    const char *json = "{\"accountId\":\"1\",\"partnerId\":\"comcast\",\"timeZone\":\"UTC\"}";
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_mem(json, strlen(json), out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "comcast");
+}
+
+TEST_F(UploadTest, ExtractPartnerId_BinaryPrefixWithNul) {
+    char blob[128];
+    const char *json = "{\"partnerId\":\"comcast\"}";
+    memset(blob, 0, sizeof(blob));
+    memcpy(blob, "PSFSzaccount", 12);
+    blob[5] = '\0';
+    memcpy(blob + 12, json, strlen(json));
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_mem(blob, 12 + strlen(json), out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "comcast");
+}
+
+TEST_F(UploadTest, ExtractPartnerId_SpaceAfterColon) {
+    const char *json = "\"partnerId\" : \"sky-uk\"";
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_mem(json, strlen(json), out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "sky-uk");
+}
+
+TEST_F(UploadTest, ExtractPartnerId_MissingKey) {
+    const char *json = "{\"accountId\":\"1\"}";
+    char out[16];
+    out[0] = 'x';
+    EXPECT_EQ(extract_partner_id_from_mem(json, strlen(json), out, sizeof(out)), 0);
+    EXPECT_STREQ(out, "");
+}
+
+TEST_F(UploadTest, ExtractPartnerId_NullArgs) {
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_mem(NULL, 10, out, sizeof(out)), 0);
+    EXPECT_EQ(extract_partner_id_from_mem("x", 1, NULL, 16), 0);
+    EXPECT_EQ(extract_partner_id_from_account(NULL, out, sizeof(out)), 0);
+}
+
+TEST_F(UploadTest, ExtractPartnerId_FromAccountFile) {
+    const char *path = "/tmp/cu_account_partner_ut";
+    int fd = open(path, O_CREAT | O_WRONLY | O_TRUNC, 0600);
+    ASSERT_GE(fd, 0);
+    FILE *fp = fdopen(fd, "wb");
+    if (!fp)
+    {
+        close(fd);
+        unlink(path);
+        FAIL() << "fdopen failed";
+    }
+    const unsigned char blob[] = {
+        'P', 'S', 'F', 'S', 0x00, 'z', 'a', 'c', 'c', 'o', 'u', 'n', 't',
+        '{', '"', 'p', 'a', 'r', 't', 'n', 'e', 'r', 'I', 'd', '"', ':',
+        '"', 'c', 'o', 'm', 'c', 'a', 's', 't', '"', '}'
+    };
+    fwrite(blob, 1, sizeof(blob), fp);
+    fclose(fp);
+
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_account(path, out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "comcast");
+    unlink(path);
 }
 
 // ============================================================================
