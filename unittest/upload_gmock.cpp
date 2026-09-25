@@ -77,6 +77,7 @@ struct UploadMockState {
     int get_device_property_return_value;
     char get_device_property_output[512];
     bool get_device_property_custom_behavior;
+    unsigned int get_device_property_last_datasize;
     
     // URL encoding
     char* url_encode_output;
@@ -172,6 +173,10 @@ void set_mock_get_device_property_behavior(int return_value, const char* output)
                 sizeof(g_upload_mock_state.get_device_property_output) - 1);
     }
     g_upload_mock_state.get_device_property_custom_behavior = true;
+}
+
+unsigned int get_mock_last_device_property_datasize(void) {
+    return g_upload_mock_state.get_device_property_last_datasize;
 }
 
 /**
@@ -299,6 +304,7 @@ void reset_upload_mocks() {
     memset(g_upload_mock_state.get_device_property_output, 0, 
            sizeof(g_upload_mock_state.get_device_property_output));
     g_upload_mock_state.get_device_property_custom_behavior = false;
+    g_upload_mock_state.get_device_property_last_datasize = 0;
     
     if (g_upload_mock_state.url_encode_output) {
         free(g_upload_mock_state.url_encode_output);
@@ -404,6 +410,7 @@ int getDevicePropertyData(const char* key, char *data, unsigned int  datasize) {
     if (!key || !data || datasize == 0) {
         return -1;
     }
+    g_upload_mock_state.get_device_property_last_datasize = datasize;
     
     if (g_upload_mock_state.get_device_property_custom_behavior) {
         if (g_upload_mock_state.get_device_property_output[0] != '\0') {

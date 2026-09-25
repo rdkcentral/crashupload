@@ -651,11 +651,26 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         }
         if (crashportalEndpointUrl[0] == '\0')
         {
-            ret = get_crashupload_s3signed_url(crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
+            size_t signed_url_sz = sizeof(crashportalEndpointUrl);
+
+            /* Extender libfwutils may reject getDevicePropertyData when
+             * buff_size >= MAX_DEVICE_PROP_BUFF_SIZE (80 on Extender). */
+            if (config->device_type == DEVICE_TYPE_EXTENDER &&
+                signed_url_sz >= MAX_DEVICE_PROP_BUFF_SIZE)
+            {
+                signed_url_sz = MAX_DEVICE_PROP_BUFF_SIZE - 1U;
+            }
+            ret = get_crashupload_s3signed_url(crashportalEndpointUrl, signed_url_sz);
             if (ret < 0)
             {
                 CRASHUPLOAD_ERROR("%s: Unable to get S3 server url\n", device_type_to_str(config->device_type));
                 return ret;
+            }
+            if (config->device_type == DEVICE_TYPE_EXTENDER &&
+                crashportalEndpointUrl[0] == '\0')
+            {
+                CRASHUPLOAD_ERROR("Extender: S3 signing URL empty\n");
+                return -1;
             }
         }
         CRASHUPLOAD_INFO("%s: S3 signing URL=%s\n", device_type_to_str(config->device_type), crashportalEndpointUrl);
