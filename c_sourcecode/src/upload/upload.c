@@ -126,6 +126,45 @@ STATIC_TESTABLE int extract_partner_id_from_account(const char *path, char *out,
     return extract_partner_id_from_mem(buf, n, out, out_size);
 }
 
+#define EXTENDER_LIBFWUTILS_PROP_MAX 80
+
+STATIC_TESTABLE int read_key_from_device_properties(const char *key, char *out, size_t out_size)
+{
+    FILE *fp;
+    char line[512];
+    size_t klen;
+    size_t linelen;
+
+    if (!key || !out || out_size == 0)
+    {
+        return 0;
+    }
+    out[0] = '\0';
+    klen = strlen(key);
+    if (klen == 0 || klen >= sizeof(line) - 2)
+    {
+        return 0;
+    }
+    fp = fopen(DEVICE_PROPERTIES_FILE, "r");
+    if (!fp)
+    {
+        return 0;
+    }
+    while (fgets(line, (int)sizeof(line), fp) != NULL)
+    {
+        linelen = strlen(line);
+        if (linelen > 0 && line[linelen - 1] == '\n')
+            line[linelen - 1] = '\0';
+        if (strncmp(line, key, klen) != 0 || line[klen] != '=')
+            continue;
+        snprintf(out, out_size, "%s", line + klen + 1);
+        fclose(fp);
+        return (out[0] != '\0') ? 1 : 0;
+    }
+    fclose(fp);
+    return 0;
+}
+
 #ifdef RDKC
 #define RDKC_PARTNER_ID_FILE "/opt/usr_config/partnerid.txt"
 #endif
@@ -651,26 +690,35 @@ int upload_process(archive_info_t *archive, const config_t *config, const platfo
         }
         if (crashportalEndpointUrl[0] == '\0')
         {
-            size_t signed_url_sz = sizeof(crashportalEndpointUrl);
+            if (config->device_type == DEVICE_TYPE_EXTENDER)
+            {
+                size_t signed_url_sz = EXTENDER_LIBFWUTILS_PROP_MAX - 1U;
 
-            /* Extender libfwutils may reject getDevicePropertyData when
-             * buff_size >= MAX_DEVICE_PROP_BUFF_SIZE (80 on Extender). */
-            if (config->device_type == DEVICE_TYPE_EXTENDER &&
-                signed_url_sz >= MAX_DEVICE_PROP_BUFF_SIZE)
-            {
-                signed_url_sz = MAX_DEVICE_PROP_BUFF_SIZE - 1U;
+                if (signed_url_sz >= sizeof(crashportalEndpointUrl))
+                    signed_url_sz = sizeof(crashportalEndpointUrl) - 1U;
+                ret = get_crashupload_s3signed_url(crashportalEndpointUrl, signed_url_sz);
+                if (crashportalEndpointUrl[0] == '\0')
+                {
+                    CRASHUPLOAD_INFO("Extender: reading S3_AMAZON_SIGNING_URL from %s\n",
+                                     DEVICE_PROPERTIES_FILE);
+                    (void)read_key_from_device_properties("S3_AMAZON_SIGNING_URL",
+                                                          crashportalEndpointUrl,
+                                                          sizeof(crashportalEndpointUrl));
+                }
+                if (crashportalEndpointUrl[0] == '\0')
+                {
+                    CRASHUPLOAD_ERROR("Extender: S3 signing URL empty\n");
+                    return -1;
+                }
             }
-            ret = get_crashupload_s3signed_url(crashportalEndpointUrl, signed_url_sz);
-            if (ret < 0)
+            else
             {
-                CRASHUPLOAD_ERROR("%s: Unable to get S3 server url\n", device_type_to_str(config->device_type));
-                return ret;
-            }
-            if (config->device_type == DEVICE_TYPE_EXTENDER &&
-                crashportalEndpointUrl[0] == '\0')
-            {
-                CRASHUPLOAD_ERROR("Extender: S3 signing URL empty\n");
-                return -1;
+                ret = get_crashupload_s3signed_url(crashportalEndpointUrl, sizeof(crashportalEndpointUrl));
+                if (ret < 0)
+                {
+                    CRASHUPLOAD_ERROR("%s: Unable to get S3 server url\n", device_type_to_str(config->device_type));
+                    return ret;
+                }
             }
         }
         CRASHUPLOAD_INFO("%s: S3 signing URL=%s\n", device_type_to_str(config->device_type), crashportalEndpointUrl);

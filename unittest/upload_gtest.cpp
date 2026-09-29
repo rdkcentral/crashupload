@@ -61,6 +61,7 @@ int upload_process(archive_info_t *archive, const config_t *config,
                    const platform_config_t *platform);
 int extract_partner_id_from_mem(const char *buf, size_t n, char *out, size_t out_size);
 int extract_partner_id_from_account(const char *path, char *out, size_t out_size);
+int read_key_from_device_properties(const char *key, char *out, size_t out_size);
 
 // Mock control functions
 void set_mock_read_rfc_property_behavior(int return_value, const char* output);
@@ -1314,10 +1315,11 @@ TEST_F(UploadTest, UploadProcess_Extender_RbusInitFail_FallbackS3Url_Success) {
 
 TEST_F(UploadTest, UploadProcess_Extender_S3UrlResolutionFailure) {
     test_config.device_type = DEVICE_TYPE_EXTENDER;
+    unlink(DEVICE_PROPERTIES_FILE);
     set_mock_rbus_init_behavior(true);
     set_mock_rbus_get_string_behavior(false, "");
     set_mock_read_rfc_property_behavior(-1, "");
-    set_mock_get_device_property_behavior(-1, ""); // get_crashupload_s3signed_url fallback fails
+    set_mock_get_device_property_behavior(-1, "");
 
     int result = upload_process(&test_archive_info, &test_config, &test_platform);
     EXPECT_EQ(result, -1);
@@ -1325,6 +1327,7 @@ TEST_F(UploadTest, UploadProcess_Extender_S3UrlResolutionFailure) {
 
 TEST_F(UploadTest, UploadProcess_Extender_EmptyS3Url_ReturnsFail) {
     test_config.device_type = DEVICE_TYPE_EXTENDER;
+    unlink(DEVICE_PROPERTIES_FILE);
     set_mock_rbus_init_behavior(true);
     set_mock_rbus_get_string_behavior(false, "");
     set_mock_read_rfc_property_behavior(-1, "");
@@ -1336,6 +1339,7 @@ TEST_F(UploadTest, UploadProcess_Extender_EmptyS3Url_ReturnsFail) {
 
 TEST_F(UploadTest, UploadProcess_Extender_S3UrlBufferCappedForDeviceProp) {
     test_config.device_type = DEVICE_TYPE_EXTENDER;
+    unlink(DEVICE_PROPERTIES_FILE);
     set_mock_rbus_init_behavior(true);
     set_mock_rbus_get_string_behavior(false, "");
     set_mock_read_rfc_property_behavior(-1, "");
@@ -1349,12 +1353,45 @@ TEST_F(UploadTest, UploadProcess_Extender_S3UrlBufferCappedForDeviceProp) {
 
     int result = upload_process(&test_archive_info, &test_config, &test_platform);
     EXPECT_EQ(result, 0);
+    EXPECT_EQ(get_mock_last_device_property_datasize(), 79u);
+}
 
-    unsigned int expected = 512;
-    if (expected >= MAX_DEVICE_PROP_BUFF_SIZE)
-        expected = MAX_DEVICE_PROP_BUFF_SIZE - 1U;
-    EXPECT_EQ(get_mock_last_device_property_datasize(), expected);
-    EXPECT_LT(get_mock_last_device_property_datasize(), MAX_DEVICE_PROP_BUFF_SIZE);
+TEST_F(UploadTest, UploadProcess_Extender_S3UrlFromDevicePropertiesFile) {
+    FILE *fp;
+    test_config.device_type = DEVICE_TYPE_EXTENDER;
+    fp = fopen(DEVICE_PROPERTIES_FILE, "w");
+    ASSERT_NE(fp, nullptr);
+    fprintf(fp, "S3_AMAZON_SIGNING_URL=https://ssr.example.com/sign\n");
+    fclose(fp);
+
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, "");
+    set_mock_read_rfc_property_behavior(-1, "");
+    set_mock_get_device_property_behavior(-1, "");
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    unlink(DEVICE_PROPERTIES_FILE);
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(UploadTest, ReadKeyFromDeviceProperties_ParsesValue) {
+    FILE *fp;
+    char out[128] = {0};
+
+    fp = fopen(DEVICE_PROPERTIES_FILE, "w");
+    ASSERT_NE(fp, nullptr);
+    fprintf(fp, "FOO=bar\nS3_AMAZON_SIGNING_URL=https://portal.example/x\n");
+    fclose(fp);
+    EXPECT_EQ(read_key_from_device_properties("S3_AMAZON_SIGNING_URL", out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "https://portal.example/x");
+    EXPECT_EQ(read_key_from_device_properties(NULL, out, sizeof(out)), 0);
+    unlink(DEVICE_PROPERTIES_FILE);
 }
 
 TEST_F(UploadTest, UploadProcess_Extender_UploadFail_CoredumpRemoved) {
