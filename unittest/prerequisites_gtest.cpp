@@ -71,12 +71,20 @@ protected:
         
         // Clean up flag files
         unlink("/tmp/set_crash_reboot_flag");
+        unlink("/tmp/coredump_mutex_release");
     }
 
     void TearDown() override {
         // Clean up test directories and files
         system("rm -rf /tmp/test_prereq_dir /tmp/test_minidumps /tmp/test_cores");
         unlink("/tmp/set_crash_reboot_flag");
+        unlink("/tmp/coredump_mutex_release");
+    }
+
+    void TouchCoredumpMutexRelease() {
+        FILE* fp = fopen("/tmp/coredump_mutex_release", "w");
+        if (fp)
+            fclose(fp);
     }
     
     void CreateDumpFile(const char* dir, const char* filename) {
@@ -262,6 +270,7 @@ TEST_F(PrerequisitesTest, PrerequisitesWait_MediaClient_CoredumpFound_Success) {
     test_config.device_type = DEVICE_TYPE_MEDIACLIENT;
     test_config.dump_type = DUMP_TYPE_COREDUMP;
     CreateDumpFile(test_core_dir, "app_core.12345");
+    TouchCoredumpMutexRelease();
     
     int ret = prerequisites_wait(&test_config, 30);
     
@@ -322,6 +331,7 @@ TEST_F(PrerequisitesTest, Integration_FullWorkflow_MediaClientCoredump) {
     test_config.device_type = DEVICE_TYPE_MEDIACLIENT;
     test_config.dump_type = DUMP_TYPE_COREDUMP;
     CreateDumpFile(test_core_dir, "receiver_core.12345");
+    TouchCoredumpMutexRelease();
     
     int ret = prerequisites_wait(&test_config, 30);
     

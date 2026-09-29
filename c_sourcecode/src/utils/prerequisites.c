@@ -149,6 +149,31 @@ static int has_required_dumps(const config_t *config)
     return 0;
 }
 
+static int dir_is_nonempty(const char *path)
+{
+    DIR *dp;
+    struct dirent *entry;
+
+    if (!path || path[0] == '\0')
+        return 0;
+
+    dp = opendir(path);
+    if (!dp)
+        return 0;
+
+    while ((entry = readdir(dp)) != NULL)
+    {
+        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+        {
+            closedir(dp);
+            return 1;
+        }
+    }
+
+    closedir(dp);
+    return 0;
+}
+
 int prerequisites_wait(config_t *config, int timeout_sec)
 {
     int dump_file_found = 0;
@@ -160,6 +185,18 @@ int prerequisites_wait(config_t *config, int timeout_sec)
         return ERR_INVALID_ARGUMENT;
     }
     CRASHUPLOAD_INFO("Inside prerequisites_wait: device type=%d\n", config->device_type);
+
+    /* runDumpUpload.sh: an empty WORKING_DIR exits before this wait.
+     * A non-empty coredump directory waits until the generator creates
+     * /tmp/coredump_mutex_release, then the dump count runs. */
+    if (config->dump_type == DUMP_TYPE_COREDUMP &&
+        dir_is_nonempty(config->core_path) &&
+        filePresentCheck("/tmp/coredump_mutex_release") != 0)
+    {
+        CRASHUPLOAD_INFO("Waiting for Coredump Completion\n");
+        sleep(21);
+    }
+
     dump_file_found = has_required_dumps(config);
     if (1 != dump_file_found)
     {
@@ -167,11 +204,5 @@ int prerequisites_wait(config_t *config, int timeout_sec)
         return NO_DUMPS_FOUND;
     }
     defer_upload_if_needed(config->device_type);
-    // TODO: Below mutex_release file create by core dump generation script.So using same
-    if ((config->dump_type == DUMP_TYPE_COREDUMP) && (0 != (filePresentCheck("/tmp/coredump_mutex_release"))))
-    {
-        CRASHUPLOAD_INFO("Waiting for Coredump Completion\n");
-        sleep(21); // NMI: How this number arive??
-    }
     return PREREQUISITES_SUCCESS;
 }
