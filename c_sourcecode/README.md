@@ -1,76 +1,54 @@
-# Crashupload C Implementation - Skeleton Code
+# Crashupload C source (`c_sourcecode/`)
 
-This directory contains skeleton C implementation for the crashupload migration from shell scripts to C.
+This directory is the autotools tree for the C binaries:
 
-## Architecture
+- **crashupload** — dump discovery, archive, rate-limit, and upload (`src/`)
+- **inotify-minidump-watcher** — directory watcher that starts upload on matching file creates (`watcher/`)
 
-Based on **optimized design** from:
-- `docs/migration/hld/updateduploadDumps-hld.md`
-- `docs/migration/lld/updateduploadDumps-lld.md`
-- `docs/migration/diagrams/flowcharts/optimizeduploadDumps-flowcharts.md`
-- `docs/migration/diagrams/sequence/updateuploadDumps-sequence.md`
-- `docs/migration/requirements/uploadDumps-requirements.md`
-
-## Structure
+## Layout
 
 ```
 c_sourcecode/
-├── common/               # Common type definitions, constants, errors
-│   ├── types.h
-│   ├── constants.h
-│   └── errors.h
-├── src/                  # Source code
-│   ├── main.c            # Main entry point (7-step optimized flow)
-│   ├── init/             # Consolidated initialization
-│   ├── config/           # Configuration management
-│   ├── platform/         # Platform abstraction
-│   ├── core/             # Core processing modules
-│   │   ├── scanner.*     # Dump file scanner
-│   │   ├── archive_smart.*     # Smart archive creator
-│   │   ├── upload_typeaware.*  # Type-aware upload
-│   │   └── ratelimit_unified.* # Unified rate limiter
-│   ├── utils/            # Utility modules
-│   │   ├── prerequisites.*  # Combined network+time check
-│   │   ├── privacy.*        # Unified privacy check
-│   │   ├── cleanup_batch.*  # Batch cleanup
-│   │   ├── lock_manager.*   # Process locking
-│   │   └── logger.*         # Logging
-│   └── Makefile          # Build system
+├── configure.ac
+├── Makefile.am
+├── common/                 # Shared types, constants, errors
+├── include/                # Public headers used by crashupload
+├── src/                    # crashupload binary
+└── watcher/                # inotify-minidump-watcher binary
 ```
 
-## Key Optimizations
+## Build
 
-1. **Consolidated Initialization** - Single `system_initialize()` call (3 steps → 1)
-2. **Combined Prerequisites** - `prerequisites_wait()` checks network + time together
-3. **Unified Privacy** - `privacy_uploads_blocked()` combines opt-out + privacy mode
-4. **Smart Archive** - Direct compression first, /tmp fallback if needed
-5. **Type-Aware Upload** - Minidump (5 retries, 3s delay) vs Coredump (3 retries, 10s delay)
-6. **Unified Rate Limit** - Single check for recovery + 10/10min limit
-7. **Batch Cleanup** - Single directory scan for all cleanup operations
-
-## Building
+From this directory:
 
 ```bash
-cd src
+autoreconf -i
+./configure
 make
+make install
 ```
 
-## Status
+`make` produces:
 
-**SKELETON**: All files contain function signatures and data structures from the design documents, but function bodies need implementation. Each TODO comment indicates what needs to be implemented.
+- `src/crashupload`
+- `watcher/inotify-minidump-watcher`
 
-## Next Steps
+Both are `bin_PROGRAMS` and install to `$prefix/bin` (typically `/usr/bin` on device images).
 
-1. Implement function bodies following TODO markers
-2. Add unit tests (GTest framework recommended)
-3. Build and test incrementally
-4. Validate against shell script behavior
-5. Performance test on target platforms
+Yocto/RDK builds pass extra `CFLAGS`/`LDFLAGS` (for example `-DYOCTO_BUILD` and `-lsecure_wrapper`). Do not hard-code those in a way that breaks the existing recipe flags.
 
-## Performance Targets
+Local coverage-style builds used by L1 go through `crashupload/cov_build.sh`, which configures and installs both binaries.
 
-Based on optimized design:
-- Startup: 100-120ms (vs 150-200ms standard)
-- Memory: 6-8MB (vs 8-10MB standard)
-- Binary: ~35KB (vs ~45KB standard)
-- Decision points: 22 (vs 35 standard) - 37% reduction
+## Tests
+
+L1 (GTest) lives in `../unittest/`. Watcher tests are `watcher_gtest` and are included in `../run_ut.sh`.
+
+```bash
+cd ..
+./run_ut.sh
+```
+
+## Notes
+
+- `src/` and `watcher/` are separate subdirectories so crashupload link flags (curl, rbus, archive, telemetry) are not applied to the watcher.
+- The watcher only links `libsecure_wrapper`, matching the legacy `crashupload/src/Makefile`.

@@ -44,6 +44,11 @@
 #define MAX_CORE_FILES 4
 #define LOGMAPPER_FILE_PATH "/etc/breakpad-logmapper.conf"
 #define LOG_FILES_PATH "/tmp/minidump_log_files.txt"
+/* Default persistent store; overridden by include.properties PERSISTENT_PATH. */
+#define PERSISTENT_PATH "/opt/persistent"
+/* Extender getWanInterfaceName() defaults to br-home. Do not reuse ARM_INTERFACE —
+ * that string is a broadband device.properties key in get_interface_value(). */
+#define EXTENDER_WAN_INTERFACE "br-home"
 
 /* Device types */
 typedef enum {

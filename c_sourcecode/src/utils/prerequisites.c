@@ -171,7 +171,7 @@ int prerequisites_wait(config_t *config, int timeout_sec)
     if ((config->dump_type == DUMP_TYPE_COREDUMP) && (0 != (filePresentCheck("/tmp/coredump_mutex_release"))))
     {
         CRASHUPLOAD_INFO("Waiting for Coredump Completion\n");
-        sleep(21); // TODO: How this number arive??
+        sleep(21); // NMI: How this number arive??
     }
     return PREREQUISITES_SUCCESS;
 }

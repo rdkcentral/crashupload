@@ -52,7 +52,8 @@ CFLAGS="$CFLAGS -Wall -Werror -O2 -DT2_EVENT_ENABLED"
 #CFLAGS="$CFLAGS -D_POSIX_C_SOURCE=200809L"
 
 AC_CONFIG_FILES([Makefile
-                 src/Makefile])
+                 src/Makefile
+                 watcher/Makefile])
 AC_OUTPUT
 
 echo ""

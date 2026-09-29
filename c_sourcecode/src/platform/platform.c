@@ -25,6 +25,57 @@
 #include "../rbusInterface/rbus_interface.h"
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
+#include <stdio.h>
+
+#ifdef GTEST_ENABLE
+#define STATIC_TESTABLE
+#else
+#define STATIC_TESTABLE static
+#endif
+
+#define EXTENDER_CTS_MODEL "GR-EXT02A-CTS"
+
+/*
+ * Script parity (extender utils.sh getModelNum):
+ *   MODEL_NUM=GR-EXT02A-CTS -> strip hyphens
+ *   else BOX_TYPE (e.g. XE2). GetModelNum() only reads MODEL_NUM=.
+ */
+STATIC_TESTABLE void apply_extender_model(char *model, size_t model_size, const char *box_type)
+{
+    size_t i;
+    size_t j;
+
+    if (!model || model_size == 0)
+    {
+        return;
+    }
+
+    if (strcmp(model, EXTENDER_CTS_MODEL) == 0)
+    {
+        j = 0;
+        for (i = 0; model[i] != '\0' && j + 1 < model_size; i++)
+        {
+            if (model[i] != '-')
+            {
+                model[j++] = model[i];
+            }
+        }
+        model[j] = '\0';
+        return;
+    }
+
+    if (box_type && box_type[0] != '\0' && strcmp(box_type, "UNKNOWN") != 0)
+    {
+        snprintf(model, model_size, "%s", box_type);
+        return;
+    }
+
+    if (model[0] == '\0')
+    {
+        snprintf(model, model_size, "%s", "UNKNOWN");
+    }
+}
 
 /* function NormalizeMac - gets the eSTB MAC address of the device.
 
@@ -160,14 +211,30 @@ int platform_initialize(const config_t *config, platform_config_t *platform)
         {
             CRASHUPLOAD_ERROR("GetEstbMac is failed. Trying to get mac from wan interface\n");
             char wan_if[32] = {0};
-            snprintf(wan_if, sizeof(wan_if), "%s", get_interface_value());
+            if (config->device_type == DEVICE_TYPE_EXTENDER)
+            {
+                if (config->comm_interface[0] != '\0'){
+                    snprintf(wan_if, sizeof(wan_if), "%s", config->comm_interface);
+                    CRASHUPLOAD_INFO("Got WAN interface from comm_interface %s", wan_if);
+                }
+                else{
+                    snprintf(wan_if, sizeof(wan_if), "%s", EXTENDER_WAN_INTERFACE);
+                    CRASHUPLOAD_INFO("Got WAN interface from fallback default %s", wan_if);
+                }
+            }
+            else
+            {
+                snprintf(wan_if, sizeof(wan_if), "%s", get_interface_value());
+                CRASHUPLOAD_INFO("Got WAN interface from get_interface_value() %s", wan_if);
+            }
             if (wan_if[0] != '\0' && strcmp(wan_if, "unknown") != 0)
             {
                 ret = GetHwMacAddress(wan_if, platform->mac_address, sizeof(platform->mac_address));
                 if (ret)
                 {
                     NormalizeMac(platform->mac_address, sizeof(platform->mac_address));
-                    CRASHUPLOAD_INFO("Broadband MAC fallback via %s: %s\n", wan_if, platform->mac_address);
+                    CRASHUPLOAD_INFO("%s MAC fallback via %s: %s\n",
+                                     device_type_to_str(config->device_type), wan_if, platform->mac_address);
                 }
             }
         }
@@ -177,16 +244,21 @@ int platform_initialize(const config_t *config, platform_config_t *platform)
             strcpy(platform->mac_address, "000000000000");
         }
     }
-    // TODO: For broadband and extender we have change the code
     ret = GetModelNum(platform->model, sizeof(platform->model));
-    if (ret)
+    if (config && config->device_type == DEVICE_TYPE_EXTENDER)
+    {
+        apply_extender_model(platform->model, sizeof(platform->model), config->box_type);
+        CRASHUPLOAD_INFO("Model Num=%s\n", platform->model);
+    }
+    else if (ret)
     {
         CRASHUPLOAD_INFO("Model Num=%s\n", platform->model);
     }
     else
     {
         CRASHUPLOAD_ERROR("GetModel is failed. Setting default value\n");
-        strcpy(platform->model, "UNKNOWN");
+        strncpy(platform->model, "UNKNOWN", sizeof(platform->model) - 1);
+        platform->model[sizeof(platform->model) - 1] = '\0';
     }
     ret = file_get_sha1("/version.txt", platform->platform_sha1, sizeof(platform->platform_sha1));
     if (ret == 0)
