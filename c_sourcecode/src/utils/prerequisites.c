@@ -63,7 +63,7 @@ void defer_upload_if_needed(device_type_t device_type)
 
         int uptime_val = (int)uptime_seconds;
 
-        if (uptime_val < FOUR_EIGHTY_SECS)
+        if (uptime_val >= 0 && uptime_val < FOUR_EIGHTY_SECS)
         {
 
             int sleep_time = FOUR_EIGHTY_SECS - uptime_val;
