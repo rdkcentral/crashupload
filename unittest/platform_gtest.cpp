@@ -38,6 +38,7 @@
 #include <cstdlib>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 
 extern "C" {
 #include "../c_sourcecode/src/platform/platform.h"
@@ -1125,7 +1126,12 @@ TEST_F(PlatformTest, GetInterfaceValue_GtestStubReturnsErouter0) {
 }
 
 TEST_F(PlatformTest, GetCoreType_ReadsCachedFile) {
-    FILE *fp = fopen(TMP_CPU_INFO_FILE, "w");
+    int fd = open(TMP_CPU_INFO_FILE, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    ASSERT_NE(fd, -1);
+    FILE *fp = fdopen(fd, "w");
+    if (fp == nullptr) {
+        close(fd);
+    }
     ASSERT_NE(fp, nullptr);
     fputs("ARM\n", fp);
     fclose(fp);

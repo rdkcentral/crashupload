@@ -165,7 +165,7 @@ TEST_F(WatcherTest, DirectoryWatcher_NullCommandArgs) {
 
 TEST_F(WatcherTest, DirectoryWatcher_CommandOverflow) {
     const char *patterns[] = {"*.dmp"};
-    std::string long_cmd(60, 'A');
+    std::string long_cmd(8192, 'A');
     watcher_mock_push_read_event(2, IN_CREATE, "crash.dmp");
     EXPECT_EQ(directory_watcher("/tmp", long_cmd.c_str(), "args", patterns, 1), -1);
 }

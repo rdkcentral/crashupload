@@ -23,7 +23,7 @@ inotify-minidump-watcher DIRECTORY COMMAND_TO_RUN COMMAND_ARGS PATTERN...
 Example:
 
 ```
-/usr/bin/inotify-minidump-watcher /minidumps /lib/rdk/uploadDumps.sh "" 0 *.dmp
+/usr/bin/inotify-minidump-watcher /minidumps /lib/rdk/uploadDumps.sh '"" 0' '*.dmp'
 ```
 
 `SIGINT` stops a blocking `read` cleanly.

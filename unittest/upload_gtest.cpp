@@ -90,6 +90,18 @@ void set_mock_include_property_behavior(int return_value, const char *output);
 using ::testing::_;
 using ::testing::Return;
 
+static FILE *fopen_private(const char *path, const char *mode) {
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        return nullptr;
+    }
+    FILE *fp = fdopen(fd, mode);
+    if (fp == nullptr) {
+        close(fd);
+    }
+    return fp;
+}
+
 // ============================================================================
 // Test Fixture
 // ============================================================================
@@ -1567,7 +1579,7 @@ TEST_F(UploadTest, ExtractPartnerId_ValueStopsAtEmbeddedNul) {
 
 TEST_F(UploadTest, ExtractPartnerId_AccountFileNoPartner) {
     const char *path = "/tmp/cu_account_nopartner_ut";
-    FILE *fp = fopen(path, "wb");
+    FILE *fp = fopen_private(path, "wb");
     ASSERT_NE(fp, nullptr);
     fputs("{\"accountId\":\"1\"}", fp);
     fclose(fp);
@@ -1585,7 +1597,7 @@ TEST_F(UploadTest, ExtractPartnerId_AccountFileMissingAndEmpty) {
     EXPECT_EQ(extract_partner_id_from_account("/tmp/cu_account_missing_ut", out, 0), 0);
 
     const char *path = "/tmp/cu_account_empty_ut";
-    FILE *fp = fopen(path, "wb");
+    FILE *fp = fopen_private(path, "wb");
     ASSERT_NE(fp, nullptr);
     fclose(fp);
     EXPECT_EQ(extract_partner_id_from_account(path, out, sizeof(out)), 0);
@@ -1613,7 +1625,7 @@ TEST_F(UploadTest, UploadProcess_Extender_PersistentPathFromInclude) {
     const char *dir = "/tmp/cu_pstore_ut";
     const char *account = "/tmp/cu_pstore_ut/account";
     mkdir(dir, 0755);
-    FILE *fp = fopen(account, "wb");
+    FILE *fp = fopen_private(account, "wb");
     ASSERT_NE(fp, nullptr);
     fputs("{\"partnerId\":\"sky-uk\"}", fp);
     fclose(fp);
@@ -1712,7 +1724,7 @@ TEST_F(UploadTest, UploadProcess_Extender_PersistentPathStripsNewline) {
     const char *dir = "/tmp/cu_pstore_nl_ut";
     const char *account = "/tmp/cu_pstore_nl_ut/account";
     mkdir(dir, 0755);
-    FILE *fp = fopen(account, "wb");
+    FILE *fp = fopen_private(account, "wb");
     ASSERT_NE(fp, nullptr);
     fputs("{\"partnerId\":\"comcast\"}", fp);
     fclose(fp);
