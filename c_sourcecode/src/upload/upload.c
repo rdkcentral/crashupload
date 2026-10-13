@@ -47,10 +47,17 @@
 #define PARTNER_ID_KEY "\"partnerId\""
 #define ACCOUNT_READ_MAX 4096
 
-/*
- * Account files on extender are a binary blob wrapping JSON (NULs in the
- * prefix). Scan raw bytes; do not use fgets/strstr C-strings.
- * Returns 1 if a non-empty partnerId was copied.
+/**
+ * @brief Parse partnerId from a length-bounded account blob.
+ *
+ * Extender $PERSISTENT_PATH/account is a binary wrapper around JSON (PSFS
+ * prefix with embedded NULs). fgets/strstr treat NULs as string terminators
+ * and miss partnerId. This scans raw bytes with memcmp.
+ *
+ * Split from file I/O so unit tests can feed a NUL-prefixed blob without
+ * creating a file.
+ *
+ * @return 1 if a non-empty partnerId was copied, else 0.
  */
 STATIC_TESTABLE int extract_partner_id_from_mem(const char *buf, size_t n, char *out, size_t out_size)
 {
@@ -105,6 +112,14 @@ STATIC_TESTABLE int extract_partner_id_from_mem(const char *buf, size_t n, char 
     return 0;
 }
 
+/**
+ * @brief Read extender account file and extract partnerId.
+ *
+ * Script uses cat $PERSISTENT_PATH/account. Open the file in binary mode
+ * (fread, not fgets) then parse via extract_partner_id_from_mem().
+ *
+ * @return 1 on success, 0 if the file is missing or partnerId is absent.
+ */
 STATIC_TESTABLE int extract_partner_id_from_account(const char *path, char *out, size_t out_size)
 {
     FILE *fp;
@@ -128,6 +143,16 @@ STATIC_TESTABLE int extract_partner_id_from_account(const char *path, char *out,
 
 #define EXTENDER_LIBFWUTILS_PROP_MAX 80
 
+/**
+ * @brief Read KEY=value from device.properties without libfwutils size cap.
+ *
+ * getDevicePropertyData() (libfwutils) rejects / truncates buffers at
+ * EXTENDER_LIBFWUTILS_PROP_MAX (80). Extender S3_AMAZON_SIGNING_URL values
+ * are longer, so get_crashupload_s3signed_url can return empty. This reads
+ * the file directly into the caller's buffer.
+ *
+ * @return 1 if a non-empty value was copied, else 0.
+ */
 STATIC_TESTABLE int read_key_from_device_properties(const char *key, char *out, size_t out_size)
 {
     FILE *fp;

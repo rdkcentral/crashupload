@@ -121,6 +121,10 @@ struct UploadMockState {
     char partner_id_output[16];
     bool partner_id_custom_behavior;
 
+    int include_property_return_value;
+    char include_property_output[64];
+    bool include_property_custom_behavior;
+
     /* rbus mocks */
     bool rbus_init_return_value;
     bool rbus_get_string_return_value;
@@ -177,6 +181,17 @@ void set_mock_get_device_property_behavior(int return_value, const char* output)
 
 unsigned int get_mock_last_device_property_datasize(void) {
     return g_upload_mock_state.get_device_property_last_datasize;
+}
+
+void set_mock_include_property_behavior(int return_value, const char* output) {
+    g_upload_mock_state.include_property_return_value = return_value;
+    memset(g_upload_mock_state.include_property_output, 0,
+           sizeof(g_upload_mock_state.include_property_output));
+    if (output) {
+        strncpy(g_upload_mock_state.include_property_output, output,
+                sizeof(g_upload_mock_state.include_property_output) - 1);
+    }
+    g_upload_mock_state.include_property_custom_behavior = true;
 }
 
 /**
@@ -345,6 +360,11 @@ void reset_upload_mocks() {
     memset(g_upload_mock_state.partner_id_output, 0, 
            sizeof(g_upload_mock_state.partner_id_output));
     g_upload_mock_state.partner_id_custom_behavior = false;
+
+    g_upload_mock_state.include_property_return_value = -1;
+    memset(g_upload_mock_state.include_property_output, 0,
+           sizeof(g_upload_mock_state.include_property_output));
+    g_upload_mock_state.include_property_custom_behavior = false;
     
     g_upload_mock_state.file_present_return_value = 0;
     g_upload_mock_state.file_present_custom_behavior = false;
@@ -400,6 +420,13 @@ int getIncludePropertyData(const char* param, char* value, unsigned int buff_siz
         return -1;
     }
     value[0] = '\0';
+    if (g_upload_mock_state.include_property_custom_behavior) {
+        if (g_upload_mock_state.include_property_output[0] != '\0') {
+            strncpy(value, g_upload_mock_state.include_property_output, buff_size - 1);
+            value[buff_size - 1] = '\0';
+        }
+        return g_upload_mock_state.include_property_return_value;
+    }
     return -1;
 }
 
