@@ -134,7 +134,7 @@ graph TD
   - Compiler: GCC/G++ with autotools build system
   - Standards: C99/C++11
 - **C** - Inotify watcher and legacy utilities
-  - Source: `src/inotify-minidump-watcher.c`
+  - Source: `c_sourcecode/watcher/inotify-minidump-watcher.c`
 - **Shell Script** - Orchestration and legacy implementation
   - Main: `uploadDumps.sh`, `runDumpUpload.sh`, `uploadDumpsUtils.sh`
   - Shell: BusyBox sh
@@ -501,21 +501,21 @@ crashupload/
 ├── c_sourcecode/           # C implementation
 │   ├── common/             # Type definitions, constants, errors
 │   ├── include/            # Public header files
-│   └── src/                # Source code (main, modules)
-│       ├── archive/        # Archive creation
-│       ├── config/         # Configuration management
-│       ├── init/           # System initialization
-│       ├── platform/       # Platform abstraction
-│       ├── ratelimit/      # Rate limiting
-│       ├── rfcInterface/   # RFC API wrapper
-│       ├── scanner/        # Dump file scanner
-│       ├── t2Interface/    # T2 telemetry wrapper
-│       ├── upload/         # Upload logic
-│       └── utils/          # Utilities (logger, file ops, etc.)
+│   ├── src/                # Source code (main, modules)
+│   │   ├── archive/        # Archive creation
+│   │   ├── config/         # Configuration management
+│   │   ├── init/           # System initialization
+│   │   ├── platform/       # Platform abstraction
+│   │   ├── ratelimit/      # Rate limiting
+│   │   ├── rfcInterface/   # RFC API wrapper
+│   │   ├── scanner/        # Dump file scanner
+│   │   ├── t2Interface/    # T2 telemetry wrapper
+│   │   ├── upload/         # Upload logic
+│   │   └── utils/          # Utilities (logger, file ops, etc.)
+│   └── watcher/            # Notifier C Code
+│       └── inotify-minidump-watcher.c
 ├── docs/                   # Documentation
 │   └── migration/          # Migration design docs (HLD, LLD, flowcharts)
-├── src/                    # Notifier C Code
-│   └── inotify-minidump-watcher.c
 ├── test/                   # Functional tests (Python pytest)
 ├── unittest/               # Unit tests (GTest)
 ├── uploadDumps.sh          # Main orchestrator script

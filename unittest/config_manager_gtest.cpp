@@ -186,6 +186,7 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_ExtenderDevice_Success) {
     EXPECT_EQ(result, CONFIG_SUCCESS);
     EXPECT_EQ(test_config.device_type, DEVICE_TYPE_EXTENDER);
     EXPECT_STREQ(test_config.core_log_file, "/var/log/messages");
+    EXPECT_STREQ(test_config.comm_interface, "br-home");
 }
 
 TEST_F(ConfigManagerTest, ConfigInitLoad_ProdBuildType_Success) {
@@ -289,6 +290,7 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_MinidumpExtender_WorkingDirOverride) {
     EXPECT_EQ(result, CONFIG_SUCCESS);
     EXPECT_EQ(test_config.dump_type, DUMP_TYPE_MINIDUMP);
     EXPECT_STREQ(test_config.working_dir_path, "/minidumps");
+    EXPECT_STREQ(test_config.comm_interface, "br-home");
 }
 
 TEST_F(ConfigManagerTest, ConfigInitLoad_T2Enabled_Success) {
@@ -720,6 +722,12 @@ extern "C" {
 bool rbus_init(void);
 void rbus_cleanup(void);
 bool rbus_get_string_param(const char *param_name, char *value_buf, size_t buf_size);
+bool rbusInit(void);
+void rbusUninit(void);
+bool crashupload_syscfg_get(const char *key, char *value_buf, size_t buf_size);
+bool crashupload_syscfg_set(const char *key, const char *value);
+bool crashupload_sysevent_get(const char *key, char *value_buf, size_t buf_size);
+bool crashupload_sysevent_set(const char *key, const char *value);
 }
 
 TEST_F(ConfigManagerTest, RbusInit_Stub_ReturnsTrue) {
@@ -764,6 +772,54 @@ TEST_F(ConfigManagerTest, RbusGetStringParam_NullBuffer_HandlesSafely) {
     // In stub mode, it checks if value_buf is non-NULL
     // The stub should handle this gracefully
     EXPECT_TRUE(result);
+}
+
+TEST_F(ConfigManagerTest, RbusInitUninit_Wrappers) {
+    EXPECT_TRUE(rbusInit());
+    rbusUninit();
+    SUCCEED();
+}
+
+TEST_F(ConfigManagerTest, SyscfgSyseventWrappers_InvalidArgsAndStub) {
+    char buf[32] = {0};
+    EXPECT_FALSE(crashupload_syscfg_get(nullptr, buf, sizeof(buf)));
+    EXPECT_FALSE(crashupload_syscfg_get("encryptcloudupload", nullptr, sizeof(buf)));
+    EXPECT_FALSE(crashupload_syscfg_get("encryptcloudupload", buf, 0));
+    EXPECT_FALSE(crashupload_syscfg_get("encryptcloudupload", buf, sizeof(buf)));
+    EXPECT_FALSE(crashupload_syscfg_set(nullptr, "x"));
+    EXPECT_FALSE(crashupload_syscfg_set("k", nullptr));
+    EXPECT_FALSE(crashupload_syscfg_set("k", "v"));
+    EXPECT_FALSE(crashupload_sysevent_get(nullptr, buf, sizeof(buf)));
+    EXPECT_FALSE(crashupload_sysevent_get("current_wan_ifname", nullptr, sizeof(buf)));
+    EXPECT_FALSE(crashupload_sysevent_get("current_wan_ifname", buf, 0));
+    EXPECT_FALSE(crashupload_sysevent_get("current_wan_ifname", buf, sizeof(buf)));
+    EXPECT_FALSE(crashupload_sysevent_set(nullptr, "x"));
+    EXPECT_FALSE(crashupload_sysevent_set("k", nullptr));
+    EXPECT_FALSE(crashupload_sysevent_set("k", "v"));
+}
+
+TEST_F(ConfigManagerTest, ConfigInitLoad_ExtenderSecureStillMinidumps) {
+    strcpy(test_argv3, "secure");
+    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
+    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "extender");
+    set_mock_filePresentCheck_behavior(1);
+
+    EXPECT_EQ(config_init_load(&test_config, 4, test_argv), CONFIG_SUCCESS);
+    EXPECT_EQ(test_config.device_type, DEVICE_TYPE_EXTENDER);
+    EXPECT_STREQ(test_config.core_path, "/minidumps");
+    EXPECT_STREQ(test_config.minidump_path, "/minidumps");
+    EXPECT_STREQ(test_config.comm_interface, "br-home");
+}
+
+TEST_F(ConfigManagerTest, ConfigInitLoad_ExtenderCoredumpWorkingDir) {
+    strcpy(test_argv2, "1");
+    set_mock_getIncludePropertyData_behavior(UTILS_SUCCESS, "/opt/logs");
+    set_mock_getDevicePropertyData_behavior(UTILS_SUCCESS, "extender");
+    set_mock_filePresentCheck_behavior(1);
+
+    EXPECT_EQ(config_init_load(&test_config, 3, test_argv), CONFIG_SUCCESS);
+    EXPECT_EQ(test_config.dump_type, DUMP_TYPE_COREDUMP);
+    EXPECT_STREQ(test_config.working_dir_path, "/minidumps");
 }
 
 TEST_F(ConfigManagerTest, RbusGetStringParam_ZeroBufferSize_HandlesSafely) {
