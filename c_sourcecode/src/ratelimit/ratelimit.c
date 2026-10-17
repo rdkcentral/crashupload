@@ -121,7 +121,7 @@ int is_upload_limit_reached(const char *file)
     }
 
     /* Validate numeric content of FIRST line */
-    for (size_t i = 0; first_line_data[i] != '\0' && first_line_data[i] != '\n' && i < sizeof(first_line_data); i++)
+    for (size_t i = 0; i < sizeof(first_line_data) && first_line_data[i] != '\0' && first_line_data[i] != '\n'; i++)
     {
         if (!isdigit((unsigned char)first_line_data[i]))
         {
@@ -171,7 +171,6 @@ int is_upload_limit_reached(const char *file)
 
 int is_recovery_time_reached(const char *deny_file)
 {
-    struct stat st;
     FILE *fp;
     char buf[32];
     char *endptr;
@@ -181,10 +180,7 @@ int is_recovery_time_reached(const char *deny_file)
     if (!deny_file)
         return ALLOW_UPLOAD; /* allow upload */
 
-    /* If deny file does not exist, allow */
-    if (stat(deny_file, &st) != 0)
-        return ALLOW_UPLOAD;
-
+    /* Open directly; let fopen() report absence atomically */
     fp = fopen(deny_file, "r");
     if (!fp)
         return ALLOW_UPLOAD;
@@ -197,7 +193,7 @@ int is_recovery_time_reached(const char *deny_file)
     fclose(fp);
 
     /* Validate numeric content with bounds check */
-    for (size_t i = 0; buf[i] != '\0' && buf[i] != '\n' && i < sizeof(buf); i++)
+    for (size_t i = 0; i < sizeof(buf) && buf[i] != '\0' && buf[i] != '\n'; i++)
     {
         if (!isdigit((unsigned char)buf[i]))
             return ALLOW_UPLOAD;

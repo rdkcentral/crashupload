@@ -605,8 +605,8 @@ int processCrashTelemetryInfo(const char *rawfile, const char *log_path, bool t2
             snprintf(Appname, sizeof(Appname),  "%s", us + 1);
 
             size_t pnamelen = (size_t)(us - containerName);
-            if (pnamelen >= sizeof(ProcessName))
-                pnamelen = sizeof(ProcessName) - 1;
+            if (pnamelen >= sizeof(containerName))
+                pnamelen = sizeof(containerName) - 1;
             memcpy(ProcessName, containerName, pnamelen);
             ProcessName[pnamelen] = '\0';
         }
