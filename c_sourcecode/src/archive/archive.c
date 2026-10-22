@@ -262,7 +262,7 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
     while ((tmp = strstr(new_dump_name, pattern)) != NULL)
     {
         *tmp = '_';
-        strcpy(tmp + 1, tmp + pattern_len);
+        memmove(tmp + 1, tmp + pattern_len, strlen(tmp + pattern_len) + 1);
     }
     CRASHUPLOAD_INFO("archive_create_smart() After process dump name=%s\n", new_dump_name);
 

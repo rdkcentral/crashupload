@@ -245,7 +245,7 @@ int main_test(int argc, char *argv[])
         goto cleanup;
     }
 
-    memset(archive, '\0', dump_count * sizeof(archive));
+    memset(archive, '\0', dump_count * sizeof(*archive));
     /* 5.2: Process each dump */
     for (int i = 0; i < dump_count; i++)
     {
