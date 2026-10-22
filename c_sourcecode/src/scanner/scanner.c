@@ -605,8 +605,8 @@ int processCrashTelemetryInfo(const char *rawfile, const char *log_path, bool t2
             snprintf(Appname, sizeof(Appname),  "%s", us + 1);
 
             size_t pnamelen = (size_t)(us - containerName);
-            if (pnamelen >= sizeof(ProcessName))
-                pnamelen = sizeof(ProcessName) - 1;
+            if (pnamelen >= sizeof(containerName))
+                pnamelen = sizeof(containerName) - 1;
             memcpy(ProcessName, containerName, pnamelen);
             ProcessName[pnamelen] = '\0';
         }
@@ -762,8 +762,9 @@ int process_file_entry(char *fullpath, char *dump_type, const config_t *config)
         else
         {
             CRASHUPLOAD_INFO("Renamed %s -> %s\n", fullpath, newfull);
-            strcpy(fullpath, newfull);
-            CRASHUPLOAD_INFO("After rename fullpath buffer updated=%s=\n", fullpath);
+            strncpy(fullpath, newfull, PATH_MAX_LEN - 1);
+            fullpath[PATH_MAX_LEN - 1] = '\0';
+        CRASHUPLOAD_INFO("After rename fullpath buffer updated=%s=\n", fullpath);
         }
         /* set fullpath to newfull for subsequent processing */
         if (strlen(newfull) >= PATH_MAX_LEN)
