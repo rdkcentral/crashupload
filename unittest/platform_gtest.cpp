@@ -38,6 +38,7 @@
 #include <cstdlib>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 
 extern "C" {
 #include "../c_sourcecode/src/platform/platform.h"
@@ -48,6 +49,8 @@ extern "C" {
 void NormalizeMac(char *mac, size_t size);
 size_t GetEstbMac(char *pEstbMac, size_t szBufSize);
 int platform_initialize(const config_t *config, platform_config_t *platform);
+const char *get_core_type(void);
+const char *get_interface_value(void);
 
 // Mock function declarations
 size_t stripinvalidchar(char* str, size_t len);
@@ -55,6 +58,7 @@ size_t stripinvalidchar(char* str, size_t len);
 //size_t GetHwMacAddress(const char* interface, char* mac, size_t len);
 size_t GetModelNum(char* model, size_t len);
 int file_get_sha1(const char* path, char* hash, size_t len);
+void apply_extender_model(char *model, size_t model_size, const char *box_type);
 
 // Mock control functions
 void set_mock_stripinvalidchar_behavior(int return_value);
@@ -981,6 +985,177 @@ TEST_F(PlatformTest, platform_initialize_MemorySafety_StructureIntegrity) {
     // Check guard bytes not overwritten
     EXPECT_EQ((unsigned char)guard_buffer[0], 0xCC);
     EXPECT_EQ((unsigned char)guard_buffer[sizeof(guard_buffer) - 1], 0xCC);
+}
+
+TEST_F(PlatformTest, apply_extender_model_BoxTypeFallback) {
+    char model[64];
+    memset(model, 0, sizeof(model));
+    apply_extender_model(model, sizeof(model), "XE2");
+    EXPECT_STREQ(model, "XE2");
+}
+
+TEST_F(PlatformTest, apply_extender_model_CtsStripsHyphens) {
+    char model[64];
+    strncpy(model, "GR-EXT02A-CTS", sizeof(model) - 1);
+    model[sizeof(model) - 1] = '\0';
+    apply_extender_model(model, sizeof(model), "XE2");
+    EXPECT_STREQ(model, "GREXT02ACTS");
+}
+
+TEST_F(PlatformTest, apply_extender_model_EmptyBoxType_Unknown) {
+    char model[64];
+    memset(model, 0, sizeof(model));
+    apply_extender_model(model, sizeof(model), "UNKNOWN");
+    EXPECT_STREQ(model, "UNKNOWN");
+    model[0] = '\0';
+    apply_extender_model(model, sizeof(model), NULL);
+    EXPECT_STREQ(model, "UNKNOWN");
+}
+
+TEST_F(PlatformTest, apply_extender_model_NullModel_NoCrash) {
+    apply_extender_model(NULL, 64, "XE2");
+    apply_extender_model((char *)"XE2", 0, "XE2");
+    SUCCEED();
+}
+
+TEST_F(PlatformTest, apply_extender_model_KeepsExistingWhenBoxUnknown) {
+    char model[64];
+    strncpy(model, "XG1", sizeof(model) - 1);
+    model[sizeof(model) - 1] = '\0';
+    apply_extender_model(model, sizeof(model), "UNKNOWN");
+    EXPECT_STREQ(model, "XG1");
+}
+
+TEST_F(PlatformTest, platform_initialize_Extender_UsesBoxTypeWhenModelMissing) {
+    create_mac_file("AA:BB:CC:DD:EE:FF\n");
+    set_mock_stripinvalidchar_behavior(17);
+    set_mock_GetModelNum_behavior(0, NULL);
+    set_mock_file_get_sha1_behavior(0, "0123456789abcdef0123456789abcdef01234567");
+
+    config_t config;
+    memset(&config, 0, sizeof(config_t));
+    config.device_type = DEVICE_TYPE_EXTENDER;
+    strncpy(config.box_type, "XE2", sizeof(config.box_type) - 1);
+    platform_config_t platform;
+    memset(&platform, 0, sizeof(platform_config_t));
+
+    int result = platform_initialize(&config, &platform);
+    EXPECT_EQ(result, PLATFORM_INIT_SUCCESS);
+    EXPECT_STREQ(platform.model, "XE2");
+}
+
+TEST_F(PlatformTest, platform_initialize_Broadband_ModelFailed_StillUnknown) {
+    create_mac_file("AA:BB:CC:DD:EE:FF\n");
+    set_mock_stripinvalidchar_behavior(17);
+    set_mock_GetModelNum_behavior(0, NULL);
+    set_mock_file_get_sha1_behavior(0, "0123456789abcdef0123456789abcdef01234567");
+
+    config_t config;
+    memset(&config, 0, sizeof(config_t));
+    config.device_type = DEVICE_TYPE_BROADBAND;
+    strncpy(config.box_type, "XB6", sizeof(config.box_type) - 1);
+    platform_config_t platform;
+    memset(&platform, 0, sizeof(platform_config_t));
+
+    int result = platform_initialize(&config, &platform);
+    EXPECT_EQ(result, PLATFORM_INIT_SUCCESS);
+    EXPECT_STREQ(platform.model, "UNKNOWN");
+}
+
+TEST_F(PlatformTest, platform_initialize_Extender_MacFallbackCommInterface) {
+    unlink(MAC_FILE);
+    set_mock_stripinvalidchar_behavior(0);
+    set_mock_getDevicePropertyData_behavior(UTILS_FAIL, NULL);
+    set_mock_GetHwMacAddress_behavior(17, "e8:d2:ff:94:3e:be");
+    set_mock_GetModelNum_behavior(0, NULL);
+    set_mock_file_get_sha1_behavior(0, "0123456789abcdef0123456789abcdef01234567");
+
+    config_t config;
+    memset(&config, 0, sizeof(config_t));
+    config.device_type = DEVICE_TYPE_EXTENDER;
+    strncpy(config.comm_interface, "br-home", sizeof(config.comm_interface) - 1);
+    strncpy(config.box_type, "XE2", sizeof(config.box_type) - 1);
+    platform_config_t platform;
+    memset(&platform, 0, sizeof(platform_config_t));
+
+    EXPECT_EQ(platform_initialize(&config, &platform), PLATFORM_INIT_SUCCESS);
+    EXPECT_STREQ(platform.mac_address, "E8D2FF943EBE");
+}
+
+TEST_F(PlatformTest, platform_initialize_Extender_MacFallbackDefaultBrHome) {
+    unlink(MAC_FILE);
+    set_mock_stripinvalidchar_behavior(0);
+    set_mock_getDevicePropertyData_behavior(UTILS_FAIL, NULL);
+    set_mock_GetHwMacAddress_behavior(17, "aa:bb:cc:dd:ee:ff");
+    set_mock_GetModelNum_behavior(0, NULL);
+    set_mock_file_get_sha1_behavior(0, "0123456789abcdef0123456789abcdef01234567");
+
+    config_t config;
+    memset(&config, 0, sizeof(config_t));
+    config.device_type = DEVICE_TYPE_EXTENDER;
+    config.comm_interface[0] = '\0';
+    strncpy(config.box_type, "XE2", sizeof(config.box_type) - 1);
+    platform_config_t platform;
+    memset(&platform, 0, sizeof(platform_config_t));
+
+    EXPECT_EQ(platform_initialize(&config, &platform), PLATFORM_INIT_SUCCESS);
+    EXPECT_STREQ(platform.mac_address, "AABBCCDDEEFF");
+}
+
+TEST_F(PlatformTest, platform_initialize_Extender_MacFallbackHwFailUsesDefault) {
+    unlink(MAC_FILE);
+    set_mock_stripinvalidchar_behavior(0);
+    set_mock_getDevicePropertyData_behavior(UTILS_FAIL, NULL);
+    set_mock_GetHwMacAddress_behavior(0, NULL);
+    set_mock_GetModelNum_behavior(0, NULL);
+    set_mock_file_get_sha1_behavior(0, "0123456789abcdef0123456789abcdef01234567");
+
+    config_t config;
+    memset(&config, 0, sizeof(config_t));
+    config.device_type = DEVICE_TYPE_EXTENDER;
+    strncpy(config.comm_interface, "br-home", sizeof(config.comm_interface) - 1);
+    platform_config_t platform;
+    memset(&platform, 0, sizeof(platform_config_t));
+
+    EXPECT_EQ(platform_initialize(&config, &platform), PLATFORM_INIT_SUCCESS);
+    EXPECT_STREQ(platform.mac_address, "000000000000");
+}
+
+TEST_F(PlatformTest, GetInterfaceValue_GtestStubReturnsErouter0) {
+    EXPECT_STREQ(get_interface_value(), "erouter0");
+}
+
+TEST_F(PlatformTest, GetCoreType_ReadsCachedFile) {
+    int fd = open(TMP_CPU_INFO_FILE, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    ASSERT_NE(fd, -1);
+    FILE *fp = fdopen(fd, "w");
+    if (fp == nullptr) {
+        close(fd);
+    }
+    ASSERT_NE(fp, nullptr);
+    fputs("ARM\n", fp);
+    fclose(fp);
+    EXPECT_STREQ(get_core_type(), "ARM");
+    EXPECT_STREQ(get_core_type(), "ARM");
+    unlink(TMP_CPU_INFO_FILE);
+}
+
+TEST_F(PlatformTest, platform_initialize_Extender_CtsModelStripsHyphens) {
+    create_mac_file("AA:BB:CC:DD:EE:FF\n");
+    set_mock_stripinvalidchar_behavior(17);
+    set_mock_GetModelNum_behavior(13, "GR-EXT02A-CTS");
+    set_mock_file_get_sha1_behavior(0, "0123456789abcdef0123456789abcdef01234567");
+
+    config_t config;
+    memset(&config, 0, sizeof(config_t));
+    config.device_type = DEVICE_TYPE_EXTENDER;
+    strncpy(config.box_type, "XE2", sizeof(config.box_type) - 1);
+    platform_config_t platform;
+    memset(&platform, 0, sizeof(platform_config_t));
+
+    int result = platform_initialize(&config, &platform);
+    EXPECT_EQ(result, PLATFORM_INIT_SUCCESS);
+    EXPECT_STREQ(platform.model, "GREXT02ACTS");
 }
 
 // ============================================================================
