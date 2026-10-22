@@ -661,11 +661,11 @@ call_get_crashed:
  *
  *   Returns 0 on success, non-zero on error.
  */
-int process_file_entry(char *fullpath, char *dump_type, const config_t *config)
+int process_file_entry(char *fullpath, size_t fullpath_cap, char *dump_type, const config_t *config)
 {
     int sanitize_ret = -1;
     char sanitized[256] = {0};
-    if (!fullpath || !dump_type || !config)
+    if (!fullpath || fullpath_cap == 0 || !dump_type || !config)
     {
         CRASHUPLOAD_INFO("process_file_entry():Invalid Parameter\n");
         return -1;
@@ -683,7 +683,8 @@ int process_file_entry(char *fullpath, char *dump_type, const config_t *config)
     char basename[PATH_MAX_LEN];
     char fullcopy[PATH_MAX_LEN];
 
-    if (strlen(fullpath) >= PATH_MAX_LEN)
+    size_t fullpath_len = strnlen(fullpath, fullpath_cap);
+    if (fullpath_len >= fullpath_cap || fullpath_len >= PATH_MAX_LEN)
     {
         CRASHUPLOAD_INFO("process_file_entry(): File name is cross max length:%d\n", PATH_MAX_LEN);
         return -1;
@@ -734,6 +735,11 @@ int process_file_entry(char *fullpath, char *dump_type, const config_t *config)
             CRASHUPLOAD_INFO("Path too long after sanitization; skipping rename\n");
             return -1;
         }
+        if (strlen(newfull) >= fullpath_cap)
+        {
+            CRASHUPLOAD_INFO("Renamed path does not fit in caller buffer; skipping rename\n");
+            return -1;
+        }
         /* Use rename() for atomic move; if target exists, choose to overwrite */
         if (rename(fullpath, newfull) != 0)
         {
@@ -749,7 +755,7 @@ int process_file_entry(char *fullpath, char *dump_type, const config_t *config)
                 else
                 {
                     CRASHUPLOAD_INFO("Renamed After retry %s -> %s\n", fullpath, newfull);
-                    strcpy(fullpath, newfull);
+                    snprintf(fullpath, fullpath_cap, "%s", newfull);
                     CRASHUPLOAD_INFO("After rename fullpath buffer updated=%s=\n", fullpath);
                 }
             }
@@ -762,9 +768,8 @@ int process_file_entry(char *fullpath, char *dump_type, const config_t *config)
         else
         {
             CRASHUPLOAD_INFO("Renamed %s -> %s\n", fullpath, newfull);
-            strncpy(fullpath, newfull, PATH_MAX_LEN - 1);
-            fullpath[PATH_MAX_LEN - 1] = '\0';
-        CRASHUPLOAD_INFO("After rename fullpath buffer updated=%s=\n", fullpath);
+            snprintf(fullpath, fullpath_cap, "%s", newfull);
+            CRASHUPLOAD_INFO("After rename fullpath buffer updated=%s=\n", fullpath);
         }
         /* set fullpath to newfull for subsequent processing */
         if (strlen(newfull) >= PATH_MAX_LEN)

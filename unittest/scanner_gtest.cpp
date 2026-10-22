@@ -61,7 +61,7 @@ int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count, const 
 int scanner_get_sorted_dumps(dump_file_t **dumps, int *count);
 void scanner_cleanup(void);
 void scanner_update_test_state(dump_file_t *dumps, int count);
-int process_file_entry(char *fullpath, char *dump_type, const config_t *config);
+int process_file_entry(char *fullpath, size_t fullpath_cap, char *dump_type, const config_t *config);
 int sanitize_filename_preserve_container(const char *fname, char *out, size_t outsz);
 char *extract_pname(const char *filepath);
 char *extract_appname(const char *filepath);
@@ -868,14 +868,14 @@ TEST_F(ScannerTest, ProcessTelemetry_LogMapperWithNoEqualsLine_Handled) {
 TEST_F(ScannerTest, ProcessFileEntry_NullFullpath) {
     char dump_type[] = "0";
     
-    int result = process_file_entry(nullptr, dump_type, &test_config);
+    int result = process_file_entry(nullptr, 0, dump_type, &test_config);
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(ScannerTest, ProcessFileEntry_NullDumpType) {
     char fullpath[] = "/tmp/test.dmp";
     
-    int result = process_file_entry(fullpath, nullptr, &test_config);
+    int result = process_file_entry(fullpath, sizeof(fullpath), nullptr, &test_config);
     EXPECT_EQ(result, -1);
 }
 
@@ -883,12 +883,12 @@ TEST_F(ScannerTest, ProcessFileEntry_NullConfig) {
     char fullpath[] = "/tmp/test.dmp";
     char dump_type[] = "0";
     
-    int result = process_file_entry(fullpath, dump_type, nullptr);
+    int result = process_file_entry(fullpath, sizeof(fullpath), dump_type, nullptr);
     EXPECT_EQ(result, -1);
 }
 
 TEST_F(ScannerTest, ProcessFileEntry_AllNullParameters) {
-    int result = process_file_entry(nullptr, nullptr, nullptr);
+    int result = process_file_entry(nullptr, 0, nullptr, nullptr);
     EXPECT_EQ(result, -1);
 }
 
@@ -900,7 +900,7 @@ TEST_F(ScannerTest, ProcessFileEntry_NotRegularFile) {
     // Directory, not a file
     set_mock_is_regular_file_behavior(0);
     
-    int result = process_file_entry(fullpath, dump_type, &test_config);
+    int result = process_file_entry(fullpath, sizeof(fullpath), dump_type, &test_config);
     EXPECT_EQ(result, 0); // Returns 0 but doesn't process
 }
 
@@ -913,7 +913,7 @@ TEST_F(ScannerTest, ProcessFileEntry_ValidFile) {
     
     set_mock_is_regular_file_behavior(1);
     
-    int result = process_file_entry(fullpath, dump_type, &test_config);
+    int result = process_file_entry(fullpath, sizeof(fullpath), dump_type, &test_config);
     // Success or error depending on file operations
     EXPECT_GE(result, -1);
 }
@@ -928,7 +928,7 @@ TEST_F(ScannerTest, ProcessFileEntry_FileWithInvalidChars) {
     
     set_mock_is_regular_file_behavior(1);
     
-    int result = process_file_entry(fullpath, dump_type, &test_config);
+    int result = process_file_entry(fullpath, sizeof(fullpath), dump_type, &test_config);
     // Should attempt to rename or delete
     EXPECT_GE(result, -1);
 }
@@ -942,7 +942,7 @@ TEST_F(ScannerTest, ProcessFileEntry_DumpTypeNonZero) {
     
     set_mock_is_regular_file_behavior(1);
     
-    int result = process_file_entry(fullpath, dump_type, &test_config);
+    int result = process_file_entry(fullpath, sizeof(fullpath), dump_type, &test_config);
     // Should process but not call telemetry
     EXPECT_GE(result, -1);
 }
@@ -956,7 +956,7 @@ TEST_F(ScannerTest, ProcessFileEntry_ContainerDelimiterFile) {
     
     set_mock_is_regular_file_behavior(1);
     
-    int result = process_file_entry(fullpath, dump_type, &test_config);
+    int result = process_file_entry(fullpath, sizeof(fullpath), dump_type, &test_config);
     EXPECT_GE(result, -1);
 }
 
@@ -970,7 +970,7 @@ TEST_F(ScannerTest, ProcessFileEntry_PathTooLong) {
     snprintf(fullpath1, sizeof(fullpath1), "%s/%s", test_dump_dir,fullpath);
     
     set_mock_is_regular_file_behavior(1);
-    int result = process_file_entry(fullpath1, dump_type, &test_config);
+    int result = process_file_entry(fullpath1, sizeof(fullpath1), dump_type, &test_config);
     EXPECT_EQ(result, -1);
 }
 
@@ -984,7 +984,7 @@ TEST_F(ScannerTest, ProcessFileEntry_EmptySanitizedName) {
     
     set_mock_is_regular_file_behavior(1);
     
-    int result = process_file_entry(fullpath, dump_type, &test_config);
+    int result = process_file_entry(fullpath, sizeof(fullpath), dump_type, &test_config);
     // Should attempt to delete the file
     EXPECT_GE(result, -1);
 }
@@ -998,7 +998,7 @@ TEST_F(ScannerTest, ProcessFileEntry_RenameScenario) {
     
     set_mock_is_regular_file_behavior(1);
     
-    int result = process_file_entry(fullpath, dump_type, &test_config);
+    int result = process_file_entry(fullpath, sizeof(fullpath), dump_type, &test_config);
     // Should attempt to rename
     EXPECT_GE(result, -1);
 }
@@ -1658,7 +1658,7 @@ TEST_F(ScannerTest, ProcessFileEntry_NoSlashInPath_DirnameDot) {
     char fullpath[] = "nodirname_test.dmp";
     char dump_type[] = "1";
     set_mock_is_regular_file_behavior(1);
-    int result = process_file_entry(fullpath, dump_type, &test_config);
+    int result = process_file_entry(fullpath, sizeof(fullpath), dump_type, &test_config);
     EXPECT_GE(result, -1);
 }
 
@@ -1674,7 +1674,7 @@ TEST_F(ScannerTest, ProcessFileEntry_RenameNeeded_DumpTypeNonZero) {
     char dump_type[] = "1";
     snprintf(fullpath, sizeof(fullpath), "%s/bad*rename.dmp", test_dump_dir);
     set_mock_is_regular_file_behavior(1);
-    int result = process_file_entry(fullpath, dump_type, &test_config);
+    int result = process_file_entry(fullpath, sizeof(fullpath), dump_type, &test_config);
     EXPECT_GE(result, -1);
 }
 
