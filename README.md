@@ -233,6 +233,18 @@ cd test/functional-tests
 
 **Coverage**: 66 / 66 applicable TCs implemented (19 not applicable — see `test/L2_TESTS.md`)
 
+### Memory leak detection
+
+`scripts/detect_leak.sh` runs `crashupload` under `memleakutil` (`LD_PRELOAD=libmemfnswrap.so`) for three short cases: missing arguments, an empty minidump directory, and an empty coredump directory. Build the library first with `scripts/build_memleak.sh`. Details are in `scripts/README.md`.
+
+GitHub Actions runs this in `.github/workflows/detect_leak.yml`, separate from the native build. A failing case is reported as a warning and does not fail `native_full_build.yml`.
+
+```bash
+./cov_build.sh
+sh scripts/build_memleak.sh
+sh scripts/detect_leak.sh
+```
+
 ## Rate Limiting & Recovery Mode
 
 ### Normal Operation
