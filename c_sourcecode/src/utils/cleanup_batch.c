@@ -253,7 +253,7 @@ int delete_all_but_most_recent(const char *path, size_t max_keep)
             return -1; // stop
         }
         return 0;
-    }
+    };
 
     if (walk_dir_recursive(path, collect_cb, &ctx) != 0)
     {
@@ -528,7 +528,7 @@ void remove_pending_dumps(const char *working_dir,
 
         snprintf(path, sizeof(path), "%s/%s", working_dir, entry->d_name);
 
-        if (stat(path, &st) < 0)
+        if (lstat(path, &st) < 0)
         {
             CRASHUPLOAD_WARN("stat Error: %s\n", path);
             continue;
