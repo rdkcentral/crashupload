@@ -171,20 +171,16 @@ int is_upload_limit_reached(const char *file)
 
 int is_recovery_time_reached(const char *deny_file)
 {
-    struct stat st;
     FILE *fp;
     char buf[32];
     char *endptr;
     long deny_until;
     time_t now;
-
-    if (!deny_file)
-        return ALLOW_UPLOAD; /* allow upload */
-
-    /* If deny file does not exist, allow */
-    if (stat(deny_file, &st) != 0)
-        return ALLOW_UPLOAD;
-
+    
+if (!deny_file)
+    return ALLOW_UPLOAD; /* allow upload */
+    
+/* Open directly; let fopen() report the error atomically */
     fp = fopen(deny_file, "r");
     if (!fp)
         return ALLOW_UPLOAD;
