@@ -1846,6 +1846,7 @@ TEST_F(UtilsTest, GetCrashFirmwareVersion_TarballVersionTxt4097Bytes_SkipsAndFal
 
     const std::string version_path = cleanup.dir + "/version.txt";
     const std::string tarball_path = cleanup.dir + "/boundary.tgz";
+    const std::string fallback_path = cleanup.dir + "/fallback.txt";
     ASSERT_TRUE(WriteExactVersionFile(version_path.c_str(), "ARCHIVED_4097", 4097));
 
     std::string cmd = "tar -czf " + tarball_path + " -C " + cleanup.dir + " version.txt";
