@@ -107,6 +107,7 @@ protected:
     
     void SetUp() override {
         reset_utils_mocks();
+        set_fallback_version_path(NULL);
         
         // Create test directory
         mkdir(test_dir, 0755);
@@ -122,6 +123,7 @@ protected:
     }
 
     void TearDown() override {
+        set_fallback_version_path(NULL);
         reset_utils_mocks();
         
         // Clean up test files
@@ -1808,7 +1810,6 @@ TEST_F(UtilsTest, GetCrashFirmwareVersion_TarballVersionTxtExactly4096Bytes_Succ
                 unlink((dir + "/boundary.tgz").c_str());
                 rmdir(dir.c_str());
             }
-            unlink("/version.txt");
         }
     } cleanup{dir_template};
 
@@ -1818,7 +1819,6 @@ TEST_F(UtilsTest, GetCrashFirmwareVersion_TarballVersionTxtExactly4096Bytes_Succ
 
     std::string cmd = "tar -czf " + tarball_path + " -C " + cleanup.dir + " version.txt";
     ASSERT_EQ(system(cmd.c_str()), 0);
-    CreateTestFile("/version.txt", "imagename:FALLBACK_4096\n");
 
     char fw_version[256] = {0};
     size_t result = GetCrashFirmwareVersion(tarball_path.c_str(), fw_version, sizeof(fw_version));
@@ -1834,12 +1834,13 @@ TEST_F(UtilsTest, GetCrashFirmwareVersion_TarballVersionTxt4097Bytes_SkipsAndFal
     struct Cleanup {
         std::string dir;
         ~Cleanup() {
+            set_fallback_version_path(NULL);
             if (!dir.empty()) {
                 unlink((dir + "/version.txt").c_str());
                 unlink((dir + "/boundary.tgz").c_str());
+                unlink((dir + "/fallback.txt").c_str());
                 rmdir(dir.c_str());
             }
-            unlink("/version.txt");
         }
     } cleanup{dir_template};
 
@@ -1849,7 +1850,8 @@ TEST_F(UtilsTest, GetCrashFirmwareVersion_TarballVersionTxt4097Bytes_SkipsAndFal
 
     std::string cmd = "tar -czf " + tarball_path + " -C " + cleanup.dir + " version.txt";
     ASSERT_EQ(system(cmd.c_str()), 0);
-    CreateTestFile("/version.txt", "imagename:FALLBACK_4097\n");
+    CreateTestFile(fallback_path.c_str(), "imagename:FALLBACK_4097\n");
+    set_fallback_version_path(fallback_path.c_str());
 
     char fw_version[256] = {0};
     size_t result = GetCrashFirmwareVersion(tarball_path.c_str(), fw_version, sizeof(fw_version));

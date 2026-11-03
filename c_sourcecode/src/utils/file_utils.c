@@ -313,6 +313,14 @@ STATIC_TESTABLE size_t read_version_from_file(const char *filepath, char *output
     return result;
 }
 
+#ifdef GTEST_ENABLE
+const char *g_test_fallback_version_path = NULL;
+#define CURRENT_VERSION_FILE \
+    (g_test_fallback_version_path != NULL ? g_test_fallback_version_path : "/version.txt")
+#else
+#define CURRENT_VERSION_FILE "/version.txt"
+#endif
+
 /* function GetCrashFirmwareVersion - gets the firmware version of the device.
         
         This function intelligently determines the firmware version by:
@@ -364,7 +372,7 @@ size_t GetCrashFirmwareVersion(const char *source, char *pFWVersion, size_t szBu
     
     // Either not a tarball, or extraction failed - use current boot's version.txt
     CRASHUPLOAD_INFO("Reading firmware version from /version.txt\n");
-    result = read_version_from_file("/version.txt", pFWVersion, szBufSize);
+    result = read_version_from_file(CURRENT_VERSION_FILE, pFWVersion, szBufSize);
     
     if (result > 0)
     {
