@@ -910,6 +910,27 @@ TEST_F(UtilsTest, ExtractTail_SourceNotExist_Failure) {
     EXPECT_EQ(ret, -1);
 }
 
+TEST_F(UtilsTest, ExtractTail_SymlinkDestination_LeavesTargetUnchanged) {
+    const char* target = "/tmp/tail_link_target.txt";
+    const char* linkpath = "/tmp/tail_link_dst.txt";
+    CreateTestFile(target, "original");
+    unlink(linkpath);
+    ASSERT_EQ(symlink(target, linkpath), 0);
+
+    int ret = extract_tail(test_log, linkpath, 5);
+
+    EXPECT_EQ(ret, -1);
+    FILE* fp = fopen(target, "r");
+    ASSERT_NE(fp, nullptr);
+    char buf[32] = {0};
+    ASSERT_NE(fgets(buf, sizeof(buf), fp), nullptr);
+    fclose(fp);
+    EXPECT_STREQ(buf, "original");
+
+    unlink(linkpath);
+    unlink(target);
+}
+
 // ============================================================================
 // Tests for trim_process_name_in_path() - Positive Cases
 // ============================================================================

@@ -17,6 +17,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <openssl/opensslv.h>
@@ -698,9 +700,18 @@ int extract_tail(const char *src,
     if (!in)
         return ret;
 
-    out = fopen(dst, "w");
-    if (!out)
-        goto cleanup;
+    /* Replace a regular file. A symlink at dst is left unchanged. */
+    {
+        int out_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0666);
+        if (out_fd < 0)
+            goto cleanup;
+        out = fdopen(out_fd, "w");
+        if (!out)
+        {
+            close(out_fd);
+            goto cleanup;
+        }
+    }
 
     ring = calloc((size_t)max_lines, sizeof(char *));
     if (!ring)
