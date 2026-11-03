@@ -42,6 +42,7 @@
 
 #define SHA1_CHUNK_SIZE 8192
 #define TIMESTAMP_DEFAULT_VALUE "2000-01-01-00-00-00"
+#define VERSION_FILE_MAX_BYTES 4096
 
 bool tls_log(int curl_code, const char *device_type, const char *fqdn)
 {
@@ -205,8 +206,8 @@ STATIC_TESTABLE size_t extract_version_from_tarball(const char *tarball_path, ch
             
             CRASHUPLOAD_INFO("Found version.txt in tarball, size: %zu bytes\n", file_size);
             
-            // Sanity check: version.txt should be reasonably small
-            if (file_size == 0)
+            // Sanity check: version.txt
+            if (file_size == 0 || file_size > VERSION_FILE_MAX_BYTES)
             {
                 CRASHUPLOAD_WARN("version.txt has unusual size: %zu bytes, skipping\n", file_size);
                 archive_read_data_skip(a);
