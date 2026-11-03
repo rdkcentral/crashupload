@@ -702,7 +702,7 @@ int extract_tail(const char *src,
 
     /* Replace a regular file. A symlink at dst is left unchanged. */
     {
-        int out_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0666);
+        int out_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0644);
         if (out_fd < 0)
             goto cleanup;
         out = fdopen(out_fd, "w");
