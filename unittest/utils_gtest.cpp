@@ -1192,17 +1192,20 @@ TEST_F(UtilsTest, CleanupBatch_OnStartupFlagAlreadySet_SkipsCleanup) {
 
 TEST_F(UtilsTest, CleanupBatch_SymlinkStartupFlag_LeavesTargetUncreated) {
     char dir_template[] = "/tmp/cu012_XXXXXX";
-    char workdir[256];
-    char dump[256];
-    char extra[256];
-    char flagbase[256];
-    char flagpath[256];
-    char target[256];
-    char saved_opt[256];
+    char workdir[sizeof(dir_template) + 16];
+    char dump[sizeof(workdir) + 16];
+    char extra[sizeof(workdir) + 16];
+    char flagbase[sizeof(dir_template) + 16];
+    char flagpath[sizeof(flagbase) + 16];
+    char target[sizeof(dir_template) + 16];
+    char saved_opt[sizeof(dir_template) + 16];
     struct stat st;
 
     struct DirCleanup {
         char *dir;
+        char *workdir;
+        char *dump;
+        char *extra;
         char *flagpath;
         char *target;
         char *saved_opt;
@@ -1213,16 +1216,14 @@ TEST_F(UtilsTest, CleanupBatch_SymlinkStartupFlag_LeavesTargetUncreated) {
                 unlink(flagpath);
             if (target)
                 unlink(target);
-            if (dir) {
-                char path[512];
-                snprintf(path, sizeof(path), "%s/work/a.dmp", dir);
-                unlink(path);
-                snprintf(path, sizeof(path), "%s/work/extra.txt", dir);
-                unlink(path);
-                snprintf(path, sizeof(path), "%s/work", dir);
-                rmdir(path);
+            if (dump)
+                unlink(dump);
+            if (extra)
+                unlink(extra);
+            if (workdir)
+                rmdir(workdir);
+            if (dir)
                 rmdir(dir);
-            }
         }
     };
 
@@ -1239,7 +1240,7 @@ TEST_F(UtilsTest, CleanupBatch_SymlinkStartupFlag_LeavesTargetUncreated) {
     if (access("/opt/.upload_on_startup", F_OK) == 0 &&
         rename("/opt/.upload_on_startup", saved_opt) == 0)
         moved_opt = 1;
-    DirCleanup cleanup = {dir_template, flagpath, target, moved_opt ? saved_opt : NULL};
+    DirCleanup cleanup = {dir_template, workdir, dump, extra, flagpath, target, moved_opt ? saved_opt : NULL};
 
     ASSERT_EQ(mkdir(workdir, 0755), 0);
     CreateTestFile(dump, "dump");
