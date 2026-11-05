@@ -104,10 +104,11 @@ _TC_MAP = {
     "test_max_core_files_limit_enforced":            "TC-045",
     "test_empty_dir_handled_gracefully":             "TC-046",
     "test_upload_on_startup_flag_removed_for_coredump_mode": "TC-047",
+    "test_startup_flag_symlink_leaves_target_uncreated": "C-TC-004",
     # Rate Limiting
     "test_upload_blocked_when_count_exceeds_10":     "TC-049",
     "test_upload_blocked_when_deny_file_active":     "TC-051",
-    "test_deny_file_symlink_leaves_target_unchanged": "deny-file write",
+    "test_deny_file_symlink_leaves_target_unchanged": "C-TC-003",
     "test_system_initialize_failure_exits_with_1":   "C-TC-001",
     "test_binary_produces_log_output":               "C-TC-002",
     # Telemetry Opt-Out
