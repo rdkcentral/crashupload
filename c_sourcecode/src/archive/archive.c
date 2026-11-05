@@ -93,12 +93,18 @@ static int archive_add_file(struct archive *a, const char *path)
     if (!a || !path)
         return ret_result;
 
-    if (stat(path, &st) != 0)
+    /* Open first, then describe that same descriptor. stat()+open() can
+     * observe two different files if the path is replaced in between. */
+    fd = open(path, O_RDONLY);
+    if (fd < 0)
         return ret_result;
+
+    if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode))
+        goto error;
 
     entry = archive_entry_new();
     if (!entry)
-        return ret_result;
+        goto error;
 
     CRASHUPLOAD_INFO("archive_add_file: path=%s size=%ld mtime=%ld\n", path, (long)st.st_size, (long)st.st_mtime);
 
@@ -114,10 +120,6 @@ static int archive_add_file(struct archive *a, const char *path)
     if (archive_write_header(a, entry) != ARCHIVE_OK)
         goto error;
 
-    fd = open(path, O_RDONLY);
-    if (fd < 0)
-        goto error;
-
     while ((r = read(fd, buf, sizeof(buf))) > 0)
     {
         if (archive_write_data(a, buf, (size_t)r) < 0)
@@ -129,7 +131,8 @@ static int archive_add_file(struct archive *a, const char *path)
 error:
     if (fd >= 0)
         close(fd);
-    archive_entry_free(entry);
+    if (entry != NULL)
+        archive_entry_free(entry);
     return ret_result;
 }
 
