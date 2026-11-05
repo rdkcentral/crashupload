@@ -59,10 +59,14 @@ int upload_file(const char *filepath, const char *url, const char *dump_name,
                 const char *model, const char *md5sum, device_type_t device_type, bool t2_enabled);
 int upload_process(archive_info_t *archive, const config_t *config, 
                    const platform_config_t *platform);
+int extract_partner_id_from_mem(const char *buf, size_t n, char *out, size_t out_size);
+int extract_partner_id_from_account(const char *path, char *out, size_t out_size);
+int read_key_from_device_properties(const char *key, char *out, size_t out_size);
 
 // Mock control functions
 void set_mock_read_rfc_property_behavior(int return_value, const char* output);
 void set_mock_get_device_property_behavior(int return_value, const char* output);
+unsigned int get_mock_last_device_property_datasize(void);
 void set_mock_url_encode_behavior(const char* output, bool return_null);
 void set_mock_metadata_post_behavior(int return_value, long http_code);
 void set_mock_upload_status(long http_code, int curl_ret);
@@ -80,10 +84,23 @@ void reset_upload_mocks();
 void set_mock_rbus_init_behavior(bool return_value);
 void set_mock_rbus_get_string_behavior(bool return_value, const char *output);
 void set_mock_syscfg_get_behavior(bool return_value, const char *output);
+void set_mock_include_property_behavior(int return_value, const char *output);
 }
 
 using ::testing::_;
 using ::testing::Return;
+
+static FILE *fopen_private(const char *path, const char *mode) {
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        return nullptr;
+    }
+    FILE *fp = fdopen(fd, mode);
+    if (fp == nullptr) {
+        close(fd);
+    }
+    return fp;
+}
 
 // ============================================================================
 // Test Fixture
@@ -237,6 +254,11 @@ TEST_F(UploadTest, GetS3SignedUrl_SmallBuffer) {
     
     EXPECT_EQ(result, 1);
     // Should truncate to fit buffer
+}
+
+TEST_F(UploadTest, GetS3SignedUrl_BufferTooLarge) {
+    char url[16] = {0};
+    EXPECT_EQ(get_crashupload_s3signed_url(url, 4096), -1);
 }
 
 TEST_F(UploadTest, GetS3SignedUrl_LargeBuffer) {
@@ -1311,13 +1333,83 @@ TEST_F(UploadTest, UploadProcess_Extender_RbusInitFail_FallbackS3Url_Success) {
 
 TEST_F(UploadTest, UploadProcess_Extender_S3UrlResolutionFailure) {
     test_config.device_type = DEVICE_TYPE_EXTENDER;
+    unlink(DEVICE_PROPERTIES_FILE);
     set_mock_rbus_init_behavior(true);
     set_mock_rbus_get_string_behavior(false, "");
     set_mock_read_rfc_property_behavior(-1, "");
-    set_mock_get_device_property_behavior(-1, ""); // get_crashupload_s3signed_url fallback fails
+    set_mock_get_device_property_behavior(-1, "");
 
     int result = upload_process(&test_archive_info, &test_config, &test_platform);
     EXPECT_EQ(result, -1);
+}
+
+TEST_F(UploadTest, UploadProcess_Extender_EmptyS3Url_ReturnsFail) {
+    test_config.device_type = DEVICE_TYPE_EXTENDER;
+    unlink(DEVICE_PROPERTIES_FILE);
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, "");
+    set_mock_read_rfc_property_behavior(-1, "");
+    set_mock_get_device_property_behavior(0, "");
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    EXPECT_EQ(result, -1);
+}
+
+TEST_F(UploadTest, UploadProcess_Extender_S3UrlBufferCappedForDeviceProp) {
+    test_config.device_type = DEVICE_TYPE_EXTENDER;
+    unlink(DEVICE_PROPERTIES_FILE);
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, "");
+    set_mock_read_rfc_property_behavior(-1, "");
+    set_mock_get_device_property_behavior(0, "https://s3.example.com/sign");
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    EXPECT_EQ(result, 0);
+    EXPECT_EQ(get_mock_last_device_property_datasize(), 79u);
+}
+
+TEST_F(UploadTest, UploadProcess_Extender_S3UrlFromDevicePropertiesFile) {
+    FILE *fp;
+    test_config.device_type = DEVICE_TYPE_EXTENDER;
+    fp = fopen(DEVICE_PROPERTIES_FILE, "w");
+    ASSERT_NE(fp, nullptr);
+    fprintf(fp, "S3_AMAZON_SIGNING_URL=https://ssr.example.com/sign\n");
+    fclose(fp);
+
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, "");
+    set_mock_read_rfc_property_behavior(-1, "");
+    set_mock_get_device_property_behavior(-1, "");
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    int result = upload_process(&test_archive_info, &test_config, &test_platform);
+    unlink(DEVICE_PROPERTIES_FILE);
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(UploadTest, ReadKeyFromDeviceProperties_ParsesValue) {
+    FILE *fp;
+    char out[128] = {0};
+
+    fp = fopen(DEVICE_PROPERTIES_FILE, "w");
+    ASSERT_NE(fp, nullptr);
+    fprintf(fp, "FOO=bar\nS3_AMAZON_SIGNING_URL=https://portal.example/x\n");
+    fclose(fp);
+    EXPECT_EQ(read_key_from_device_properties("S3_AMAZON_SIGNING_URL", out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "https://portal.example/x");
+    EXPECT_EQ(read_key_from_device_properties(NULL, out, sizeof(out)), 0);
+    unlink(DEVICE_PROPERTIES_FILE);
 }
 
 TEST_F(UploadTest, UploadProcess_Extender_UploadFail_CoredumpRemoved) {
@@ -1353,6 +1445,321 @@ TEST_F(UploadTest, UploadProcess_Broadband_UploadFail_CoredumpRemoved) {
 
     int result = upload_process(&test_archive_info, &test_config, &test_platform);
     EXPECT_NE(result, 0);
+}
+
+TEST_F(UploadTest, ExtractPartnerId_CleanJson) {
+    const char *json = "{\"accountId\":\"1\",\"partnerId\":\"comcast\",\"timeZone\":\"UTC\"}";
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_mem(json, strlen(json), out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "comcast");
+}
+
+TEST_F(UploadTest, ExtractPartnerId_BinaryPrefixWithNul) {
+    char blob[128];
+    const char *json = "{\"partnerId\":\"comcast\"}";
+    memset(blob, 0, sizeof(blob));
+    memcpy(blob, "PSFSzaccount", 12);
+    blob[5] = '\0';
+    memcpy(blob + 12, json, strlen(json));
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_mem(blob, 12 + strlen(json), out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "comcast");
+}
+
+TEST_F(UploadTest, ExtractPartnerId_SpaceAfterColon) {
+    const char *json = "\"partnerId\" : \"sky-uk\"";
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_mem(json, strlen(json), out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "sky-uk");
+}
+
+TEST_F(UploadTest, ExtractPartnerId_MissingKey) {
+    const char *json = "{\"accountId\":\"1\"}";
+    char out[16];
+    out[0] = 'x';
+    EXPECT_EQ(extract_partner_id_from_mem(json, strlen(json), out, sizeof(out)), 0);
+    EXPECT_STREQ(out, "");
+}
+
+TEST_F(UploadTest, ExtractPartnerId_NullArgs) {
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_mem(NULL, 10, out, sizeof(out)), 0);
+    EXPECT_EQ(extract_partner_id_from_mem("x", 1, NULL, 16), 0);
+    EXPECT_EQ(extract_partner_id_from_account(NULL, out, sizeof(out)), 0);
+}
+
+TEST_F(UploadTest, ExtractPartnerId_FromAccountFile) {
+    const char *path = "/tmp/cu_account_partner_ut";
+    int fd = open(path, O_CREAT | O_WRONLY | O_TRUNC, 0600);
+    ASSERT_GE(fd, 0);
+    FILE *fp = fdopen(fd, "wb");
+    if (!fp)
+    {
+        close(fd);
+        unlink(path);
+        FAIL() << "fdopen failed";
+    }
+    const unsigned char blob[] = {
+        'P', 'S', 'F', 'S', 0x00, 'z', 'a', 'c', 'c', 'o', 'u', 'n', 't',
+        '{', '"', 'p', 'a', 'r', 't', 'n', 'e', 'r', 'I', 'd', '"', ':',
+        '"', 'c', 'o', 'm', 'c', 'a', 's', 't', '"', '}'
+    };
+    fwrite(blob, 1, sizeof(blob), fp);
+    fclose(fp);
+
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_account(path, out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "comcast");
+    unlink(path);
+}
+
+TEST_F(UploadTest, ExtractPartnerId_SuperPodAccountJson) {
+    /* Device dump: /mnt/data/pstore/account (PSFS prefix + JSON + trailing junk). */
+    const char *json =
+        "{\"accountId\":\"7726236628325977831\",\"partnerId\":\"comcast\","
+        "\"timeZone\":\"America/New_York\",\"tzUTCOffset\":\"UTC-05:00\"}";
+    char blob[256];
+    size_t json_len = strlen(json);
+    memset(blob, 0, sizeof(blob));
+    memcpy(blob, "PSFSzaccount", 12);
+    blob[5] = '\0';
+    memcpy(blob + 12, json, json_len);
+    memcpy(blob + 12 + json_len, "uyg", 3);
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_mem(blob, 12 + json_len + 3, out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "comcast");
+}
+
+TEST_F(UploadTest, ExtractPartnerId_ShortBufferAndEmptyValue) {
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_mem("short", 5, out, sizeof(out)), 0);
+    EXPECT_EQ(extract_partner_id_from_mem("\"partnerId\":\"x\"", 15, out, 0), 0);
+    EXPECT_EQ(extract_partner_id_from_mem("\"partnerId\":\"x\"", 15, out, 1), 0);
+    EXPECT_STREQ(out, "");
+    EXPECT_EQ(extract_partner_id_from_mem("\"partnerId\":\"\"", 14, out, sizeof(out)), 0);
+    EXPECT_STREQ(out, "");
+}
+
+TEST_F(UploadTest, ExtractPartnerId_MalformedKeyVariants) {
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_mem("\"partnerId\"x\"comcast\"", 21, out, sizeof(out)), 0);
+    EXPECT_EQ(extract_partner_id_from_mem("\"partnerId\":comcast", 19, out, sizeof(out)), 0);
+    EXPECT_EQ(extract_partner_id_from_mem("\"partnerId\":", 12, out, sizeof(out)), 0);
+}
+
+TEST_F(UploadTest, ExtractPartnerId_TruncatesToOutSize) {
+    char out[4];
+    EXPECT_EQ(extract_partner_id_from_mem("\"partnerId\":\"comcast\"", 21, out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "com");
+}
+
+TEST_F(UploadTest, ExtractPartnerId_TabCrLfWhitespace) {
+    const char *json = "\"partnerId\"\t\r\n:\t\n\"sky-uk\"";
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_mem(json, strlen(json), out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "sky-uk");
+}
+
+TEST_F(UploadTest, ExtractPartnerId_FalseMatchThenValid) {
+    const char *json = "\"partnerId\"x,\"partnerId\":\"comcast\"";
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_mem(json, strlen(json), out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "comcast");
+}
+
+TEST_F(UploadTest, ExtractPartnerId_ValueStopsAtEmbeddedNul) {
+    char blob[32];
+    memcpy(blob, "\"partnerId\":\"co", 15);
+    blob[15] = '\0';
+    memcpy(blob + 16, "mcast\"", 6);
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_mem(blob, 22, out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "co");
+}
+
+TEST_F(UploadTest, ExtractPartnerId_AccountFileNoPartner) {
+    const char *path = "/tmp/cu_account_nopartner_ut";
+    FILE *fp = fopen_private(path, "wb");
+    ASSERT_NE(fp, nullptr);
+    fputs("{\"accountId\":\"1\"}", fp);
+    fclose(fp);
+    char out[16];
+    EXPECT_EQ(extract_partner_id_from_account(path, out, sizeof(out)), 0);
+    EXPECT_EQ(extract_partner_id_from_account(path, NULL, 16), 0);
+    unlink(path);
+}
+
+TEST_F(UploadTest, ExtractPartnerId_AccountFileMissingAndEmpty) {
+    char out[16];
+    out[0] = 'x';
+    EXPECT_EQ(extract_partner_id_from_account("/tmp/cu_account_missing_ut", out, sizeof(out)), 0);
+    EXPECT_STREQ(out, "");
+    EXPECT_EQ(extract_partner_id_from_account("/tmp/cu_account_missing_ut", out, 0), 0);
+
+    const char *path = "/tmp/cu_account_empty_ut";
+    FILE *fp = fopen_private(path, "wb");
+    ASSERT_NE(fp, nullptr);
+    fclose(fp);
+    EXPECT_EQ(extract_partner_id_from_account(path, out, sizeof(out)), 0);
+    unlink(path);
+}
+
+TEST_F(UploadTest, ReadKeyFromDeviceProperties_MissingFileAndEmptyKey) {
+    char out[64];
+    unlink(DEVICE_PROPERTIES_FILE);
+    EXPECT_EQ(read_key_from_device_properties("S3_AMAZON_SIGNING_URL", out, sizeof(out)), 0);
+    EXPECT_EQ(read_key_from_device_properties("", out, sizeof(out)), 0);
+    EXPECT_EQ(read_key_from_device_properties("S3_AMAZON_SIGNING_URL", out, 0), 0);
+    EXPECT_EQ(read_key_from_device_properties("S3_AMAZON_SIGNING_URL", NULL, 16), 0);
+}
+
+TEST_F(UploadTest, ReadKeyFromDeviceProperties_KeyTooLong) {
+    char out[16];
+    char key[520];
+    memset(key, 'A', sizeof(key) - 1);
+    key[sizeof(key) - 1] = '\0';
+    EXPECT_EQ(read_key_from_device_properties(key, out, sizeof(out)), 0);
+}
+
+TEST_F(UploadTest, UploadProcess_Extender_PersistentPathFromInclude) {
+    const char *dir = "/tmp/cu_pstore_ut";
+    const char *account = "/tmp/cu_pstore_ut/account";
+    mkdir(dir, 0755);
+    FILE *fp = fopen_private(account, "wb");
+    ASSERT_NE(fp, nullptr);
+    fputs("{\"partnerId\":\"sky-uk\"}", fp);
+    fclose(fp);
+
+    test_config.device_type = DEVICE_TYPE_EXTENDER;
+    set_mock_include_property_behavior(1, dir);
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, "");
+    set_mock_read_rfc_property_behavior(1, test_url);
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    EXPECT_EQ(upload_process(&test_archive_info, &test_config, &test_platform), 0);
+    unlink(account);
+    rmdir(dir);
+}
+
+TEST_F(UploadTest, UploadProcess_Extender_PersistentPathEmptyUsesDefault) {
+    test_config.device_type = DEVICE_TYPE_EXTENDER;
+    set_mock_include_property_behavior(1, "");
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, "");
+    set_mock_read_rfc_property_behavior(1, test_url);
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    EXPECT_EQ(upload_process(&test_archive_info, &test_config, &test_platform), 0);
+}
+
+TEST_F(UploadTest, UploadProcess_Extender_MinidumpUploadFailKeepsArchive) {
+    test_config.device_type = DEVICE_TYPE_EXTENDER;
+    test_config.dump_type = DUMP_TYPE_MINIDUMP;
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, "");
+    set_mock_read_rfc_property_behavior(1, test_url);
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(500, 22);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(22);
+    set_mock_file_present_behavior(0);
+
+    EXPECT_NE(upload_process(&test_archive_info, &test_config, &test_platform), 0);
+    EXPECT_TRUE(file_exists(test_archive));
+}
+
+TEST_F(UploadTest, UploadProcess_Broadband_SkyUkEuSigningUrl) {
+    test_config.device_type = DEVICE_TYPE_BROADBAND;
+    set_mock_partner_id_behavior(1, "sky-uk");
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, "");
+    set_mock_syscfg_get_behavior(true, "false");
+    set_mock_get_device_property_behavior(1, "https://eu.example.com/sign");
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    EXPECT_EQ(upload_process(&test_archive_info, &test_config, &test_platform), 0);
+}
+
+TEST_F(UploadTest, UploadProcess_Broadband_SkyUkEuUrlFailFallsBack) {
+    test_config.device_type = DEVICE_TYPE_BROADBAND;
+    set_mock_partner_id_behavior(1, "sky-uk");
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, "");
+    set_mock_syscfg_get_behavior(true, "false");
+    set_mock_get_device_property_behavior(-1, "");
+    set_mock_read_rfc_property_behavior(1, test_url);
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    EXPECT_EQ(upload_process(&test_archive_info, &test_config, &test_platform), 0);
+}
+
+TEST_F(UploadTest, UploadProcess_VideoDeviceType_ReturnsFail) {
+    test_config.device_type = DEVICE_TYPE_VIDEO;
+    EXPECT_EQ(upload_process(&test_archive_info, &test_config, &test_platform), -1);
+}
+
+TEST_F(UploadTest, UploadProcess_Extender_PersistentPathStripsNewline) {
+    const char *dir = "/tmp/cu_pstore_nl_ut";
+    const char *account = "/tmp/cu_pstore_nl_ut/account";
+    mkdir(dir, 0755);
+    FILE *fp = fopen_private(account, "wb");
+    ASSERT_NE(fp, nullptr);
+    fputs("{\"partnerId\":\"comcast\"}", fp);
+    fclose(fp);
+
+    test_config.device_type = DEVICE_TYPE_EXTENDER;
+    set_mock_include_property_behavior(1, "/tmp/cu_pstore_nl_ut\n");
+    set_mock_rbus_init_behavior(true);
+    set_mock_rbus_get_string_behavior(false, "");
+    set_mock_read_rfc_property_behavior(1, test_url);
+    set_mock_firmware_version_behavior(1, "TEST_FW_1.0");
+    set_mock_metadata_post_behavior(0, 200);
+    set_mock_upload_status(200, 0);
+    set_mock_extract_s3_url_behavior(0, test_s3_url);
+    set_mock_s3_put_upload_behavior(0);
+    set_mock_file_present_behavior(-1);
+
+    EXPECT_EQ(upload_process(&test_archive_info, &test_config, &test_platform), 0);
+    unlink(account);
+    rmdir(dir);
+}
+
+TEST_F(UploadTest, ReadKeyFromDeviceProperties_NoMatchEmptyValuePrefix) {
+    FILE *fp;
+    char out[128] = {0};
+
+    fp = fopen(DEVICE_PROPERTIES_FILE, "w");
+    ASSERT_NE(fp, nullptr);
+    fprintf(fp, "S3_AMAZON=short\nS3_AMAZON_SIGNING_URL=\nFOO=bar");
+    fclose(fp);
+    EXPECT_EQ(read_key_from_device_properties("S3_AMAZON_SIGNING_URL", out, sizeof(out)), 0);
+    EXPECT_STREQ(out, "");
+    EXPECT_EQ(read_key_from_device_properties("MISSING_KEY", out, sizeof(out)), 0);
+    EXPECT_EQ(read_key_from_device_properties("FOO", out, sizeof(out)), 1);
+    EXPECT_STREQ(out, "bar");
+    unlink(DEVICE_PROPERTIES_FILE);
 }
 
 // ============================================================================

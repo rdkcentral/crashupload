@@ -23,10 +23,8 @@
 AUTOMAKE_OPTIONS = foreign subdir-objects
 
 # Test programs
-TESTS = config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest mainapp_gtest ratelimit_gtest lock_manager_gtest prerequisites_gtest logger_gtest
-#TESTS = config_manager_gtest platform_gtest  mainapp_gtest
-#check_PROGRAMS = config_manager_gtest platform_gtest mainapp_gtest
-check_PROGRAMS = config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest mainapp_gtest ratelimit_gtest lock_manager_gtest prerequisites_gtest logger_gtest
+TESTS = config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest mainapp_gtest ratelimit_gtest lock_manager_gtest prerequisites_gtest logger_gtest watcher_gtest
+check_PROGRAMS = config_manager_gtest platform_gtest scanner_gtest archive_gtest utils_gtest upload_gtest mainapp_gtest ratelimit_gtest lock_manager_gtest prerequisites_gtest logger_gtest watcher_gtest
 
 # Common include directories
 AM_CPPFLAGS = \
@@ -40,7 +38,8 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/../c_sourcecode/src/archive \
 	-I$(top_srcdir)/../c_sourcecode/src/utils \
 	-I$(top_srcdir)/../c_sourcecode/src/upload \
-        -I$(top_srcdir)/../c_sourcecode/src/t2Interface \
+	-I$(top_srcdir)/../c_sourcecode/src/t2Interface \
+	-I$(top_srcdir)/../c_sourcecode/watcher \
 	-I/usr/include \
 	-I/usr/local/include
 
@@ -110,9 +109,6 @@ scanner_gtest_SOURCES = \
 	../c_sourcecode/src/scanner/scanner.c \
 	../c_sourcecode/src/t2Interface/telemetryinterface.c
 
-scanner_gtest_CFLAGS = -DUNIT_TEST
-scanner_gtest_CXXFLAGS = -DUNIT_TEST
-
 scanner_gtest_LDADD = \
 	-lgtest \
 	-lgtest_main \
@@ -140,9 +136,6 @@ archive_gtest_LDADD = \
 	-larchive \
 	-lgcov
 
-archive_gtest_CFLAGS = -DUNIT_TEST
-archive_gtest_CXXFLAGS = -DUNIT_TEST
-
 archive_gtest_LDFLAGS = \
 	-larchive \
 	-fprofile-arcs
@@ -153,9 +146,6 @@ utils_gtest_SOURCES = \
 	utils_gmock.cpp \
 	../c_sourcecode/src/utils/file_utils.c \
 	../c_sourcecode/src/utils/cleanup_batch.c
-
-utils_gtest_CFLAGS = -DUNIT_TEST
-utils_gtest_CXXFLAGS = -DUNIT_TEST
 
 utils_gtest_LDADD = \
 	-lgtest \
@@ -280,6 +270,23 @@ logger_gtest_LDADD = \
 logger_gtest_LDFLAGS = \
 	-fprofile-arcs
 
+# watcher_gtest configuration
+watcher_gtest_SOURCES = \
+	watcher_gtest.cpp \
+	watcher_gmock.cpp \
+	../c_sourcecode/watcher/inotify-minidump-watcher.c
+
+watcher_gtest_LDADD = \
+	-lgtest \
+	-lgtest_main \
+	-lgmock \
+	-lgmock_main \
+	-lpthread \
+	-lgcov
+
+watcher_gtest_LDFLAGS = \
+	-fprofile-arcs
+
 # Coverage targets
 .PHONY: coverage coverage-clean coverage-report
 
@@ -289,6 +296,8 @@ coverage-clean:
 	@find . -name "*.gcno" -delete
 	@find ../c_sourcecode/src/config -name "*.gcda" -delete 2>/dev/null || true
 	@find ../c_sourcecode/src/config -name "*.gcno" -delete 2>/dev/null || true
+	@find ../c_sourcecode/watcher -name "*.gcda" -delete 2>/dev/null || true
+	@find ../c_sourcecode/watcher -name "*.gcno" -delete 2>/dev/null || true
 	@rm -rf coverage_html coverage.info
 
 coverage:
@@ -300,11 +309,11 @@ coverage:
 	@echo ""
 	@echo "Generating coverage report..."
 	@echo "Capturing coverage from source directory..."
-	@lcov --capture --directory ../c_sourcecode/src --output-file coverage.info --rc lcov_branch_coverage=1 2>/dev/null || \
-	 lcov --capture --directory ../c_sourcecode/src --output-file coverage.info --rc lcov_branch_coverage=1 --ignore-errors gcov,source || \
-	 lcov --capture --directory ../c_sourcecode/src --output-file coverage.info --rc lcov_branch_coverage=1
+	@lcov --capture --directory ../c_sourcecode --output-file coverage.info --rc lcov_branch_coverage=1 2>/dev/null || \
+	 lcov --capture --directory ../c_sourcecode --output-file coverage.info --rc lcov_branch_coverage=1 --ignore-errors gcov,source || \
+	 lcov --capture --directory ../c_sourcecode --output-file coverage.info --rc lcov_branch_coverage=1
 	@echo "Filtering coverage data..."
-	@lcov --extract coverage.info '*/c_sourcecode/src/*.c' --output-file coverage.info --rc lcov_branch_coverage=1
+	@lcov --extract coverage.info '*/c_sourcecode/src/*.c' '*/c_sourcecode/watcher/*.c' '*/inotify-minidump-watcher.c' --output-file coverage.info --rc lcov_branch_coverage=1
 	@lcov --remove coverage.info '/usr/*' --output-file coverage.info --rc lcov_branch_coverage=1
 	@echo "Generating HTML report..."
 	@genhtml coverage.info --output-directory coverage_html --branch-coverage 2>/dev/null || \
@@ -319,7 +328,7 @@ coverage:
 coverage-report:
 	@echo "Coverage Summary for all source files:"
 	@echo "========================================="
-	@lcov --list coverage.info --rc lcov_branch_coverage=1 | grep -E "(Lines|Functions|Branches|c_sourcecode/src)" || echo "No coverage data available"
+	@lcov --list coverage.info --rc lcov_branch_coverage=1 | grep -E "(Lines|Functions|Branches|c_sourcecode/src|c_sourcecode/watcher)" || echo "No coverage data available"
 	@echo "========================================="
 
 # Clean targets
