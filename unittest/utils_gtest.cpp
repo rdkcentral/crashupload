@@ -1190,6 +1190,72 @@ TEST_F(UtilsTest, CleanupBatch_OnStartupFlagAlreadySet_SkipsCleanup) {
     unlink("/tmp/onstartflag_mytype");
 }
 
+TEST_F(UtilsTest, CleanupBatch_SymlinkStartupFlag_LeavesTargetUncreated) {
+    char dir_template[] = "/tmp/cu012_XXXXXX";
+    char workdir[sizeof(dir_template) + 16];
+    char dump[sizeof(workdir) + 16];
+    char extra[sizeof(workdir) + 16];
+    char flagbase[sizeof(dir_template) + 16];
+    char flagpath[sizeof(flagbase) + 16];
+    char target[sizeof(dir_template) + 16];
+    char saved_opt[sizeof(dir_template) + 16];
+    struct stat st;
+
+    struct DirCleanup {
+        char *dir;
+        char *workdir;
+        char *dump;
+        char *extra;
+        char *flagpath;
+        char *target;
+        char *saved_opt;
+        ~DirCleanup() {
+            if (saved_opt)
+                rename(saved_opt, "/opt/.upload_on_startup");
+            if (flagpath)
+                unlink(flagpath);
+            if (target)
+                unlink(target);
+            if (dump)
+                unlink(dump);
+            if (extra)
+                unlink(extra);
+            if (workdir)
+                rmdir(workdir);
+            if (dir)
+                rmdir(dir);
+        }
+    };
+
+    ASSERT_NE(mkdtemp(dir_template), nullptr);
+    snprintf(workdir, sizeof(workdir), "%s/work", dir_template);
+    snprintf(dump, sizeof(dump), "%s/a.dmp", workdir);
+    snprintf(extra, sizeof(extra), "%s/extra.txt", workdir);
+    snprintf(flagbase, sizeof(flagbase), "%s/flagbase", dir_template);
+    snprintf(flagpath, sizeof(flagpath), "%s_0", flagbase);
+    snprintf(target, sizeof(target), "%s/target", dir_template);
+    snprintf(saved_opt, sizeof(saved_opt), "%s/opt_aside", dir_template);
+
+    int moved_opt = 0;
+    if (access("/opt/.upload_on_startup", F_OK) == 0 &&
+        rename("/opt/.upload_on_startup", saved_opt) == 0)
+        moved_opt = 1;
+    DirCleanup cleanup = {dir_template, workdir, dump, extra, flagpath, target, moved_opt ? saved_opt : NULL};
+
+    ASSERT_EQ(mkdir(workdir, 0755), 0);
+    CreateTestFile(dump, "dump");
+    CreateTestFile(extra, "extra");
+    ASSERT_EQ(symlink(target, flagpath), 0);
+
+    EXPECT_EQ(cleanup_batch(workdir, "*.dmp", flagbase, "0", 10, false), 0);
+
+    EXPECT_FALSE(FileExists(target));
+    ASSERT_EQ(lstat(flagpath, &st), 0);
+    EXPECT_TRUE(S_ISLNK(st.st_mode));
+    EXPECT_FALSE(FileExists(extra));
+    (void)cleanup;
+}
+
 TEST_F(UtilsTest, CleanupBatch_MaxCoreFiles_DeletesOldestKeepsNewest) {
     // Create 5 files with known mtimes
     for (int i = 1; i <= 5; i++) {

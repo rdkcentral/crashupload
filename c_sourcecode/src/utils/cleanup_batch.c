@@ -24,6 +24,7 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <fnmatch.h>
 #include "cleanup_batch.h"
@@ -485,9 +486,9 @@ int cleanup_batch(const char *working_dir,
             /* touch the flag file to indicate we've cleaned up on startup */
             if (on_startup_flag[0] != '\0')
             {
-                FILE *fp = fopen(on_startup_flag, "w");
-                if (fp)
-                    fclose(fp);
+                int fd = open(on_startup_flag, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0644);
+                if (fd >= 0)
+                    close(fd);
             }
         }
     }

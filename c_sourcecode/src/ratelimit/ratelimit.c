@@ -72,9 +72,22 @@ int set_time(const char *deny_file, int type)
         mode = (strncmp(deny_file, DENY_UPLOADS_FILE, strlen(DENY_UPLOADS_FILE)) == 0) ? "w" : "a";
     }
 
-    fp = fopen(deny_file, mode);
-    if (!fp)
+    int flags = O_WRONLY | O_CREAT | O_NOFOLLOW;
+    int fd;
+    if (mode[0] == 'a')
+        flags |= O_APPEND;
+    else
+        flags |= O_TRUNC;
+
+    fd = open(deny_file, flags, 0644);
+    if (fd < 0)
         return -1;
+    fp = fdopen(fd, mode);
+    if (!fp)
+    {
+        close(fd);
+        return -1;
+    }
 
     if (fprintf(fp, "%ld\n", deny_until) < 0)
     {

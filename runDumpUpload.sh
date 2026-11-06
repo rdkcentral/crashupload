@@ -95,9 +95,8 @@ if [ "$DEVICE_TYPE" = "extender" ];then
     CORE_PATH=/minidumps
 fi
 
-if [[ ! -f $CORE_LOG ]]; then
-    touch $CORE_LOG
-    chmod a+w $CORE_LOG
+if [ ! -L "$CORE_LOG" ] && [ ! -e "$CORE_LOG" ]; then
+    (umask 022; : >> "$CORE_LOG")
 fi
 
 #Check for coredump and minidump files
