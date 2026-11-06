@@ -43,6 +43,7 @@ import os
 import stat
 import shutil
 import subprocess
+import tempfile
 import time
 import pytest
 from pathlib import Path
@@ -326,3 +327,49 @@ class TestFailureReturn:
                     print(f"Removed test-created {log_dir}")
                 except OSError:
                     pass  # not empty; leave it
+
+    def test_core_log_symlink_leaves_target_uncreated(
+        self, binary_path, cleanup_pytest_cache
+    ):
+        """
+        system_initialize() creates /opt/logs/core_log.txt when that path is
+        missing. A symlink there must stay a symlink, and the path it names
+        must not be created. The binary exits 1 because the open fails.
+        """
+        log_dir = Path(DEFAULT_LOG_PATH)
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        saved = None
+        if os.path.lexists(CORE_LOG_FILE):
+            saved = CORE_LOG_FILE + ".l2bak"
+            os.rename(CORE_LOG_FILE, saved)
+
+        tmp = tempfile.mkdtemp(prefix="corelog_")
+        target = os.path.join(tmp, "target")
+        os.symlink(target, CORE_LOG_FILE)
+
+        try:
+            result = subprocess.run(
+                [binary_path, "", "0", "secure"],
+                capture_output=True,
+                timeout=30,
+            )
+            assert result.returncode == 1, (
+                f"Expected exit 1 when the core log path is a symlink, "
+                f"got {result.returncode}\n"
+                f"stdout: {result.stdout.decode(errors='replace')}"
+            )
+            assert os.path.islink(CORE_LOG_FILE), (
+                f"{CORE_LOG_FILE} must stay a symlink"
+            )
+            assert not os.path.lexists(target), (
+                "Core-log create must not create the symlink target"
+            )
+        finally:
+            if os.path.lexists(CORE_LOG_FILE):
+                os.unlink(CORE_LOG_FILE)
+            if os.path.lexists(target):
+                os.unlink(target)
+            os.rmdir(tmp)
+            if saved and os.path.lexists(saved):
+                os.rename(saved, CORE_LOG_FILE)

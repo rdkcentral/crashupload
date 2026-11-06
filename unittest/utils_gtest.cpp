@@ -107,6 +107,7 @@ protected:
     
     void SetUp() override {
         reset_utils_mocks();
+        set_fallback_version_path(NULL);
         
         // Create test directory
         mkdir(test_dir, 0755);
@@ -122,6 +123,7 @@ protected:
     }
 
     void TearDown() override {
+        set_fallback_version_path(NULL);
         reset_utils_mocks();
         
         // Clean up test files
@@ -164,6 +166,50 @@ protected:
             return st.st_size;
         }
         return -1;
+    }
+
+    bool WriteExactVersionFile(const char* path, const char* imagename, size_t total_size) {
+        char header[128];
+        int header_len = snprintf(header, sizeof(header), "imagename:%s\n", imagename);
+        if (header_len <= 0 || (size_t)header_len >= sizeof(header) ||
+            (size_t)header_len > total_size) {
+            return false;
+        }
+
+        int fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0644);
+        if (fd < 0) {
+            return false;
+        }
+
+        size_t written = 0;
+        while (written < (size_t)header_len) {
+            ssize_t n = write(fd, header + written, (size_t)header_len - written);
+            if (n <= 0) {
+                close(fd);
+                return false;
+            }
+            written += (size_t)n;
+        }
+
+        char pad[512];
+        std::memset(pad, 'x', sizeof(pad));
+        size_t remain = total_size - (size_t)header_len;
+        while (remain > 0) {
+            size_t chunk = remain > sizeof(pad) ? sizeof(pad) : remain;
+            ssize_t n = write(fd, pad, chunk);
+            if (n <= 0) {
+                close(fd);
+                return false;
+            }
+            remain -= (size_t)n;
+        }
+
+        if (close(fd) != 0) {
+            return false;
+        }
+
+        struct stat st;
+        return stat(path, &st) == 0 && (size_t)st.st_size == total_size;
     }
 };
 
@@ -908,6 +954,42 @@ TEST_F(UtilsTest, ExtractTail_SourceNotExist_Failure) {
     int ret = extract_tail("/tmp/nonexistent.txt", output, 5);
     
     EXPECT_EQ(ret, -1);
+}
+
+TEST_F(UtilsTest, ExtractTail_SymlinkDestination_LeavesTargetUnchanged) {
+    char dir_template[] = "/tmp/extract_tail_XXXXXX";
+    ASSERT_NE(mkdtemp(dir_template), nullptr);
+
+    struct Cleanup {
+        std::string dir;
+        ~Cleanup() {
+            if (dir.empty()) {
+                return;
+            }
+            unlink((dir + "/dst.txt").c_str());
+            unlink((dir + "/target.txt").c_str());
+            rmdir(dir.c_str());
+        }
+    } cleanup{dir_template};
+
+    const std::string target = cleanup.dir + "/target.txt";
+    const std::string linkpath = cleanup.dir + "/dst.txt";
+
+    int fd = open(target.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0644);
+    ASSERT_GE(fd, 0);
+    ASSERT_EQ(write(fd, "original", 8), static_cast<ssize_t>(8));
+    ASSERT_EQ(close(fd), 0);
+    ASSERT_EQ(symlink(target.c_str(), linkpath.c_str()), 0);
+
+    int ret = extract_tail(test_log, linkpath.c_str(), 5);
+
+    EXPECT_EQ(ret, -1);
+    fd = open(target.c_str(), O_RDONLY | O_NOFOLLOW);
+    ASSERT_GE(fd, 0);
+    char buf[32] = {0};
+    ASSERT_EQ(read(fd, buf, sizeof(buf) - 1), static_cast<ssize_t>(8));
+    ASSERT_EQ(close(fd), 0);
+    EXPECT_STREQ(buf, "original");
 }
 
 // ============================================================================
@@ -1717,55 +1799,66 @@ TEST_F(UtilsTest, GetCrashFirmwareVersion_ZeroBufferSize_ReturnsZero) {
 }
 
 TEST_F(UtilsTest, GetCrashFirmwareVersion_TarballVersionTxtExactly4096Bytes_Succeeds) {
-    // Test boundary condition: exactly 4096 bytes (should pass)
-    const char* tarball_path = "/tmp/exact_4096.tgz";
-    
-    FILE* fp = fopen("/tmp/version.txt", "w");
-    if (fp) {
-        fprintf(fp, "imagename:EXACT_4096\n");
-        // Fill rest with spaces to reach exactly 4096 bytes
-        for (int i = 0; i < 4096 - 21; i++) {
-            fputc(' ', fp);
+    char dir_template[] = "/tmp/fwver_4096_XXXXXX";
+    ASSERT_NE(mkdtemp(dir_template), nullptr);
+
+    struct Cleanup {
+        std::string dir;
+        ~Cleanup() {
+            if (!dir.empty()) {
+                unlink((dir + "/version.txt").c_str());
+                unlink((dir + "/boundary.tgz").c_str());
+                rmdir(dir.c_str());
+            }
         }
-        fclose(fp);
-    }
-    
-    system("tar -czf /tmp/exact_4096.tgz -C /tmp version.txt 2>/dev/null");
-    
+    } cleanup{dir_template};
+
+    const std::string version_path = cleanup.dir + "/version.txt";
+    const std::string tarball_path = cleanup.dir + "/boundary.tgz";
+    ASSERT_TRUE(WriteExactVersionFile(version_path.c_str(), "EXACT_4096", 4096));
+
+    std::string cmd = "tar -czf " + tarball_path + " -C " + cleanup.dir + " version.txt";
+    ASSERT_EQ(system(cmd.c_str()), 0);
+
     char fw_version[256] = {0};
-    size_t result = GetCrashFirmwareVersion(tarball_path, fw_version, sizeof(fw_version));
-    
-    // Should succeed (4096 is within limit)
-    EXPECT_GE(result, 0);
-    
-    unlink(tarball_path);
-    unlink("/tmp/version.txt");
+    size_t result = GetCrashFirmwareVersion(tarball_path.c_str(), fw_version, sizeof(fw_version));
+
+    EXPECT_STREQ(fw_version, "EXACT_4096");
+    EXPECT_EQ(result, strlen("EXACT_4096"));
 }
 
 TEST_F(UtilsTest, GetCrashFirmwareVersion_TarballVersionTxt4097Bytes_SkipsAndFallsBack) {
-    // Test boundary condition: 4097 bytes (should be skipped)
-    const char* tarball_path = "/tmp/exact_4097.tgz";
-    
-    FILE* fp = fopen("/tmp/version.txt", "w");
-    if (fp) {
-        for (int i = 0; i < 4097; i++) {
-            fputc('A', fp);
+    char dir_template[] = "/tmp/fwver_4097_XXXXXX";
+    ASSERT_NE(mkdtemp(dir_template), nullptr);
+
+    struct Cleanup {
+        std::string dir;
+        ~Cleanup() {
+            set_fallback_version_path(NULL);
+            if (!dir.empty()) {
+                unlink((dir + "/version.txt").c_str());
+                unlink((dir + "/boundary.tgz").c_str());
+                unlink((dir + "/fallback.txt").c_str());
+                rmdir(dir.c_str());
+            }
         }
-        fclose(fp);
-    }
-    
-    system("tar -czf /tmp/exact_4097.tgz -C /tmp version.txt 2>/dev/null");
-    
-    CreateTestFile("/version.txt", "imagename:FALLBACK_4097\n");
-    
+    } cleanup{dir_template};
+
+    const std::string version_path = cleanup.dir + "/version.txt";
+    const std::string tarball_path = cleanup.dir + "/boundary.tgz";
+    const std::string fallback_path = cleanup.dir + "/fallback.txt";
+    ASSERT_TRUE(WriteExactVersionFile(version_path.c_str(), "ARCHIVED_4097", 4097));
+
+    std::string cmd = "tar -czf " + tarball_path + " -C " + cleanup.dir + " version.txt";
+    ASSERT_EQ(system(cmd.c_str()), 0);
+    CreateTestFile(fallback_path.c_str(), "imagename:FALLBACK_4097\n");
+    set_fallback_version_path(fallback_path.c_str());
+
     char fw_version[256] = {0};
-    size_t result = GetCrashFirmwareVersion(tarball_path, fw_version, sizeof(fw_version));
-    
-    // Should skip and fall back (4097 exceeds limit)
-    EXPECT_GE(result, 0);
-    
-    unlink(tarball_path);
-    unlink("/tmp/version.txt");
+    size_t result = GetCrashFirmwareVersion(tarball_path.c_str(), fw_version, sizeof(fw_version));
+
+    EXPECT_STREQ(fw_version, "FALLBACK_4097");
+    EXPECT_EQ(result, strlen("FALLBACK_4097"));
 }
 
 // ============================================================================
