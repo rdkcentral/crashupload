@@ -141,9 +141,9 @@ size_t GetEstbMac(char *pEstbMac, size_t szBufSize)
         {
             if (NULL != (fgets(pEstbMac, szBufSize, fp)))
             { // better be a valid string on first line
-                }
+                i = stripinvalidchar(pEstbMac, szBufSize);
+            }
             fclose(fp);
-            i = stripinvalidchar(pEstbMac, szBufSize);
             CRASHUPLOAD_INFO("GetEstbMac: After reading %s value=%s\n", MAC_FILE, pEstbMac);
             /* Below condition if ESTB_MAC_FILE file having empty data and pEstbMac does not have 17 character
              * including total mac address with : separate */
