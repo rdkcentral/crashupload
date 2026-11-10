@@ -96,7 +96,7 @@ if [ "$DEVICE_TYPE" = "extender" ];then
 fi
 
 if [ ! -L "$CORE_LOG" ] && [ ! -e "$CORE_LOG" ]; then
-    (umask 022; : >> "$CORE_LOG")
+    (set -C; umask 022; : > "$CORE_LOG") || :
 fi
 
 #Check for coredump and minidump files
