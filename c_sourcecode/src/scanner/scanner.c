@@ -49,22 +49,35 @@ static int dump_count = 0;
 /* Container delimiter in filenames */
 static const char containerDelimiter[] = "<#=#>";
 
-/* Write a single line to LOG_FILES_PATH (append). Return 0 on success */
+char *crashed_log_paths[CRASHED_LOG_PATH_CAP];
+int crashed_log_path_count;
+
+void crashed_log_paths_clear(void)
+{
+    int i;
+
+    for (i = 0; i < crashed_log_path_count; i++)
+    {
+        free(crashed_log_paths[i]);
+        crashed_log_paths[i] = NULL;
+    }
+    crashed_log_path_count = 0;
+}
+
+/* Store one crashed-log path. Return 0 on success. */
 STATIC_TESTABLE int append_logfile_entry(const char *entry)
 {
+    char *copy;
+
     if (!entry)
         return -1;
-    FILE *f = fopen(LOG_FILES_PATH, "a");
-    if (!f)
+    if (crashed_log_path_count >= CRASHED_LOG_PATH_CAP)
         return -1;
-    /* write with newline */
-    if (fprintf(f, "%s\n", entry) < 0)
-    {
-        fclose(f);
+    copy = strdup(entry);
+    if (!copy)
         return -1;
-    }
-    if (fclose(f) != 0)
-        return -1;
+    crashed_log_paths[crashed_log_path_count] = copy;
+    crashed_log_path_count++;
     return 0;
 }
 

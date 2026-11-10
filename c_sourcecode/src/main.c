@@ -386,6 +386,7 @@ int main_test(int argc, char *argv[])
         }
     }
 cleanup:
+    crashed_log_paths_clear();
     cleanup_batch(config.working_dir_path, dump_extn_pattern, ON_STARTUP_DUMPS_CLEANED_UP_BASE, argv[2], MAX_CORE_FILES, do_not_share_cleanup);
     if (lock_fd >= 0)
     {

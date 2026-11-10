@@ -323,4 +323,22 @@ void crashupload_log(unsigned int level, const char *file, int line, const char 
     (void)msg;
 }
 
+/* scanner.c is linked for the crashed-log list. Archive tests do not call these. */
+int join_path(char *dest, size_t dest_size, const char *dir, const char *name) {
+    (void)dest;
+    (void)dest_size;
+    (void)dir;
+    (void)name;
+    return 0;
+}
+
+int wait_for_file_size_stable(const char *filepath, int check_interval_sec,
+                              int stability_checks, int max_iterations) {
+    (void)filepath;
+    (void)check_interval_sec;
+    (void)stability_checks;
+    (void)max_iterations;
+    return 0;
+}
+
 } // extern "C"

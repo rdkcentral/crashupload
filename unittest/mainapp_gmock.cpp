@@ -72,6 +72,7 @@ extern "C" {
 #include "../c_sourcecode/common/types.h"
 #include "../c_sourcecode/common/errors.h"
 #include "../c_sourcecode/common/constants.h"
+#include "scanner.h"
 }
 
 // Mock state control structure
@@ -680,7 +681,8 @@ void remove_pending_dumps(const char *working_dir, const char *pattern) {
 /**
  * Mock: Scanner find dumps
  */
-int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count) {
+int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count, const char *dump_extn_pattern) {
+    (void)dump_extn_pattern;
     if (!path || !dumps || !count) {
         return -1;
     }
@@ -1046,5 +1048,21 @@ void t2Init(char *component)   { (void)component; }
 void t2Uninit(void)            {}
 void t2CountNotify(char *marker, int val)         { (void)marker; (void)val; }
 void t2ValNotify(char *marker, char *val)          { (void)marker; (void)val; }
+
+/* main() frees the list. scanner.c is not linked: its entry points are mocked above. */
+char *crashed_log_paths[CRASHED_LOG_PATH_CAP];
+int crashed_log_path_count;
+
+void crashed_log_paths_clear(void)
+{
+    int i;
+
+    for (i = 0; i < crashed_log_path_count; i++)
+    {
+        free(crashed_log_paths[i]);
+        crashed_log_paths[i] = NULL;
+    }
+    crashed_log_path_count = 0;
+}
 
 } // extern "C"
