@@ -581,7 +581,7 @@ void scanner_cleanup(void)
  *     char dump_type[] = "0";
  *     config_t config;
  *     
- *     int result = process_file_entry(fullpath, dump_type, &config);
+ *     int result = process_file_entry(fullpath, sizeof(fullpath), dump_type, &config);
  *     
  *     // Should return early since it's not a regular file
  *     EXPECT_EQ(result, 0);

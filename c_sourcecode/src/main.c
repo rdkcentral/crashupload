@@ -245,12 +245,12 @@ int main_test(int argc, char *argv[])
         goto cleanup;
     }
 
-    memset(archive, '\0', dump_count * sizeof(archive));
+    memset(archive, '\0', dump_count * sizeof(*archive));
     /* 5.2: Process each dump */
     for (int i = 0; i < dump_count; i++)
     {
         CRASHUPLOAD_INFO("List of dump file=%s\n", (dumps + i)->path);
-        process_file_entry((dumps + i)->path, argv[2], &config);
+        process_file_entry((dumps + i)->path, sizeof((dumps + i)->path), argv[2], &config);
         CRASHUPLOAD_INFO("List of dump file After process_file_entry=%s\n", (dumps + i)->path);
         len = strlen((dumps + i)->path);
         if (len > 4 && strcmp((dumps + i)->path + len - 4, ".tgz") == 0)
