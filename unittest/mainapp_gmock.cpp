@@ -731,8 +731,8 @@ int scanner_find_dumps(const char *path, dump_file_t **dumps, int *count) {
 /**
  * Mock: Process file entry
  */
-int process_file_entry(char *fullpath, char *dump_type, const config_t *config) {
-    if (!fullpath || !dump_type || !config) {
+int process_file_entry(char *fullpath, size_t fullpath_cap, char *dump_type, const config_t *config) {
+    if (!fullpath || fullpath_cap == 0 || !dump_type || !config) {
         return -1;
     }
     
