@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fnmatch.h>
+#include <fcntl.h>
 #include "cleanup_batch.h"
 #include "../../common/errors.h"
 #include "logger.h"
