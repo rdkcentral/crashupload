@@ -594,6 +594,11 @@ static void remove_pending_dumps_fd(int dir_fd,
     closedir(dir);
 }
 
+/*
+ * remove_pending_dumps() arguments:
+ * working_dir: Clear the dumps from this directory
+ * dumps_extn_pattern: pattern matching extension
+ */
 void remove_pending_dumps(const char *working_dir,
                           const char *dumps_extn_pattern)
 {
@@ -620,66 +625,3 @@ void remove_pending_dumps(const char *working_dir,
 
     remove_pending_dumps_fd(root_fd, dumps_extn_pattern);
 }
-
-
-#if 0
-void remove_pending_dumps(const char *working_dir,
-                          const char *dumps_extn_pattern)
-{
-    char path[512];
-    struct stat st;
-    DIR *dir = opendir(working_dir);
-    if (!dir)
-    {
-        CRASHUPLOAD_WARN("opendir Error: %s dir not present\n", working_dir);
-        return;
-    }
-
-    struct dirent *entry;
-
-    while ((entry = readdir(dir)) != NULL)
-    {
-
-        // Skip . and ..
-        if (strcmp(entry->d_name, ".") == 0 ||
-            strcmp(entry->d_name, "..") == 0)
-            continue;
-
-        snprintf(path, sizeof(path), "%s/%s", working_dir, entry->d_name);
-
-        if (lstat(path, &st) < 0)
-        {
-            CRASHUPLOAD_WARN("stat Error: %s\n", path);
-            continue;
-        }
-
-        if (S_ISDIR(st.st_mode))
-        {
-            // Recursive call for directories
-            remove_pending_dumps(path, dumps_extn_pattern);
-        }
-        else if (S_ISREG(st.st_mode))
-        {
-
-            int match_extn = fnmatch(dumps_extn_pattern, entry->d_name, 0) == 0;
-            int match_tgz = fnmatch("*.tgz", entry->d_name, 0) == 0;
-
-            if (match_extn || match_tgz)
-            {
-                CRASHUPLOAD_INFO("Removing %s because upload limit has been reached or build is blacklisted\n", path);
-
-                if (unlink(path) == 0)
-                {
-                    // File deleted
-                }
-                else
-                {
-                    CRASHUPLOAD_WARN("unlink error\n");
-                }
-            }
-        }
-    }
-
-    closedir(dir);
-}
-#endif
