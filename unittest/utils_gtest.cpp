@@ -88,6 +88,7 @@ int file_vector_init(file_vector_t *v);
 void file_vector_free(file_vector_t *v);
 int file_vector_push(file_vector_t *v, const char *path, time_t mtime);
 int cmp_mtime_desc(const void *a, const void *b);
+int collect_cb(const char *filepath, const struct stat *st, void *user);
 }
 
 using ::testing::_;
@@ -2485,6 +2486,43 @@ TEST_F(UtilsTest, CleanupBatch_FileExistsRegular_Symlink_Behavior) {
     
     unlink(link);
     unlink(file);
+}
+
+// collect_cb() — both branches, so the file-scope callback stays covered
+TEST_F(UtilsTest, CleanupBatch_CollectCb_PushesFile_Success) {
+    file_vector_t vec;
+    file_vector_init(&vec);
+
+    collect_ctx_t ctx;
+    ctx.vec = &vec;
+    ctx.err = 0;
+
+    struct stat st;
+    memset(&st, 0, sizeof(st));
+    st.st_mtime = 1700000000;
+
+    int ret = collect_cb("/tmp/dump.dmp", &st, &ctx);
+
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(vec.size, 1);
+    EXPECT_STREQ(vec.arr[0].path, "/tmp/dump.dmp");
+    EXPECT_EQ(vec.arr[0].mtime, 1700000000);
+
+    file_vector_free(&vec);
+}
+
+TEST_F(UtilsTest, CleanupBatch_CollectCb_NullVector_StopsWalk) {
+    collect_ctx_t ctx;
+    ctx.vec = NULL;
+    ctx.err = 0;
+
+    struct stat st;
+    memset(&st, 0, sizeof(st));
+    st.st_mtime = 1700000000;
+
+    int ret = collect_cb("/tmp/dump.dmp", &st, &ctx);
+
+    EXPECT_EQ(ret, -1);
 }
 
 // file_vector operations tests
