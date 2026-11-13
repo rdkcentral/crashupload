@@ -62,7 +62,7 @@ int system_initialize(int argc, char *argv[],
     if (0 != (filePresentCheck(config->core_log_file)))
     {
         CRASHUPLOAD_INFO("%s File not present. Creating File\n", config->core_log_file);
-        int fd = open(config->core_log_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        int fd = open(config->core_log_file, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0644);
         if (fd < 0)
         {
             CRASHUPLOAD_ERROR("open failed\n");
@@ -71,8 +71,8 @@ int system_initialize(int argc, char *argv[],
             return ERR_SYSTEM_INIT_FAILED;
         }
 
-        // Force mode regardless of umask
-        if (chmod(config->core_log_file, 0666) != 0)
+        // Set mode on the descriptor just opened, ignoring umask
+        if (fchmod(fd, 0644) != 0)
         {
             CRASHUPLOAD_ERROR("chmod failed\n");
         }

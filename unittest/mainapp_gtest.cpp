@@ -94,10 +94,18 @@ TEST_F(MainAppTest, SystemInitialize_Success) {
     set_mock_config_init_load_behavior(0);
     set_mock_platform_initialize_behavior(0);
     set_mock_file_present_check_behavior(-1); // File not present
+
+    unlink("/tmp/test_core.log");
+    rmdir("/tmp/test_core.log");
     
     int result = system_initialize(3, argv, &config, &platform);
     
     EXPECT_EQ(result, SYSTEM_INIT_SUCCESS);
+    struct stat st;
+    ASSERT_EQ(lstat("/tmp/test_core.log", &st), 0);
+    EXPECT_TRUE(S_ISREG(st.st_mode));
+    EXPECT_EQ(st.st_mode & 0777, 0644);
+    unlink("/tmp/test_core.log");
 }
 
 TEST_F(MainAppTest, SystemInitialize_FileAlreadyExists) {
@@ -168,6 +176,58 @@ TEST_F(MainAppTest, SystemInitialize_FileNotPresent_OpenFails) {
 
     // Cleanup
     rmdir("/tmp/test_core.log");
+}
+
+TEST_F(MainAppTest, SystemInitialize_SymlinkCoreLog_LeavesTargetUnchanged) {
+    char dir_template[] = "/tmp/corelog_XXXXXX";
+    ASSERT_NE(mkdtemp(dir_template), nullptr);
+
+    struct Cleanup {
+        char dir[64];
+        ~Cleanup() {
+            unlink("/tmp/test_core.log");
+            char target[96];
+            snprintf(target, sizeof(target), "%s/target.txt", dir);
+            unlink(target);
+            rmdir(dir);
+        }
+    } cleanup{};
+    snprintf(cleanup.dir, sizeof(cleanup.dir), "%s", dir_template);
+
+    char target[96];
+    snprintf(target, sizeof(target), "%s/target.txt", cleanup.dir);
+    int fd = open(target, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+    ASSERT_GE(fd, 0);
+    ASSERT_EQ(write(fd, "original", 8), static_cast<ssize_t>(8));
+    ASSERT_EQ(close(fd), 0);
+
+    unlink("/tmp/test_core.log");
+    rmdir("/tmp/test_core.log");
+    ASSERT_EQ(symlink(target, "/tmp/test_core.log"), 0);
+
+    char* argv[] = {(char*)"crashupload", (char*)"/tmp/test", (char*)"0"};
+    config_t config;
+    platform_config_t platform;
+
+    set_mock_config_init_load_behavior(0);
+    set_mock_platform_initialize_behavior(0);
+    set_mock_file_present_check_behavior(-1);
+
+    int result = system_initialize(3, argv, &config, &platform);
+
+    EXPECT_EQ(result, ERR_SYSTEM_INIT_FAILED);
+
+    fd = open(target, O_RDONLY | O_NOFOLLOW);
+    ASSERT_GE(fd, 0);
+    char buf[32] = {0};
+    ASSERT_EQ(read(fd, buf, sizeof(buf) - 1), static_cast<ssize_t>(8));
+    ASSERT_EQ(close(fd), 0);
+    EXPECT_STREQ(buf, "original");
+
+    struct stat st;
+    ASSERT_EQ(lstat(target, &st), 0);
+    EXPECT_TRUE(S_ISREG(st.st_mode));
+    EXPECT_EQ(st.st_mode & 0777, 0600);
 }
 
 // ============================================================================
