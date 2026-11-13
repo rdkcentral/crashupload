@@ -251,6 +251,27 @@ TEST_F(MainAppTest, MainTest_MinidumpLockFile) {
     //testing::internal::GetCapturedStdout();
 }
 
+TEST_F(MainAppTest, MainTest_CleanupFreesCrashedLogPaths) {
+    char* argv[] = {(char*)"crashupload", (char*)"/tmp/test", (char*)"0"};
+    const char *kept = "/tmp/mainapp_kept.log";
+    char *copy = (char *)malloc(strlen(kept) + 1);
+
+    ASSERT_NE(copy, nullptr);
+    memcpy(copy, kept, strlen(kept) + 1);
+    crashed_log_paths[0] = copy;
+    crashed_log_path_count = 1;
+
+    set_mock_config_init_load_behavior(0);
+    set_mock_platform_initialize_behavior(0);
+    set_mock_file_present_check_behavior(-1);
+    set_mock_lock_acquire_behavior(10);
+    set_mock_prerequisites_wait_behavior(0);
+    set_mock_scanner_find_dumps_behavior(0, 0);
+
+    EXPECT_EQ(main_test(3, argv), 0);
+    EXPECT_EQ(crashed_log_path_count, 0);
+}
+
 // ============================================================================
 // main_test Tests - Initialization Failures
 // ============================================================================

@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <limits.h>
 #include "archive_crash.h"
+#include "../scanner/scanner.h"
 #include <fcntl.h>
 #include "file_utils.h"
 #include "telemetryinterface.h"
@@ -249,8 +250,6 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
     int tar_status = -1;
     char process_name_log[256] = {0};
     int cnt_process_log_file = 0;
-    FILE *fp = NULL;
-    char buf[80] = {0};
 
     if (!dump || !config || !platform || !archive || !new_dump_name)
     {
@@ -355,35 +354,27 @@ int archive_create_smart(const dump_file_t *dump, const config_t *config,
                 CRASHUPLOAD_INFO("crash url file=%s\n", arch_files_list[no_of_files]);
                 no_of_files++;
             }
-            fp = fopen(LOG_FILES_PATH, "r");
-            if (fp != NULL)
+            for (i = 0; i < crashed_log_path_count; i++)
             {
-                while (fgets(buf, sizeof(buf), fp))
+                if (cnt_process_log_file == 3)
                 {
-                    if (cnt_process_log_file == 3)
-                    {
-                        CRASHUPLOAD_INFO("Reached Max number of process log file\n"); // TODO: This is logic not present in script. Need review
-                        break;
-                    }
-                    // TODO: More optimization required. Instead copy last 5000 line copy we can do byte copy.
-                    if (!add_crashed_process_log_file(config, platform, buf, process_name_log, sizeof(process_name_log)))
-                    {
-                        snprintf(arch_files_list[no_of_files], 256, "%s", process_name_log);
-                        CRASHUPLOAD_INFO("process log file=%s\n", arch_files_list[no_of_files]);
-                        no_of_files++;
-                        cnt_process_log_file++;
-                    }
-                    else
-                    {
-                        CRASHUPLOAD_ERROR("Error to add add_crashed_process_log_file():%s\n", buf);
-                    }
+                    CRASHUPLOAD_INFO("Reached Max number of process log file\n"); // TODO: This is logic not present in script. Need review
+                    break;
                 }
-                unlink(LOG_FILES_PATH);
+                // TODO: More optimization required. Instead copy last 5000 line copy we can do byte copy.
+                if (!add_crashed_process_log_file(config, platform, crashed_log_paths[i], process_name_log, sizeof(process_name_log)))
+                {
+                    snprintf(arch_files_list[no_of_files], 256, "%s", process_name_log);
+                    CRASHUPLOAD_INFO("process log file=%s\n", arch_files_list[no_of_files]);
+                    no_of_files++;
+                    cnt_process_log_file++;
+                }
+                else
+                {
+                    CRASHUPLOAD_ERROR("Error to add add_crashed_process_log_file():%s\n", crashed_log_paths[i]);
+                }
             }
-            else
-            {
-                CRASHUPLOAD_ERROR("Error in opening file:%s\n", LOG_FILES_PATH);
-            }
+            crashed_log_paths_clear();
             /*if (!add_crashed_process_log_file(config, platform, process_log, sizeof(process_log))) {
             } else {
             }

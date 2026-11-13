@@ -25,7 +25,7 @@
 #Uploads coredumps to an ftp server if there are any
 
 LOGMAPPER_FILE="/etc/breakpad-logmapper.conf"
-LOG_FILES="/tmp/minidump_log_files.txt"
+CRASHED_LOG_PATHS=""
 if [ -f /lib/rdk/t2Shared_api.sh ]; then
     source /lib/rdk/t2Shared_api.sh
     IS_T2_ENABLED="true"
@@ -742,7 +742,7 @@ get_crashed_log_file()
         logMessage "Appname, Process_Crashed = $appname, $pname"
     fi
     for i in $(echo $log_files | sed -n 1'p' | tr ',' '\n'); do
-        echo "$LOG_PATH/$i" >> $LOG_FILES
+        CRASHED_LOG_PATHS=$(printf '%s\n%s' "$CRASHED_LOG_PATHS" "$LOG_PATH/$i")
     done
 }
 
@@ -829,8 +829,10 @@ add_crashed_log_file()
             logMessage "Adding File: $process_log to minidump tarball"
             files="$files $process_log"
         fi
-    done < $LOG_FILES
-    rm -rf $LOG_FILES
+    done <<EOF
+$(printf '%s\n' "$CRASHED_LOG_PATHS")
+EOF
+    CRASHED_LOG_PATHS=""
 }
 
 copy_log_files_tmp_dir()
