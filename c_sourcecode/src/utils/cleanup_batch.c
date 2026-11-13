@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fnmatch.h>
+#include <fcntl.h>
 #include "cleanup_batch.h"
 #include "../../common/errors.h"
 #include "logger.h"
@@ -212,15 +213,18 @@ int walk_dir_recursive(const char *dirpath, file_cb_t cb, void *user)
     return rc;
 }
 
-/* ---------- Implementation: deleteAllButTheMostRecentFile(path) ---------- */
-    /*int collect_cb(const char *filepath, const struct stat *st, void *user)
+/* Callback used with walk_dir_recursive to collect regular files. */
+STATIC_TESTABLE int collect_cb(const char *filepath, const struct stat *st, void *user)
+{
+    collect_ctx_t *ctx = (collect_ctx_t *)user;
+    if (file_vector_push(ctx->vec, filepath, st->st_mtime) != 0)
     {
-        (void) user;
-        if (file_vector_push(&files, filepath, st->st_mtime) != 0) {
-            return -1; // stop 
-        }
-        return 0;
-    }*/
+        return -1; /* stop */
+    }
+    return 0;
+}
+
+/* ---------- Implementation: deleteAllButTheMostRecentFile(path) ---------- */
 
 /*
  * Delete all files in 'path' except the most recent 'max_keep' files.
@@ -236,24 +240,9 @@ int delete_all_but_most_recent(const char *path, size_t max_keep)
     if (file_vector_init(&files) != 0)
         return -1;
 
-    /* Callback to collect files */
-    struct collect_ctx
-    {
-        file_vector_t *vec;
-        int err;
-    } ctx;
+    collect_ctx_t ctx;
     ctx.vec = &files;
     ctx.err = 0;
-
-    int collect_cb(const char *filepath, const struct stat *st, void *user)
-    {
-        (void)user;
-        if (file_vector_push(&files, filepath, st->st_mtime) != 0)
-        {
-            return -1; // stop
-        }
-        return 0;
-    }
 
     if (walk_dir_recursive(path, collect_cb, &ctx) != 0)
     {
@@ -504,62 +493,135 @@ int cleanup_batch(const char *working_dir,
     return 0;
 }
 
-void remove_pending_dumps(const char *working_dir,
-                          const char *dumps_extn_pattern)
+/*
+ * Recursively remove matching dump files.
+ *
+ * Ownership:
+ *   dir_fd is consumed by this function.
+ *   fdopendir() takes ownership of dir_fd.
+ */
+static void remove_pending_dumps_fd(int dir_fd,
+                                    const char *dumps_extn_pattern)
 {
-    char path[512];
-    struct stat st;
-    DIR *dir = opendir(working_dir);
-    if (!dir)
+    DIR *dir = fdopendir(dir_fd);
+    if (dir == NULL)
     {
-        CRASHUPLOAD_WARN("opendir Error: %s dir not present\n", working_dir);
+        close(dir_fd);
         return;
     }
 
     struct dirent *entry;
+    int parent_fd = dirfd(dir);
 
     while ((entry = readdir(dir)) != NULL)
     {
+        const char *name = entry->d_name;
 
-        // Skip . and ..
-        if (strcmp(entry->d_name, ".") == 0 ||
-            strcmp(entry->d_name, "..") == 0)
-            continue;
-
-        snprintf(path, sizeof(path), "%s/%s", working_dir, entry->d_name);
-
-        if (stat(path, &st) < 0)
+        /* Skip . and .. */
+        if (strcmp(name, ".") == 0 ||
+            strcmp(name, "..") == 0)
         {
-            CRASHUPLOAD_WARN("stat Error: %s\n", path);
+            continue;
+        }
+
+        struct stat st;
+
+        /*
+         * Inspect the entry without following symlinks.
+         */
+        if (fstatat(parent_fd, name, &st,
+                    AT_SYMLINK_NOFOLLOW) < 0)
+        {
+	    CRASHUPLOAD_WARN("fstatat failed: %s\n", strerror(errno));
             continue;
         }
 
         if (S_ISDIR(st.st_mode))
         {
-            // Recursive call for directories
-            remove_pending_dumps(path, dumps_extn_pattern);
+            /*
+             * Open child directory relative to the parent FD.
+             *
+             * O_NOFOLLOW prevents opening a symlink if the
+             * directory entry is replaced after fstatat().
+             */
+            int child_fd = openat(parent_fd, name,
+                                  O_RDONLY |
+                                  O_DIRECTORY |
+                                  O_NOFOLLOW |
+                                  O_CLOEXEC);
+
+            if (child_fd < 0)
+            {
+                CRASHUPLOAD_WARN("openat failed for :%s\n",strerror(errno));
+                continue;
+            }
+
+            /*
+             * Recursively process the already-open directory.
+             * No pathname resolution is required.
+             */
+            remove_pending_dumps_fd(child_fd,
+                                    dumps_extn_pattern);
         }
         else if (S_ISREG(st.st_mode))
         {
+            int match_extn = fnmatch(dumps_extn_pattern, name, 0) == 0;
 
-            int match_extn = fnmatch(dumps_extn_pattern, entry->d_name, 0) == 0;
-            int match_tgz = fnmatch("*.tgz", entry->d_name, 0) == 0;
+            int match_tgz = fnmatch("*.tgz", name, 0) == 0;
 
             if (match_extn || match_tgz)
             {
-                CRASHUPLOAD_INFO("Removing %s because upload limit has been reached or build is blacklisted\n", path);
+                CRASHUPLOAD_INFO("Removing %s because upload limit has been reached or build is blacklisted\n",name);
 
-                if (unlink(path) == 0)
+                /*
+                 * Delete relative to the parent directory FD.
+                 *
+                 * If the entry is replaced with a symlink,
+                 * unlinkat() removes the symlink itself,
+                 * not its target.
+                 */
+                if (unlinkat(parent_fd, name, 0) != 0)
                 {
-                    // File deleted
-                }
-                else
-                {
-                    CRASHUPLOAD_WARN("unlink error\n");
+                    CRASHUPLOAD_WARN("unlinkat failed for %s: %s\n",name, strerror(errno));
                 }
             }
         }
+        /*
+         * Symlinks and other file types are intentionally ignored.
+         */
     }
 
     closedir(dir);
+}
+
+/*
+ * remove_pending_dumps() arguments:
+ * working_dir: Clear the dumps from this directory
+ * dumps_extn_pattern: pattern matching extension
+ */
+void remove_pending_dumps(const char *working_dir,
+                          const char *dumps_extn_pattern)
+{
+    if (working_dir == NULL || dumps_extn_pattern == NULL)
+    {
+        return;
+    }
+
+    /*
+     * Open the root directory without following a symlink
+     * at its final pathname component.
+     */
+    int root_fd = open(working_dir,
+                       O_RDONLY |
+                       O_DIRECTORY |
+                       O_NOFOLLOW |
+                       O_CLOEXEC);
+
+    if (root_fd < 0)
+    {
+        CRASHUPLOAD_WARN("Failed to open working directory: %s: %s\n",working_dir, strerror(errno));
+        return;
+    }
+
+    remove_pending_dumps_fd(root_fd, dumps_extn_pattern);
 }
