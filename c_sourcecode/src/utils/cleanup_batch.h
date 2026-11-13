@@ -41,6 +41,12 @@ typedef struct {
     size_t capacity;
 } file_vector_t;
 
+/* Context passed to collect_cb by delete_all_but_most_recent(). */
+typedef struct {
+    file_vector_t *vec;
+    int err;
+} collect_ctx_t;
+
 
 /**
  * @brief Cleanup old files in batch

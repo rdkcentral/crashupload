@@ -283,18 +283,17 @@ int upload_file(const char *filepath, const char *url, const char *dump_name, co
     {
         totlen += snprintf(post_filed + totlen, remainlen, "firmwareVersion=%s&", url_encode_data);
         free(url_encode_data);
-        url_encode_data = NULL;
-    }
+        }
     else
     {
-        totlen += snprintf(post_filed + totlen, remainlen, "filename=%s&", crash_fw_version);
-    }
+    totlen += snprintf(post_filed + totlen, remainlen, "filename=%s&", crash_fw_version);
+        }
 
-    if (totlen >= szPostFieldOut)
+if (totlen >= szPostFieldOut)
     {
-        CRASHUPLOAD_WARN("No space available for postfield data\n");
+    CRASHUPLOAD_WARN("No space available for postfield data\n");
         return -1;
-    }
+        }
     remainlen = szPostFieldOut - totlen;
     url_encode_data = urlEncodeString(build_type);
     if (url_encode_data != NULL)
