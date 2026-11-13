@@ -103,7 +103,8 @@ int read_RFCProperty(char *type, const char *key, char *out_value, size_t datasi
         {
             // remove quotes around data
             snprintf(out_value, datasize, "%s", &param.value[1]);
-            *(out_value + data_len - 2) = 0;
+            size_t term_idx = (size_t)(data_len - 2) < (datasize - 1) ? (size_t)(data_len - 2) : (datasize - 1);
+            out_value[term_idx] = '\0';
         }
         else
         {

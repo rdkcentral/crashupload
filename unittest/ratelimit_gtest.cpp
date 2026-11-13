@@ -139,6 +139,49 @@ TEST_F(RateLimitTest, SetTime_InvalidDirectory_Failure) {
     EXPECT_EQ(ret, -1);
 }
 
+TEST_F(RateLimitTest, SetTime_SymlinkDestination_LeavesTargetUnchanged) {
+    char dir_template[] = "/tmp/ratelimit_XXXXXX";
+    char target[256];
+    char linkpath[256];
+    char buf[32] = {0};
+    struct stat st;
+    int fd;
+    FILE *fp;
+
+    struct DirCleanup {
+        char *dir;
+        char *linkpath;
+        char *target;
+        ~DirCleanup() {
+            if (linkpath) unlink(linkpath);
+            if (target) unlink(target);
+            if (dir) rmdir(dir);
+        }
+    };
+
+    ASSERT_NE(mkdtemp(dir_template), nullptr);
+    snprintf(target, sizeof(target), "%s/target", dir_template);
+    snprintf(linkpath, sizeof(linkpath), "%s/state", dir_template);
+    DirCleanup cleanup = {dir_template, linkpath, target};
+
+    fd = open(target, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+    ASSERT_GE(fd, 0);
+    ASSERT_EQ(write(fd, "original\n", 9), 9);
+    close(fd);
+    ASSERT_EQ(symlink(target, linkpath), 0);
+
+    EXPECT_EQ(set_time(linkpath, RECOVERY_TIME), -1);
+
+    ASSERT_EQ(stat(target, &st), 0);
+    EXPECT_EQ(st.st_mode & 0777, static_cast<mode_t>(0600));
+    fp = fopen(target, "r");
+    ASSERT_NE(fp, nullptr);
+    ASSERT_NE(fgets(buf, sizeof(buf), fp), nullptr);
+    fclose(fp);
+    EXPECT_STREQ(buf, "original\n");
+    (void)cleanup;
+}
+
 // ============================================================================
 // Tests for is_upload_limit_reached() - Positive Cases
 // ============================================================================
