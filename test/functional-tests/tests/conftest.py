@@ -108,6 +108,7 @@ _TC_MAP = {
     "test_upload_blocked_when_count_exceeds_10":     "TC-049",
     "test_upload_blocked_when_deny_file_active":     "TC-051",
     "test_system_initialize_failure_exits_with_1":   "C-TC-001",
+    "test_core_log_symlink_leaves_target_uncreated": "C-TC-003",
     "test_binary_produces_log_output":               "C-TC-002",
     # Telemetry Opt-Out
     "test_rfc_optout_set_mediaclient_exits_0":           "TC-038",
