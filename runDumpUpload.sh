@@ -337,10 +337,18 @@ deleteAllButTheMostRecentFile()
     num_of_files=$(find "$path" -type f | wc -l)
     if [ "$num_of_files" -gt "$MAX_CORE_FILES" ]; then
         val=$((num_of_files - MAX_CORE_FILES))
-        cd $path && ls -t1 | tail -n $val >> /tmp/dumps_to_delete.txt
-        logMessage "Deleting dump files: $(cat /tmp/dumps_to_delete.txt)"
-        while read line; do rm -rf $line; done < /tmp/dumps_to_delete.txt
-        rm -rf /tmp/dumps_to_delete.txt
+        cd "$path" || return
+        # Oldest names from this directory only. Not read back from a file.
+        dumps_to_delete=$(ls -t1 | tail -n "$val")
+        logMessage "Deleting dump files: $dumps_to_delete"
+        while read line
+        do
+            if [ ! -z "$line" ]; then
+                rm -rf -- "$line"
+            fi
+        done <<EOF
+$(printf '%s\n' "$dumps_to_delete")
+EOF
     fi
 }
 
