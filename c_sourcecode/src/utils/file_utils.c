@@ -17,6 +17,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <openssl/opensslv.h>
@@ -42,6 +44,7 @@
 
 #define SHA1_CHUNK_SIZE 8192
 #define TIMESTAMP_DEFAULT_VALUE "2000-01-01-00-00-00"
+#define VERSION_FILE_MAX_BYTES 4096
 
 bool tls_log(int curl_code, const char *device_type, const char *fqdn)
 {
@@ -205,8 +208,8 @@ STATIC_TESTABLE size_t extract_version_from_tarball(const char *tarball_path, ch
             
             CRASHUPLOAD_INFO("Found version.txt in tarball, size: %zu bytes\n", file_size);
             
-            // Sanity check: version.txt should be reasonably small
-            if (file_size == 0)
+            // Sanity check: version.txt
+            if (file_size == 0 || file_size > VERSION_FILE_MAX_BYTES)
             {
                 CRASHUPLOAD_WARN("version.txt has unusual size: %zu bytes, skipping\n", file_size);
                 archive_read_data_skip(a);
@@ -310,6 +313,14 @@ STATIC_TESTABLE size_t read_version_from_file(const char *filepath, char *output
     return result;
 }
 
+#ifdef GTEST_ENABLE
+const char *g_test_fallback_version_path = NULL;
+#define CURRENT_VERSION_FILE \
+    (g_test_fallback_version_path != NULL ? g_test_fallback_version_path : "/version.txt")
+#else
+#define CURRENT_VERSION_FILE "/version.txt"
+#endif
+
 /* function GetCrashFirmwareVersion - gets the firmware version of the device.
         
         This function intelligently determines the firmware version by:
@@ -361,7 +372,7 @@ size_t GetCrashFirmwareVersion(const char *source, char *pFWVersion, size_t szBu
     
     // Either not a tarball, or extraction failed - use current boot's version.txt
     CRASHUPLOAD_INFO("Reading firmware version from /version.txt\n");
-    result = read_version_from_file("/version.txt", pFWVersion, szBufSize);
+    result = read_version_from_file(CURRENT_VERSION_FILE, pFWVersion, szBufSize);
     
     if (result > 0)
     {
@@ -697,9 +708,18 @@ int extract_tail(const char *src,
     if (!in)
         return ret;
 
-    out = fopen(dst, "w");
-    if (!out)
-        goto cleanup;
+    /* Replace a regular file. A symlink at dst is left unchanged. */
+    {
+        int out_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0644);
+        if (out_fd < 0)
+            goto cleanup;
+        out = fdopen(out_fd, "w");
+        if (!out)
+        {
+            close(out_fd);
+            goto cleanup;
+        }
+    }
 
     ring = calloc((size_t)max_lines, sizeof(char *));
     if (!ring)
