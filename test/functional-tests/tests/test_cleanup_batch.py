@@ -80,6 +80,7 @@ TC-047 — /opt/.upload_on_startup is removed on coredump mode run
 
 import os
 import subprocess
+import tempfile
 import time
 import pytest
 from pathlib import Path
@@ -582,3 +583,60 @@ class TestCleanupBatch:
             _cleanup_tgz_files(secure_corepath)
             if os.path.exists(coredump_lock):
                 os.unlink(coredump_lock)
+
+    def test_startup_flag_symlink_leaves_target_uncreated(
+        self, binary_path, cleanup_pytest_cache
+    ):
+        """
+        The first-run startup flag is created at
+        /tmp/.on_startup_dumps_cleaned_up_0. When that path is a symlink
+        whose target is missing, startup cleanup still deletes the non-dump
+        marker, and the target is not created.
+        """
+        _ensure_system_init_prereqs()
+        os.makedirs(SECURE_MINIDUMP_PATH, exist_ok=True)
+        if os.path.lexists(MINIDUMP_LOCK_FILE):
+            os.unlink(MINIDUMP_LOCK_FILE)
+        if os.path.lexists(_ON_STARTUP_FLAG_MINI):
+            os.unlink(_ON_STARTUP_FLAG_MINI)
+
+        tmp = tempfile.mkdtemp(prefix="startup_flag_")
+        target = os.path.join(tmp, "target")
+        os.symlink(target, _ON_STARTUP_FLAG_MINI)
+
+        marker = os.path.join(SECURE_MINIDUMP_PATH, "startup_flag_marker.txt")
+        Path(marker).write_text("non-dump file\n")
+        stashed = _stash_existing_dumps(SECURE_MINIDUMP_PATH)
+        dump = create_dummy_dump(SECURE_MINIDUMP_PATH, "startup_flag_symlink.dmp")
+        Path(REBOOT_FLAG_FILE).touch(exist_ok=True)
+
+        try:
+            result = subprocess.run(
+                [binary_path, "", "0", "secure"],
+                capture_output=True,
+                timeout=30,
+            )
+            assert result.returncode == 0, (
+                f"Binary exited with {result.returncode}\n"
+                f"stdout: {result.stdout.decode(errors='replace')}"
+            )
+            assert not os.path.exists(marker), (
+                "Non-dump marker must still be deleted when the startup flag "
+                "path is a symlink"
+            )
+            assert os.path.islink(_ON_STARTUP_FLAG_MINI), (
+                f"{_ON_STARTUP_FLAG_MINI} must stay a symlink"
+            )
+            assert not os.path.lexists(target), (
+                "Startup-flag create must not create the symlink target"
+            )
+        finally:
+            for path in (marker, dump, REBOOT_FLAG_FILE, _ON_STARTUP_FLAG_MINI,
+                         MINIDUMP_LOCK_FILE):
+                if os.path.lexists(path):
+                    os.unlink(path)
+            if os.path.lexists(target):
+                os.unlink(target)
+            os.rmdir(tmp)
+            _cleanup_tgz_files(SECURE_MINIDUMP_PATH)
+            _restore_stashed_dumps(stashed)

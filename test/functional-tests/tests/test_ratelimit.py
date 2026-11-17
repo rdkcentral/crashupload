@@ -63,7 +63,9 @@ TC-051 — Recovery time not yet reached → uploads still blocked
 """
 
 import os
+import stat
 import subprocess
+import tempfile
 import time
 import pytest
 from pathlib import Path
@@ -340,3 +342,61 @@ class TestRateLimit:
                     os.unlink(path)
             if os.path.exists(MINIDUMP_LOCK_FILE):
                 os.unlink(MINIDUMP_LOCK_FILE)
+
+    def test_deny_file_symlink_leaves_target_unchanged(
+        self, binary_path, cleanup_pytest_cache
+    ):
+        """
+        set_time(DENY_UPLOADS_FILE, RECOVERY_TIME) runs when the minidump
+        count is over the limit. A symlink at that path stays a symlink, and
+        the file it names keeps its contents and mode. The block still
+        happens, because the result of set_time is not checked.
+        """
+        _ensure_system_init_prereqs()
+        os.makedirs(SECURE_MINIDUMP_PATH, exist_ok=True)
+        if os.path.lexists(MINIDUMP_LOCK_FILE):
+            os.unlink(MINIDUMP_LOCK_FILE)
+        for path in (DENY_UPLOADS_FILE, MINIDUMP_TIMESTAMPS_FILE):
+            if os.path.lexists(path):
+                os.unlink(path)
+
+        now_ts = int(time.time())
+        first_ts = now_ts - 300
+        lines = [str(first_ts)] + [str(now_ts)] * 10
+        Path(MINIDUMP_TIMESTAMPS_FILE).write_text("\n".join(lines) + "\n")
+
+        tmp = tempfile.mkdtemp(prefix="deny_symlink_")
+        target = os.path.join(tmp, "target")
+        fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        os.write(fd, b"original\n")
+        os.close(fd)
+        os.symlink(target, DENY_UPLOADS_FILE)
+
+        dump = create_dummy_dump(SECURE_MINIDUMP_PATH, "deny_symlink.dmp")
+
+        try:
+            result = subprocess.run(
+                [binary_path, "", "0", "secure"],
+                capture_output=True,
+                timeout=60,
+            )
+            assert result.returncode == 0, (
+                f"Expected exit 0 after rate-limit block, "
+                f"got {result.returncode}\n"
+                f"stdout: {result.stdout.decode(errors='replace')}"
+            )
+            _assert_working_dir_empty_of_dumps(SECURE_MINIDUMP_PATH)
+
+            assert os.path.islink(DENY_UPLOADS_FILE), (
+                f"{DENY_UPLOADS_FILE} must stay a symlink"
+            )
+            assert Path(target).read_text() == "original\n"
+            assert stat.S_IMODE(os.stat(target).st_mode) == 0o600
+        finally:
+            for path in (dump, DENY_UPLOADS_FILE, MINIDUMP_TIMESTAMPS_FILE,
+                         _ON_STARTUP_FLAG_MINI, MINIDUMP_LOCK_FILE):
+                if os.path.lexists(path):
+                    os.unlink(path)
+            if os.path.lexists(target):
+                os.unlink(target)
+            os.rmdir(tmp)
