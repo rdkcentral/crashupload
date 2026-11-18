@@ -128,7 +128,6 @@ typedef struct {
     char archive_path[64];
     char working_dir_path[64];
     char core_log_file[64];
-    char log_file[64];
     char log_mapper_file[64];
     char box_type[64];
     char log_path[16];

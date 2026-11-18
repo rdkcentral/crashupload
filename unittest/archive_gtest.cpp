@@ -55,6 +55,9 @@ extern "C" {
 #include "../c_sourcecode/src/archive/archive_crash.h"
 #include "../c_sourcecode/common/types.h"
 #include "../c_sourcecode/common/errors.h"
+#include "scanner.h"
+
+char *strdup(const char *s);
 
 #if 0
 // Forward declarations for static functions (exposed via STATIC_TESTABLE with GTEST_ENABLE)
@@ -96,9 +99,20 @@ protected:
     const char* test_version_file = "./test_version.txt";
     const char* test_core_log = "./test_core.log";
     const char* test_crashed_url = "./test_crashed_url.txt";
-    const char* test_log_files = "/tmp/minidump_log_files.txt";
+
+    void SeedCrashedLogPath(const char *path) {
+        char *copy;
+
+        if (crashed_log_path_count >= CRASHED_LOG_PATH_CAP)
+            return;
+        copy = strdup(path);
+        if (!copy)
+            return;
+        crashed_log_paths[crashed_log_path_count++] = copy;
+    }
 
     void SetUp() override {
+        crashed_log_paths_clear();
         // Reset mocks
         reset_archive_mocks();
         
@@ -147,6 +161,7 @@ protected:
     }
 
     void TearDown() override {
+        crashed_log_paths_clear();
         reset_archive_mocks();
         
         // Clean up test files
@@ -154,7 +169,6 @@ protected:
         unlink(test_version_file);
         unlink(test_core_log);
         unlink(test_crashed_url);
-        unlink(test_log_files);
         unlink("./set_crash_reboot_flag");
         
         // Clean up generated archives and renamed files
@@ -442,14 +456,29 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_Minidump_WithCrashedUrl_Success) {
     EXPECT_NE(test_new_dump_name[0], '\0');
 }
 
+TEST_F(ArchiveTest, ArchiveCreateSmart_RenameFails_LeavesCrashedLogPaths) {
+    SeedCrashedLogPath("/tmp/proc1.log");
+    strncpy(test_dump.path, "./missing_crashupload_dump.dmp", sizeof(test_dump.path) - 1);
+
+    test_config.dump_type = DUMP_TYPE_MINIDUMP;
+    test_config.device_type = DEVICE_TYPE_MEDIACLIENT;
+
+    int result = archive_create_smart(&test_dump, &test_config, &test_platform,
+                                      &test_archive, test_new_dump_name);
+
+    EXPECT_EQ(result, -1);
+    ASSERT_EQ(crashed_log_path_count, 1);
+    EXPECT_STREQ(crashed_log_paths[0], "/tmp/proc1.log");
+}
+
 TEST_F(ArchiveTest, ArchiveCreateSmart_Minidump_WithProcessLogs_Success) {
-    CreateTestFile(test_log_files, "/tmp/proc1.log\n/tmp/proc2.log\n/tmp/proc3.log\n");
+    SeedCrashedLogPath("/tmp/proc1.log");
+    SeedCrashedLogPath("/tmp/proc2.log");
+    SeedCrashedLogPath("/tmp/proc3.log");
     CreateTestFile("/tmp/proc1.log", "Process 1 log");
     CreateTestFile("/tmp/proc2.log", "Process 2 log");
     CreateTestFile("/tmp/proc3.log", "Process 3 log");
 
-    // Verify log files were created
-    ASSERT_TRUE(FileExists(test_log_files)) << "Log files list not created";
     ASSERT_TRUE(FileExists("/tmp/proc1.log")) << "Proc1 log not created";
     
     test_config.dump_type = DUMP_TYPE_MINIDUMP;
@@ -467,6 +496,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_Minidump_WithProcessLogs_Success) {
     std::cout << "result =" << result << endl;
     EXPECT_NE(test_new_dump_name[0], '\0');
     EXPECT_GT(get_mock_extract_tail_call_count(), 0);
+    EXPECT_EQ(crashed_log_path_count, 0);
     
     unlink("/tmp/proc1.log");
     unlink("/tmp/proc2.log");
@@ -474,9 +504,11 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_Minidump_WithProcessLogs_Success) {
 }
 
 TEST_F(ArchiveTest, ArchiveCreateSmart_Minidump_MaxProcessLogs_LimitedTo3) {
-    // Create log file with more than 3 entries
-    CreateTestFile(test_log_files, 
-                   "/tmp/p1.log\n/tmp/p2.log\n/tmp/p3.log\n/tmp/p4.log\n/tmp/p5.log\n");
+    SeedCrashedLogPath("/tmp/p1.log");
+    SeedCrashedLogPath("/tmp/p2.log");
+    SeedCrashedLogPath("/tmp/p3.log");
+    SeedCrashedLogPath("/tmp/p4.log");
+    SeedCrashedLogPath("/tmp/p5.log");
     CreateTestFile("/tmp/p1.log", "Log 1");
     CreateTestFile("/tmp/p2.log", "Log 2");
     CreateTestFile("/tmp/p3.log", "Log 3");
@@ -495,8 +527,7 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_Minidump_MaxProcessLogs_LimitedTo3) {
                                       &test_archive, test_new_dump_name);
     
     std::cout << "result =" << result << endl;
-    // Should process only 3 logs
-    EXPECT_LE(get_mock_extract_tail_call_count(), 3);
+    EXPECT_EQ(get_mock_extract_tail_call_count(), 3);
     
     unlink("/tmp/p1.log");
     unlink("/tmp/p2.log");
@@ -506,7 +537,9 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_Minidump_MaxProcessLogs_LimitedTo3) {
 }
 
 TEST_F(ArchiveTest, ArchiveCreateSmart_Minidump_SomeProcessLogsFail_ContinuesProcessing) {
-    CreateTestFile(test_log_files, "/tmp/good.log\n/tmp/bad.log\n/tmp/good2.log\n");
+    SeedCrashedLogPath("/tmp/good.log");
+    SeedCrashedLogPath("/tmp/bad.log");
+    SeedCrashedLogPath("/tmp/good2.log");
     CreateTestFile("/tmp/good.log", "Good log");
     CreateTestFile("/tmp/good2.log", "Good log 2");
     
@@ -957,8 +990,6 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_NonRegularFile_SkipsFile) {
 // ============================================================================
 
 TEST_F(ArchiveTest, ArchiveCreateSmart_ProcessLogFileEmpty_HandledSafely) {
-    CreateTestFile(test_log_files, "");  // Empty file
-    
     test_config.dump_type = DUMP_TYPE_MINIDUMP;
     test_config.device_type = DEVICE_TYPE_MEDIACLIENT;
     
@@ -973,8 +1004,6 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_ProcessLogFileEmpty_HandledSafely) {
 }
 
 TEST_F(ArchiveTest, ArchiveCreateSmart_ProcessLogFileNotExists_ContinuesProcessing) {
-    // Don't create test_log_files
-    
     test_config.dump_type = DUMP_TYPE_MINIDUMP;
     test_config.device_type = DEVICE_TYPE_MEDIACLIENT;
     
@@ -990,8 +1019,8 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_ProcessLogFileNotExists_ContinuesProcessi
 }
 
 TEST_F(ArchiveTest, ArchiveCreateSmart_ProcessLogWithInvalidPath_SkipsLog) {
-    CreateTestFile(test_log_files, "/invalid/path/that/does/not/exist.log\n");
-    
+    SeedCrashedLogPath("/invalid/path/that/does/not/exist.log");
+
     test_config.dump_type = DUMP_TYPE_MINIDUMP;
     test_config.device_type = DEVICE_TYPE_MEDIACLIENT;
     
@@ -1012,8 +1041,8 @@ TEST_F(ArchiveTest, ArchiveCreateSmart_ProcessLogVeryLongLine_HandledSafely) {
     memset(long_line, 'A', sizeof(long_line) - 5);
     strcpy(&long_line[sizeof(long_line) - 5], ".log");
     
-    CreateTestFile(test_log_files, long_line);
-    
+    SeedCrashedLogPath(long_line);
+
     test_config.dump_type = DUMP_TYPE_MINIDUMP;
     test_config.device_type = DEVICE_TYPE_MEDIACLIENT;
     

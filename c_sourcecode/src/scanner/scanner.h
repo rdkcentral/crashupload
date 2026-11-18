@@ -50,4 +50,10 @@ int process_file_entry(char *fullpath, size_t fullpath_cap, char *dump_type, con
  * @return Pointer into @p filepath at the process-name substring, or NULL.
  */
 char *extract_pname(const char *filepath);
+
+/* MAX_DUMPS is 5. One mapper line is at most 511 bytes, about 256 names. */
+#define CRASHED_LOG_PATH_CAP (5 * 256)
+extern char *crashed_log_paths[CRASHED_LOG_PATH_CAP];
+extern int crashed_log_path_count;
+void crashed_log_paths_clear(void);
 #endif

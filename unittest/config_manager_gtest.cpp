@@ -112,7 +112,6 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_ValidConfig_Success) {
     int result = config_init_load(&test_config, 5, test_argv);
     
     EXPECT_EQ(result, CONFIG_SUCCESS);
-    EXPECT_STREQ(test_config.log_file, "/tmp/minidump_log_files.txt");
     EXPECT_STREQ(test_config.log_mapper_file, "/etc/breakpad-logmapper.conf");
 }
 
@@ -470,14 +469,12 @@ TEST_F(ConfigManagerTest, ConfigGet_ZeroLength_NotImplemented) {
 // ============================================================================
 
 TEST_F(ConfigManagerTest, ConfigCleanup_ValidConfig_Success) {
-    strcpy(test_config.log_file, "test_value");
     strcpy(test_config.box_type, "test_box");
     test_config.device_type = DEVICE_TYPE_MEDIACLIENT;
     
     config_cleanup(&test_config);
     
     // All fields should be zeroed
-    EXPECT_EQ(test_config.log_file[0], '\0');
     EXPECT_EQ(test_config.box_type[0], '\0');
     EXPECT_EQ(test_config.device_type, 0);
 }
@@ -615,7 +612,6 @@ TEST_F(ConfigManagerTest, ConfigInitLoad_AllFieldsInitialized) {
     EXPECT_EQ(result, CONFIG_SUCCESS);
     
     // Verify all critical fields are set
-    EXPECT_STREQ(test_config.log_file, "/tmp/minidump_log_files.txt");
     EXPECT_STREQ(test_config.log_mapper_file, "/etc/breakpad-logmapper.conf");
     EXPECT_STREQ(test_config.log_path, "/custom/logs");
     EXPECT_EQ(test_config.device_type, DEVICE_TYPE_MEDIACLIENT);

@@ -45,6 +45,7 @@ extern "C" {
 #include "../c_sourcecode/common/types.h"
 #include "../c_sourcecode/common/errors.h"
 #include "../c_sourcecode/common/constants.h"
+#include "scanner.h"
 
 int main_test(int argc, char *argv[]);
 void handle_signal(int no, siginfo_t* info, void* uc);
@@ -99,6 +100,7 @@ protected:
     const char* test_lock_file_coredump = "/tmp/.uploadCoredumps";
 
     void SetUp() override {
+        crashed_log_paths_clear();
         reset_mainapp_mocks();
         system("mkdir -p /tmp/mainapp_test");
         system("mkdir -p /tmp/test_dumps");
@@ -107,6 +109,7 @@ protected:
     }
 
     void TearDown() override {
+        crashed_log_paths_clear();
         cleanup_test_files();
         reset_mainapp_mocks();
         unlink(test_lock_file_minidump);

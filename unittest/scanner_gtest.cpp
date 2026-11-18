@@ -104,10 +104,10 @@ protected:
     const char* test_dir = "/tmp/scnr";
     const char* test_dump_dir = "/tmp/scnr/dmp";
     const char* test_log_mapper = "/tmp/scnr/breakpad-logmapper.conf";
-    const char* test_log_files = "/tmp/scnr/minidump_log_files.txt";
     config_t test_config;
     
     void SetUp() override {
+        crashed_log_paths_clear();
         // Reset all mocks before each test
         reset_scanner_mocks();
         
@@ -130,6 +130,7 @@ protected:
     
     void TearDown() override {
         // Clean up after each test
+        crashed_log_paths_clear();
         cleanup_test_files();
         scanner_cleanup();
         reset_scanner_mocks();
@@ -1182,17 +1183,12 @@ TEST_F(ScannerTest, AppendLogfileEntry_EmptyEntry_Failure) {
 }
 
 TEST_F(ScannerTest, AppendLogfileEntry_ValidEntry_Success) {
-    // Create test directory
-    mkdir("/tmp/scnr/minidumps", 0755);
-    
     const char* test_entry = "test_process:12345:/tmp/scnr/minidumps/test.log";
     int result = append_logfile_entry(test_entry);
-    
-    // Should succeed (result 0) or fail gracefully (-1)
-    EXPECT_TRUE(result == 0 || result == -1);
-    
-    // Cleanup
-    unlink("/tmp/scnr/minidump_log_files.txt");
+
+    EXPECT_EQ(result, 0);
+    ASSERT_EQ(crashed_log_path_count, 1);
+    EXPECT_STREQ(crashed_log_paths[0], test_entry);
 }
 
 TEST_F(ScannerTest, AppendLogfileEntry_LongEntry_Handled) {
@@ -1201,7 +1197,9 @@ TEST_F(ScannerTest, AppendLogfileEntry_LongEntry_Handled) {
     long_entry[sizeof(long_entry) - 1] = '\0';
     
     int result = append_logfile_entry(long_entry);
-    EXPECT_TRUE(result == 0 || result == -1); // Should handle gracefully
+    EXPECT_EQ(result, 0);
+    ASSERT_EQ(crashed_log_path_count, 1);
+    EXPECT_STREQ(crashed_log_paths[0], long_entry);
 }
 
 // ----------- is_allowed_char Tests -----------
@@ -1482,7 +1480,6 @@ TEST_F(ScannerTest, IsDumpFile_TgzExtension_Returns3) {
 class ScannerLogMapperTest : public ::testing::Test {
 protected:
     const char* logmapper_path  = "/etc/breakpad-logmapper.conf";
-    const char* log_files_list  = "/tmp/minidump_log_files.txt";
     const char* log_dir         = "/tmp/scnr_logmap_test";
 
     void SetUp() override {
@@ -1495,13 +1492,13 @@ protected:
             fprintf(f, "other=other.log\n");
             fclose(f);
         }
-        unlink(log_files_list);
+        crashed_log_paths_clear();
         system("mkdir -p /tmp/scnr_logmap_test");
     }
 
     void TearDown() override {
+        crashed_log_paths_clear();
         unlink(logmapper_path);
-        unlink(log_files_list);
         system("rm -rf /tmp/scnr_logmap_test");
     }
 };
@@ -1541,9 +1538,10 @@ TEST_F(ScannerLogMapperTest, LookupLogFilesForProc_NoEqualSignLine_Skipped) {
 //   token loop: "test.log" then "crash.log" each get append_logfile_entry called
 TEST_F(ScannerLogMapperTest, GetCrashedLogFile_MatchingProcess_CoversTokenLoop) {
     int result = get_crashed_log_file("/tmp/testproc_12345.dmp", log_dir, false);
-    EXPECT_TRUE(result == 0 || result == -1);
-    // log_files_list should have been written
-    EXPECT_EQ(access(log_files_list, F_OK), 0);
+    EXPECT_EQ(result, 0);
+    ASSERT_EQ(crashed_log_path_count, 2);
+    EXPECT_STREQ(crashed_log_paths[0], "/tmp/scnr_logmap_test/test.log");
+    EXPECT_STREQ(crashed_log_paths[1], "/tmp/scnr_logmap_test/crash.log");
 }
 
 // Same path but with t2_enabled=true so t2ValNotify / t2CountNotify are called
@@ -1583,22 +1581,24 @@ TEST_F(ScannerLogMapperTest, ProcessCrashTelemetryInfo_WithLogMapper_CoversLogLo
 // append_logfile_entry / sanitize_filename edge-case tests
 // ============================================================================
 
-// Covers append_logfile_entry line ~59: fopen fails when path is a directory
-TEST_F(ScannerLogMapperTest, AppendLogfileEntry_FopenFails_PathIsDirectory) {
-    // Create a directory at LOG_FILES_PATH so fopen("a") will fail (EISDIR)
-    const char *lf = "/tmp/minidump_log_files.txt";
-    unlink(lf);
-    mkdir(lf, 0755);      // block as directory
-    int result = append_logfile_entry("test_entry");
-    rmdir(lf);
+TEST_F(ScannerLogMapperTest, AppendLogfileEntry_AtCap_ReturnsFailure) {
+    int i;
+
+    for (i = 0; i < CRASHED_LOG_PATH_CAP; i++)
+        crashed_log_paths[i] = NULL;
+    crashed_log_path_count = CRASHED_LOG_PATH_CAP;
+
+    int result = append_logfile_entry("one_more");
     EXPECT_EQ(result, -1);
+    EXPECT_EQ(crashed_log_path_count, CRASHED_LOG_PATH_CAP);
 }
 
 // Covers append_logfile_entry success path (return 0)
 TEST_F(ScannerLogMapperTest, AppendLogfileEntry_ValidEntry_ReturnsSuccess) {
-    unlink("/tmp/minidump_log_files.txt");
     int result = append_logfile_entry("test_log_entry");
     EXPECT_EQ(result, 0);
+    ASSERT_EQ(crashed_log_path_count, 1);
+    EXPECT_STREQ(crashed_log_paths[0], "test_log_entry");
 }
 
 // Covers sanitize_filename_preserve_container: seg_len >= sizeof(tmp) truncation (line ~143)

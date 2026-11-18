@@ -46,7 +46,6 @@ int config_init_load(config_t *config, int argc, char *argv[])
     memset(config, 0, sizeof(config_t));
     config->comm_interface[0] = '\0';
 
-    strcpy(config->log_file, "/tmp/minidump_log_files.txt");
     strcpy(config->log_mapper_file, "/etc/breakpad-logmapper.conf");
 
     ret = getIncludePropertyData("LOG_PATH", device_prop_data, sizeof(device_prop_data));

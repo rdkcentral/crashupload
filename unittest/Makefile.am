@@ -125,6 +125,7 @@ archive_gtest_SOURCES = \
 	archive_gtest.cpp \
 	archive_gmock.cpp \
 	../c_sourcecode/src/archive/archive.c \
+	../c_sourcecode/src/scanner/scanner.c \
 	../c_sourcecode/src/t2Interface/telemetryinterface.c
 
 archive_gtest_LDADD = \
