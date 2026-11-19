@@ -1,0 +1,85 @@
+name: Memory Leak Detection
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [ develop, main ]
+    paths:
+      - '**/*.c'
+      - '**/*.cpp'
+      - '**/*.cc'
+      - '**/*.cxx'
+      - '**/*.h'
+      - '**/*.hpp'
+      - '**/Makefile.am'
+      - '**/configure.ac'
+      - 'scripts/**'
+      - 'cov_build.sh'
+      - '.github/workflows/detect_leak.yml'
+  workflow_dispatch:
+
+jobs:
+  detect-leak:
+    name: Instrument crashupload with memleakutil
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install autotools for memleakutil
+        run: |
+          apt-get update
+          apt-get install -y autotools-dev autoconf automake pkg-config libtool m4
+
+      - name: Build crashupload binary
+        run: |
+          chmod +x cov_build.sh
+          ./cov_build.sh
+
+      - name: Build memleakutil
+        run: |
+          chmod +x scripts/build_memleak.sh
+          sh scripts/build_memleak.sh /tmp main
+
+      - name: Run crashupload under leak detection
+        id: leak
+        continue-on-error: true
+        run: |
+          chmod +x scripts/detect_leak.sh
+          export MEMLEAK_INSTALL_DIR=/tmp/memleakutil-install
+          export LEAK_REPORT_DIR="${GITHUB_WORKSPACE}/leak-reports"
+          export PRINT_REPORTS=0
+          sh scripts/detect_leak.sh
+
+      - name: Warn when leak cases fail
+        if: steps.leak.outcome == 'failure'
+        run: |
+          echo "::warning::crashupload leak detection cases failed. This check is advisory and does not fail the workflow or the native build. See the Print leak reports step."
+
+      - name: Print leak reports
+        if: always()
+        run: |
+          echo "======================================================================"
+          echo "Memory Leak Detection Reports"
+          echo "======================================================================"
+          echo "This workflow is separate from native_full_build.yml."
+          echo "A failing leak case is a warning. It does not fail this workflow."
+          echo "Text reports only. Heap-walk .dat files and smaps are not printed."
+          echo ""
+          found=0
+          for report in leak-reports/leak_report_*.txt; do
+            if [ -f "${report}" ]; then
+              found=1
+              echo "========== ${report} =========="
+              cat "${report}"
+              echo ""
+            fi
+          done
+          if [ "${found}" -eq 0 ]; then
+            echo "No leak_report_*.txt files were produced."
+          fi
