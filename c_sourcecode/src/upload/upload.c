@@ -44,6 +44,7 @@
 #define TIMEOUT_SECONDS 45
 #define RETRY_DELAY_SECONDS 5
 #define SIZE_POSTFIELD_BUF 2048
+#ifndef RDKC
 #define PARTNER_ID_KEY "\"partnerId\""
 #define ACCOUNT_READ_MAX 4096
 
@@ -140,6 +141,7 @@ STATIC_TESTABLE int extract_partner_id_from_account(const char *path, char *out,
     fclose(fp);
     return extract_partner_id_from_mem(buf, n, out, out_size);
 }
+#endif /* !RDKC */
 
 #define EXTENDER_LIBFWUTILS_PROP_MAX 80
 
